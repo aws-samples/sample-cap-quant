@@ -62,26 +62,21 @@ spec:
             volumeMounts:
               - mountPath: /tmp/ray
                 name: log-volume   # Mount for Ray logs
-              - name: persistent-storage # Mount shared filesystem (FSx for Lustre)
-                mountPath: /shared
-        # Node Selector for Karpenter
-        # Karpenter will provision this head pod on a node with the specified labels.
+              - mounthPath: /data
+                name: jfs-dataset
         nodeSelector:
           instanceType: mixed-x86
           provisionerType: Karpenter
         volumes:
           - name: log-volume
             emptyDir: {}
-          - name: persistent-storage
+          - name: jfs-dataset
             persistentVolumeClaim:
-              claimName: fsx-claim   # Reference the PVC for shared storage
+              claimName: jfs-dataset
     rayStartParams:
       dashboard-host: 0.0.0.0    # Make dashboard accessible
 
   workerGroupSpecs:
-    # Worker Node Configuration
-    # This section defines the specification for the Ray worker pods.
-    # Worker nodes execute tasks and participate in distributed training.
     - groupName: workergroup
       replicas: 2  # Number of worker replicas
       minReplicas: 2 # Minimum number of worker replicas
@@ -115,8 +110,8 @@ spec:
                   cpu: '120'
                   memory: 440Gi
               volumeMounts:
-                - name: persistent-storage
-                  mountPath: /shared   # Mount shared filesystem (FSx for Lustre)
+                - name: jfs-dataset
+                  mountPath: /data
                 - name: dshm
                   mountPath: /dev/shm   # Mount for shared memory
                 - mountPath: /tmp/ray
@@ -139,9 +134,9 @@ spec:
               effect: "NoSchedule"
           volumes:
             # Persistent Volume Claim (PVC) to access the FSx for Lustre filesystem
-            - name: persistent-storage
+            - name: jfs-dataset
               persistentVolumeClaim:
-                claimName: fsx-claim
+                claimName: jfs-dataset
             - name: dshm
               emptyDir:
                 medium: Memory
