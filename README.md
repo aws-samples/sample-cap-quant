@@ -1,4 +1,4 @@
-# Quant Research using Amazon EKS, Kuberay,CNCF Fluid
+# Quant Research using Amazon EKS,Kuberay,CNCF Fluid
 
 ## Overview
 This project aims to investigate the feasibility of performing quantitative research by leveraging [Amazon Elastic Kubernetes Service (EKS)](https://aws.amazon.com/eks/), [KubeRay](https://github.com/ray-project/kuberay), and [CNCF Fluid](https://github.com/fluid-cloudnative/fluid) as the underlying infrastructure components. Both Amazon Trainium and Nvidia GPU have been used for deep learning model training.
