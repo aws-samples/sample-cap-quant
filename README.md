@@ -89,6 +89,10 @@ This project aims to investigate the feasibility of performing quantitative rese
     rm terraform_1.9.4_linux_amd64.zip
 
 ## Deployment - llama_ptr_ray_on_trn1
+- Clone the repo
+  ```sh
+  git clone https://github.com/aws-samples/sample-cap-quant.git
+  ```
 - EKS Cluster Provision
   ```sh
   cd quant-research/llama_ptr_ray_on_trn1/infra
@@ -131,6 +135,10 @@ This project aims to investigate the feasibility of performing quantitative rese
   kubectl create -f 3-llama2-pretrain-trn1-rayjob.yaml
   ```
 ## Deployment - vit_tr_ray_on_gpu
+- Clone the repo
+  ```sh
+  git clone https://github.com/aws-samples/sample-cap-quant.git
+  ```
 - EKS Cluster Provision
   ```sh
   cd quant-research/vit_tr_ray_on_gpu/infra
