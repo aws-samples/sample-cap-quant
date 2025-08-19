@@ -1,11 +1,11 @@
-## Quant Research using Amazon EKS, Kuberay,CNCF Fluid
+# Quant Research using Amazon EKS, Kuberay,CNCF Fluid
 
-# Overview
+## Overview
 This project aims to investigate the feasibility of performing quantitative research by leveraging [Amazon Elastic Kubernetes Service (EKS)](https://aws.amazon.com/eks/), [KubeRay](https://github.com/ray-project/kuberay), and [CNCF Fluid](https://github.com/fluid-cloudnative/fluid) as the underlying infrastructure components. Both Amazon Trainium and Nvidia GPU have been used for deep learning model training.
 
-# Pre-requisites
+## Pre-requisites
 *Make sure the laptop or EC2 server has the right permission to access the resources on AWS account.*
-- **Use MacOS laptop**
+### **Use MacOS laptop**
   - install AWS CLI
     ```sh
     # Using Homebrew
@@ -43,7 +43,7 @@ This project aims to investigate the feasibility of performing quantitative rese
     # Verify installation
     terraform version
     ```
-- **Use Linux OS EC2 Server**
+### **Use Linux OS EC2 Server**
   - Install AWS CLI
     ```sh
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -88,7 +88,7 @@ This project aims to investigate the feasibility of performing quantitative rese
     # Clean up the downloaded zip file
     rm terraform_1.9.4_linux_amd64.zip
 
-# Deployment - llama_ptr_ray_on_trn1
+## Deployment - llama_ptr_ray_on_trn1
 - EKS Cluster Provision
   ```sh
   cd quant-research/llama_ptr_ray_on_trn1/infra
@@ -130,7 +130,7 @@ This project aims to investigate the feasibility of performing quantitative rese
   #model pretrain
   kubectl create -f 3-llama2-pretrain-trn1-rayjob.yaml
   ```
-# Deployment - vit_tr_ray_on_gpu
+## Deployment - vit_tr_ray_on_gpu
 - EKS Cluster Provision
   ```sh
   cd quant-research/vit_tr_ray_on_gpu/infra
@@ -168,7 +168,7 @@ This project aims to investigate the feasibility of performing quantitative rese
   #model train
   kubectl create -f 1-rayjob-training.yaml
   ```
-# Observability
+## Observability
 - Ray Dashboard
   ```sh
   kubectl port-forward service/kuberay-gpu-head-svc 8265:8265
@@ -181,17 +181,17 @@ This project aims to investigate the feasibility of performing quantitative rese
   ```sh
   kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n kube-prometheus-stack
   ```
-# Clean up
+## Clean up
 ```sh
 cd quant-research/vit_tr_ray_on_gpu/infra #cd quant-research/llama_ptr_ray_on_trn1/infra
 ./cleanup.sh
 ```
 
-## Security
+# Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
 
-## License
+# License
 
 This library is licensed under the MIT-0 License. See the LICENSE file.
 
