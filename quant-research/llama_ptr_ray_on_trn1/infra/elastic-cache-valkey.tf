@@ -2,7 +2,7 @@
 # For Rayhead High availability cluster
 #-------------------------------------------
 module "elasticache" {
-  create  = var.enable_rayserve_ha_elastic_cache_redis
+  create  = var.enable_elastic_cache_valkey
   source  = "terraform-aws-modules/elasticache/aws"
   version = "1.2.0"
 
@@ -10,8 +10,8 @@ module "elasticache" {
   create_cluster           = true
   create_replication_group = false
 
-  engine_version = "7.1"
-  node_type      = "cache.t4g.small"
+  engine_version = "8.1"
+  node_type      = "cache.r7g.large"
 
   apply_immediately = true
 
@@ -43,7 +43,7 @@ module "elasticache" {
   # Parameter Group
   create_parameter_group      = true
   parameter_group_name        = local.name
-  parameter_group_family      = "redis7"
+  parameter_group_family      = "valkey8"
   parameter_group_description = "${title(local.name)} parameter group"
   parameters = [
     {
