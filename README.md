@@ -1,11 +1,13 @@
-## My Project
+## Quant Research using Amazon EKS, Kuberay,CNCF Fluid
 
-TODO: Fill this README out!
+# Overview
+This project aims to investigate the feasibility of performing quantitative research by leveraging [Amazon Elastic Kubernetes Service (EKS)](https://aws.amazon.com/eks/), [KubeRay](https://github.com/ray-project/kuberay), and [CNCF Fluid](https://github.com/fluid-cloudnative/fluid) as the underlying infrastructure components.
 
-Be sure to:
+# Pre-requisites
 
-* Change the title in this README
-* Edit your repository description on GitHub
+# Deployment
+
+# Clean up
 
 ## Security
 
