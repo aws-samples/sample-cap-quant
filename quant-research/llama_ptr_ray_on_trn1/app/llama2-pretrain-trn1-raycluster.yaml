@@ -133,7 +133,6 @@ spec:
               value: "user"
               effect: "NoSchedule"
           volumes:
-            # Persistent Volume Claim (PVC) to access the FSx for Lustre filesystem
             - name: jfs-dataset
               persistentVolumeClaim:
                 claimName: jfs-dataset
