@@ -1,5 +1,5 @@
 #-------------------------------------------
-# For Rayhead High availability cluster
+# For JuiceFS Meta Data Storage
 #-------------------------------------------
 module "elasticache" {
   create  = var.enable_elastic_cache_valkey
