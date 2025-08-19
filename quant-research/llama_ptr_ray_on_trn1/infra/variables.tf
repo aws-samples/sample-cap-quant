@@ -1,7 +1,7 @@
 variable "name" {
   description = "Name of the VPC and EKS Cluster"
   type        = string
-  default     = "trainium-inferentia"
+  default     = "trn1-ray"
 }
 
 # NOTE: As of 2024/01/04 Trainium instances only available in us-west-2, us-east-1, and us-east-2 regions
@@ -15,7 +15,7 @@ variable "region" {
 variable "eks_cluster_version" {
   description = "EKS Cluster version"
   type        = string
-  default     = "1.30"
+  default     = "1.31"
 }
 
 # VPC with 2046 IPs (10.1.0.0/21) and 2 AZs
@@ -33,12 +33,6 @@ variable "secondary_cidr_blocks" {
   default     = ["100.64.0.0/16"]
 }
 
-variable "enable_jupyterhub" {
-  description = "Enable JupyterHub deployment"
-  type        = bool
-  default     = false
-}
-
 variable "enable_mpi_operator" {
   description = "Flag to enable the MPI Operator deployment"
   type        = bool
@@ -48,7 +42,7 @@ variable "enable_mpi_operator" {
 variable "enable_volcano" {
   description = "Flag to enable the Volcano batch scheduler"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "enable_torchx_etcd" {
@@ -57,58 +51,16 @@ variable "enable_torchx_etcd" {
   default     = false
 }
 
-variable "enable_fsx_for_lustre" {
-  description = "Flag to enable resources for FSx for Lustre"
-  type        = bool
-  default     = false
-}
-
 variable "trn1_32xl_min_size" {
   description = "trn1 Worker node minimum size"
   type        = number
-  default     = 0
+  default     = 2
 }
 
 variable "trn1_32xl_desired_size" {
   description = "trn1 Worker node desired size"
   type        = number
-  default     = 0
-}
-
-variable "trn1n_32xl_min_size" {
-  description = "Worker node minimum size"
-  type        = number
-  default     = 0
-}
-
-variable "trn1n_32xl_desired_size" {
-  description = "Worker node desired size"
-  type        = number
-  default     = 0
-}
-
-variable "inf2_24xl_min_size" {
-  description = "Worker node minimum size"
-  type        = number
-  default     = 0
-}
-
-variable "inf2_24xl_desired_size" {
-  description = "Worker node desired size"
-  type        = number
-  default     = 0
-}
-
-variable "inf2_48xl_min_size" {
-  description = "Worker node minimum size"
-  type        = number
-  default     = 0
-}
-
-variable "inf2_48xl_desired_size" {
-  description = "Worker node desired size"
-  type        = number
-  default     = 0
+  default     = 2
 }
 
 variable "enable_kuberay_operator" {
@@ -123,12 +75,11 @@ variable "kms_key_admin_roles" {
   default     = []
 }
 
-variable "enable_rayserve_ha_elastic_cache_redis" {
-  description = "Flag to enable Ray Head High Availability with Elastic Cache for Redis"
+variable "enable_elastic_cache_valkey" {
+  description = "Flag to enable Valkey to store JFS meta data"
   type        = bool
-  default     = false
+  default     = true
 }
-
 
 variable "access_entries" {
   description = "Map of access entries to add to the cluster"
