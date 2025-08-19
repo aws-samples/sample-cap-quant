@@ -27,10 +27,10 @@ metadata:
   name: jfs-secret
 type: Opaque
 stringData:
-  name: "my-jfs"                # JuiceFS 文件系统名称
-  metaurl: "vk7.fkdmm8.ng.0001.use1.cache.amazonaws.com:6379/1"     # 例如 "redis://host:port/1"
+  name: "my-jfs"              
+  metaurl: "vk7.fkdmm8.ng.0001.use1.cache.amazonaws.com:6379/1"  
   storage: "s3"                 # 存储类型
-  bucket: "https://cnn-aug13.us-east-1.s3.amazonaws.com"           # 例如 "https://mybucket.s3.amazonaws.com"
+  bucket: "https://cnn-aug13.us-east-1.s3.amazonaws.com"           #"https://mybucket.s3.amazonaws.com"
   access-key: {access-key-id}
   secret-key: {secrect-key-id}
 EOF
