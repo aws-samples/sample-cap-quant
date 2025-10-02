@@ -99,6 +99,10 @@ This project aims to investigate the feasibility of performing quantitative rese
   ./1_install_platform.sh
   ```
   It takes 20+ minutes for the resource to be provisioned and setup.
+  ```sh
+  aws eks --region us-east-1 update-kubeconfig --name <eks cluster name>
+  ```
+  
 - Get the endpoint url of the provisioned valkey cluster from previous step, and revise 2_install_fluid.sh per below. Configure specific s3 bucket for s3 data storage location as well
   ```yaml
   apiVersion: v1
