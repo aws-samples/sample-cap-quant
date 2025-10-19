@@ -9,11 +9,11 @@ The multicast data sender + virtual router (in the simulated cloud) is implement
 ## Implementation Steps
 
 ### Cisco Catalyst 8000V in the Amazon Web Services Marketplace
-<img width="624" height="218.67" alt="image" src="https://github.com/user-attachments/assets/83e35770-521f-4252-9333-9db079e4f237" />
+<img width="936" height="328" alt="image" src="https://github.com/user-attachments/assets/83e35770-521f-4252-9333-9db079e4f237" />
 
 After the subscription is successful, you can see it in Manage subscripts . Click "Launch" on the right to deploy.
 
-<img width="468" height="110" alt="image" src="https://github.com/user-attachments/assets/f845be8b-8e8a-43f7-b693-1d0cd7144e7f" />
+<img width="936" height="220" alt="image" src="https://github.com/user-attachments/assets/f845be8b-8e8a-43f7-b693-1d0cd7144e7f" />
 
 We recommend selecting Amazon EC2 as the Service and Launch from EC2 Console as the Launch method. Note that both EC2 instances require the Auto- assign public IP setting .
 
