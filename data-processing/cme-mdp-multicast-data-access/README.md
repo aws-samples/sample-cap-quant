@@ -17,7 +17,7 @@ After the subscription is successful, you can see it in Manage subscripts . Clic
 
 We recommend selecting Amazon EC2 as the Service and Launch from EC2 Console as the Launch method. Note that both EC2 instances require the Auto- assign public IP setting .
 
-<img width="468" height="225" alt="image" src="https://github.com/user-attachments/assets/846c51bc-0a81-411c-8a88-03d9ca3ec40e" />
+<img width="936" height="450" alt="image" src="https://github.com/user-attachments/assets/846c51bc-0a81-411c-8a88-03d9ca3ec40e" />
 
 ### Create a data receiver EC2
 
