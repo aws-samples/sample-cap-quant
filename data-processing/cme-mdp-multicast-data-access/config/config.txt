@@ -1,1 +1,24 @@
+interface tunnel 0
+    ip address 169.254.100.2 255.255.255.252
+    tunnel source GigabitEthernet1
+    tunnel destination A.B.C.D
 
+ip multicast-routing distributed
+
+interface tunnel 0
+    ip pim sparse-mode
+
+interface GigabitEthernet3
+    ip address dhcp
+    no shutdown
+    ip pim sparse-mode
+
+interface GigabitEthernet3
+    ip igmp static-group 232.0.0.1
+
+ip pim rp-address 169.254.100.1
+
+interface tunnel 0
+    ip address 169.254.100.2 255.255.255.252
+    tunnel source GigabitEthernet1
+    tunnel destination A.B.C.D
