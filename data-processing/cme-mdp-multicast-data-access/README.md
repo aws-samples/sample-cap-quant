@@ -158,4 +158,118 @@ interface tunnel 0
 ```
 In this way, cvr -cloud and cvr- onprem are configured.
 
+### Creating and configuring a Transit Gateway
+
+- Gateway with Multicast Capabilities
+
+<img width="285" height="119" alt="image" src="https://github.com/user-attachments/assets/6ce996f9-9209-4aaa-8948-33ade07351a4" />
+
+- Creating a multicast domain
+
+<img width="351" height="158" alt="image" src="https://github.com/user-attachments/assets/62b63d4e-762e-4f29-8ef5-def68eb6f478" />
+
+- Associate the LAN subnet of the virtual router in the Transit VPC with the subnet of the multicast receiving EC2 in the App VPC
+
+<img width="468" height="185" alt="image" src="https://github.com/user-attachments/assets/5686e350-e04a-4d16-9080-a9558f768cc4" />
+
+- Configure IGMP v2 on the EC2 receiving multicast data and join the 232.0.0.1 multicast group. To do this, log in to the EC2 receiving multicast data from a local or cloud-based server and run the following commands one by one.
+
+```sh
+sudo -i
+route add -net 224.0.0.0 netmask 240.0.0.0 ens5
+echo '2' > /proc/sys/net/ipv4/conf/ens5/force_igmp_version
+cat /proc/net/ igmp
+```
+
+The screenshot after the command is executed is as follows :
+
+<img width="468" height="50" alt="image" src="https://github.com/user-attachments/assets/dadfeb03-7222-4c91-b0ec-673f861fc705" />
+
+```sh
+iperf -s -u -B 232.0.0.1- i 1
+```
+
+The screenshot after the command is executed is as follows:
+
+<img width="468" height="59" alt="image" src="https://github.com/user-attachments/assets/d23ea6b4-7d56-43ee-b620-05323bdc7a40" />
+
+Multicast reception observed on Transit Gateway EC2 ENI joins a multicast group
+
+<img width="468" height="184" alt="image" src="https://github.com/user-attachments/assets/5dc4a9e5-3561-46d0-9b1d-650a8a11aa4d" />
+
+## Experimental verification
+### Multicast Configuration Verification
+
+- Check whether IGMP has joined the 232.0.0.1 multicast group status
+
+Log in to cvr -cloud and execute the following command in # mode
+
+```sh
+show ip igmp groups
+```
+The results are shown below:
+
+<img width="468" height="34" alt="image" src="https://github.com/user-attachments/assets/9679d82b-1410-44e1-949d-4eee9f860e94" />
+
+
+- Check whether the PIM port is enabled
+
+Log in to cvr -cloud and execute the following command in # mode
+
+```sh
+show ip pim interface
+```
+
+The results are shown below (GigabitEthernet2 is optional):
+
+<img width="468" height="46" alt="image" src="https://github.com/user-attachments/assets/d9b97145-7243-4258-a87f-1a11d9d2797f" />
+
+- Check the PIM neighbor status
+
+Log in to cvr -cloud and execute the following command in # mode
+
+```sh
+show ip pim neighbor
+```
+
+The results are shown below:
+
+<img width="468" height="61" alt="image" src="https://github.com/user-attachments/assets/6994df5c-34c8-4e08-afa5-b254bc92e232" />
+
+- Check the multicast routing table
+
+Log in to cvr -cloud and execute the following command in # mode
+
+```sh
+show ip mroute
+```
+
+The results are shown below:
+
+<img width="468" height="211" alt="image" src="https://github.com/user-attachments/assets/a311b337-0255-4012-b955-b65bebe304b2" />
+
+### Multicast data reception verification
+
+Log in to the multicast data receiver EC2 and execute the following command
+
+```sh
+sudo tcpdump -n icmp
+```
+
+Log in to cvr- onprem and execute the following command in # mode:
+
+```sh
+ping 232.0.0.1 source tunnel 0 repeat 5
+```
+
+the cvr- onprem side are as follows:
+
+<img width="468" height="34" alt="image" src="https://github.com/user-attachments/assets/3882a93c-02fa-438a-bb79-65786343bf82" />
+
+The results of logging into the EC2 side of the multicast data receiver are as follows:
+
+<img width="468" height="70" alt="image" src="https://github.com/user-attachments/assets/703a1a14-f9f7-4a81-bfa3-09a2680e8a4c" />
+
+
+
 
