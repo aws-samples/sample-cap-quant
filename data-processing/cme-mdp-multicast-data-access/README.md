@@ -19,6 +19,7 @@ We recommend selecting Amazon EC2 as the Service and Launch from EC2 Console as 
 
 <img width="936" height="450" alt="image" src="https://github.com/user-attachments/assets/846c51bc-0a81-411c-8a88-03d9ca3ec40e" />
 
+
 ### Create a data receiver EC2
 
 Provision an EC2 instance as the data receiver in the specified/created App VPC.
