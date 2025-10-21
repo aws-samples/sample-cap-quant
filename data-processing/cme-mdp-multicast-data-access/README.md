@@ -1,5 +1,7 @@
 # CME DMP Multicast Data Access on AWS Experiment
-This experiment showcases the core steps of achieving multicast data access on AWS.
+CME MDP data distribution utilizes multicast technology. Current native access methods are suitable for on-premise scenarios. Refer to [link] (https://cmegroupclientsite.atlassian.net/wiki/spaces/EPICSANDBOX/pages/457217128/CME+Market+Data+Platform+Connectivity) for more details. For financial institutions, trading institutions, data service providers, fintech companies, and research institutions that currently or may potentially build systems on Amazon Web Services, how to access CME MDP data on the platform is a topic worth exploring, and this is the purpose of this asset.
+
+Because the production environment involves access and communication with the CME MDP product side, the reproduction cost is high. Therefore,  an experimental architecture is designed to showcase clearly the solution principles, as shown in the figure below
 
 ## Experiment Architecture Diagram
 <img width="4120" height="2112" alt="01experiment" src="https://github.com/user-attachments/assets/a4e4e1c3-92fa-41c3-99c8-e8122b4ee998" />
