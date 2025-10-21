@@ -21,4 +21,4 @@ ip pim rp-address 169.254.100.1
 interface tunnel 0
     ip address 169.254.100.2 255.255.255.252
     tunnel source GigabitEthernet1
-    tunnel destination A.B.C.D
+    tunnel destination E.F.G.H
