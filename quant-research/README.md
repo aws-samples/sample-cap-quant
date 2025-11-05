@@ -156,7 +156,9 @@ This project aims to investigate the feasibility of performing quantitative rese
       ```sh
       kubectl exec -it <data-load-pod name> -- /bin/bash
       cd /
-      aws s3 cp aws s3 cp s3://<s3 bucket name>/ . --recursive
+      aws s3 cp aws s3 cp s3://<s3 bucket name>/data.lock data.lock
+      cd /data
+      aws s3 cp aws s3 cp s3://<s3 bucket name>/data . --recursive
       ```
   
 - Raycluster Creation
@@ -171,7 +173,6 @@ This project aims to investigate the feasibility of performing quantitative rese
   kubectl create -f 1-rayjob-training.yaml
   ```
 
-## 
 
 ## Observability
 - Ray Dashboard
