@@ -88,6 +88,103 @@ This project aims to investigate the feasibility of performing quantitative rese
     # Clean up the downloaded zip file
     rm terraform_1.9.4_linux_amd64.zip
 
+## Deployment - vit_tr_ray_on_gpu
+- Clone the repo
+  ```sh
+  git clone https://github.com/aws-samples/sample-cap-quant.git
+  ```
+- EKS Cluster Provision
+  ```sh
+  cd quant-research/vit_tr_ray_on_gpu/infra
+  ./1_install_platform.sh
+  ```
+  It takes 20+ minutes for the resource to be provisioned and setup.
+- add EKS cluster context in the jumpserver, so that the jumpserver can access EKS cluster.
+  ```sh
+  aws eks --region us-east-1 update-kubeconfig --name <eks cluster name>
+  ```
+- revise redis SG, add a record to make eks cluster ec2 nodes ICDR able to visit port 6379.
+  
+  
+- Get the endpoint url of the provisioned valkey cluster from previous step, and revise 2_install_fluid.sh per below. Configure specific s3 bucket for s3 data storage location as well
+  ```yaml
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: jfs-secret
+  type: Opaque
+  stringData:
+    name: "my-jfs"               
+    metaurl: "<valkey cluster endpoint url>:6379/1"
+    storage: "s3"                
+    bucket: "https://<s3 bucket name>.s3.amazonaws.com"
+    access-key: {access-key-id}
+    secret-key: {secrect-key-id}
+  ```
+- JuiceFS@Fluid Setup
+  ```sh
+  cd quant-research/vit_tr_ray_on_gpu/infra
+  ./2_install_fluid.sh
+  ```
+- Training Data Caching
+  - run get_cifar10.py under training-data dir to download the training data to local.
+  - copy the training data to S3 bucket using command below
+    ```sh
+    cd /training-data
+    aws s3 cp . s3://<s3 bucket name>/ --recursive
+    ```
+    the dir structure is shown per below:
+    ```txt
+    --training-data
+            |--data.lock
+            |--data
+                 |--cifar-10-python.tar.gz
+                 |--cifar-10-batched-py
+                             |--batches.meta
+                             |--data_batch_1
+                                ... ...
+                             |--data_batch_5
+                             |--readme.html
+                             |--test_batch 
+    ```
+  - cache these data on-to JuiceFS dataset jfs-data
+    - create a pod using yaml
+    - login to that pod to load the training data to JuiceFS mount point /data
+    - 
+  
+- Raycluster Creation
+  ```sh
+  cd quant-research/vit_tr_ray_on_gpu/app
+  kubectl create -f raycluster-with-jfs.yaml
+  ```
+- Rayjob Submission
+  ```sh
+  cd quant-research/vit_tr_ray_on_gpu/app
+  #model train
+  kubectl create -f 1-rayjob-training.yaml
+  ```
+
+## 
+
+## Observability
+- Ray Dashboard
+  ```sh
+  kubectl port-forward service/kuberay-gpu-head-svc 8265:8265
+  ```
+- Prometheus Dashboard
+  ```sh
+  kubectl port-forward svc/kube-prometheus-stack-prometheus 9090:9090 -n kube-prometheus-stack
+  ```
+- Grafana Dashboard
+  ```sh
+  kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n kube-prometheus-stack
+  ```
+## Clean up
+```sh
+cd quant-research/vit_tr_ray_on_gpu/infra #cd quant-research/llama_ptr_ray_on_trn1/infra
+./cleanup.sh
+```
+
 ## Deployment - llama_ptr_ray_on_trn1
 - Clone the repo
   ```sh
@@ -138,73 +235,7 @@ This project aims to investigate the feasibility of performing quantitative rese
   #model pretrain
   kubectl create -f 3-llama2-pretrain-trn1-rayjob.yaml
   ```
-## Deployment - vit_tr_ray_on_gpu
-- Clone the repo
-  ```sh
-  git clone https://github.com/aws-samples/sample-cap-quant.git
-  ```
-- EKS Cluster Provision
-  ```sh
-  cd quant-research/vit_tr_ray_on_gpu/infra
-  ./1_install_platform.sh
-  ```
-  It takes 20+ minutes for the resource to be provisioned and setup.
-- add EKS cluster context in the jumpserver, so that the jumpserver can access EKS cluster.
-  ```sh
-  aws eks --region us-east-1 update-kubeconfig --name <eks cluster name>
-  ```
-- revise redis SG, add a record to make eks cluster ec2 nodes ICDR able to visit port 6379.
-  
-  
-- Get the endpoint url of the provisioned valkey cluster from previous step, and revise 2_install_fluid.sh per below. Configure specific s3 bucket for s3 data storage location as well
-  ```yaml
-  apiVersion: v1
-  kind: Secret
-  metadata:
-    name: jfs-secret
-  type: Opaque
-  stringData:
-    name: "my-jfs"               
-    metaurl: "<valkey cluster endpoint url>:6379/1"
-    storage: "s3"                
-    bucket: "https://<s3 bucket name>.s3.amazonaws.com"
-    access-key: {access-key-id}
-    secret-key: {secrect-key-id}
-  ```
-- JuiceFS@Fluid Setup
-  ```sh
-  cd quant-research/vit_tr_ray_on_gpu/infra
-  ./2_install_fluid.sh
-  ```
-- Raycluster Creation
-  ```sh
-  cd quant-research/vit_tr_ray_on_gpu/app
-  kubectl create -f raycluster-with-jfs.yaml
-  ```
-- Rayjob Submission
-  ```sh
-  cd quant-research/vit_tr_ray_on_gpu/app
-  #model train
-  kubectl create -f 1-rayjob-training.yaml
-  ```
-## Observability
-- Ray Dashboard
-  ```sh
-  kubectl port-forward service/kuberay-gpu-head-svc 8265:8265
-  ```
-- Prometheus Dashboard
-  ```sh
-  kubectl port-forward svc/kube-prometheus-stack-prometheus 9090:9090 -n kube-prometheus-stack
-  ```
-- Grafana Dashboard
-  ```sh
-  kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n kube-prometheus-stack
-  ```
-## Clean up
-```sh
-cd quant-research/vit_tr_ray_on_gpu/infra #cd quant-research/llama_ptr_ray_on_trn1/infra
-./cleanup.sh
-```
+
 
 # Security
 
