@@ -24,20 +24,20 @@ def get_dataloaders(batch_size):
     # Transform to normalize the input images.
     transform = transforms.Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    with FileLock(os.path.expanduser("~/data.lock")):
+    with FileLock(os.path.expanduser("/data.lock")):
         # Download training data from open datasets.
         training_data = datasets.CIFAR10(
-            root="~/data",
+            root="/data",
             train=True,
-            download=True,
+            download=False,
             transform=transform,
         )
 
         # Download test data from open datasets.
         testing_data = datasets.CIFAR10(
-            root="~/data",
+            root="/data",
             train=False,
-            download=True,
+            download=False,
             transform=transform,
         )
     # Create data loaders.
