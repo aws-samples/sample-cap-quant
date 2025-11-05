@@ -30,7 +30,7 @@ spec:
       spec:
         containers:
         - name: ray-head
-          image: 135709585800.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.6
+          image: 135709585800.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.9.2
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -54,20 +54,20 @@ spec:
               cpu: 2
               memory: 8Gi
           volumeMounts:
-          - mountPath: /tmp/ray
-            name: log-volume
-          - mountPath: /shared
-            name: persistent-storage
+          # - mountPath: /tmp/ray
+          #   name: log-volume
+          # - mountPath: /shared
+          #   name: persistent-storage
           - mountPath: /data
             name: jfs-dataset
         nodeSelector:
           workload: rayhead
         volumes:
-        - name: log-volume
-          emptyDir: {}
-        - name: persistent-storage
-          persistentVolumeClaim:
-            claimName: fsx-claim
+        # - name: log-volume
+        #   emptyDir: {}
+        # - name: persistent-storage
+        #   persistentVolumeClaim:
+        #     claimName: fsx-claim
         - name: jfs-dataset
           persistentVolumeClaim:
             claimName: jfs-dataset
@@ -82,7 +82,7 @@ spec:
       spec:
         containers:
         - name: ray-worker
-          image: 135709585800.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.6
+          image: 135709585800.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.9.2
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -111,12 +111,12 @@ spec:
               memory: 24Gi
               nvidia.com/gpu: "1"
           volumeMounts:
-          - mountPath: /shared
-            name: persistent-storage
-          - mountPath: /dev/shm
-            name: dshm
-          - mountPath: /tmp/ray
-            name: log-volume
+          # - mountPath: /shared
+          #   name: persistent-storage
+          # - mountPath: /dev/shm
+          #   name: dshm
+          # - mountPath: /tmp/ray
+          #   name: log-volume
           - mountPath: /data
             name: jfs-dataset
         nodeSelector:
@@ -131,14 +131,14 @@ spec:
           operator: Equal
           value: user
         volumes:
-        - name: persistent-storage
-          persistentVolumeClaim:
-            claimName: fsx-claim
-        - name: dshm
-          emptyDir:
-            medium: Memory
-        - name: log-volume
-          emptyDir: {}
+        # - name: persistent-storage
+        #   persistentVolumeClaim:
+        #     claimName: fsx-claim
+        # - name: dshm
+        #   emptyDir:
+        #     medium: Memory
+        # - name: log-volume
+        #   emptyDir: {}
         - name: jfs-dataset
           persistentVolumeClaim:
             claimName: jfs-dataset
