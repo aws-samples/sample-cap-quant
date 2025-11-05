@@ -1,14 +1,15 @@
 # Capital Market - Quantitative Hedge Fund - Solution Guidance
 
-## Overview
+## Introduction
+Cloud computing platforms have become the new paradigm for modern IT infrastructure. With their excellent global deployment capabilities and centralized operations management, enterprises can confidently address global business expansion while significantly reducing operational costs and achieving efficient infrastructure management. Following this trend, quantitative hedge funds and private equity firms are increasingly migrating their infrastructure to cloud platforms. This repository collects best practices from industry-leading quantitative investment institutions in building research environments and data processing systems on the AWS platform, aiming to provide valuable references and guidance for peers in the industry.
 
-## Components
+## Contents
 
 - Quant Research
-  - GPU
-  - Trainium
+  - [Leveraging on GPU](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/vit_tr_ray_on_gpu)
+  - Leveraging on Trainium
 - Data Processing
-  - CME MDP Multicast Data Access
+  - [CME MDP Multicast Data Access](https://github.com/aws-samples/sample-cap-quant/tree/main/data-processing/cme-mdp-multicast-data-access)
   - Cross Region, Cross Account Large Historical Data Sync from Data Vendor 
 
 
