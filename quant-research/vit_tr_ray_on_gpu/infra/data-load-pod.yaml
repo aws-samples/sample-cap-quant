@@ -1,1 +1,27 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: data-load-pod
+spec:
+  containers:
+  - name: app
+    image: ubuntu:latest
+    command: ["sleep", "3600"]
+    command: ["/bin/bash", "-c"]
+    args:
+      - |
+        apt-get update && \
+        apt-get install -y curl unzip && \
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+        unzip awscliv2.zip && \
+        ./aws/install && \
+        sleep infinity
+    volumeMounts:
+    - name: jfs-data
+      mountPath: /data
+      readOnly: false
+  volumes:
+  - name: jfs-data
+    persistentVolumeClaim:
+      claimName: jfs-dataset
 
