@@ -147,10 +147,17 @@ This project aims to investigate the feasibility of performing quantitative rese
                              |--readme.html
                              |--test_batch 
     ```
-  - cache these data on-to JuiceFS dataset jfs-data
-    - create a pod using yaml
+  - Initially, cache these data on-to JuiceFS dataset jfs-data
+    - create a pod using data-load-pod.yaml
+      ```sh
+      kubectl create -f data-load-pod.yaml
+      ```
     - login to that pod to load the training data to JuiceFS mount point /data
-    - 
+      ```sh
+      kubectl exec -it <data-load-pod name> -- /bin/bash
+      cd /
+      aws s3 cp aws s3 cp s3://<s3 bucket name>/ . --recursive
+      ```
   
 - Raycluster Creation
   ```sh
