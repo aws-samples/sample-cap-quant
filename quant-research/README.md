@@ -127,13 +127,13 @@ This project aims to investigate the feasibility of performing quantitative rese
   ./2_install_fluid.sh
   ```
 - Training Data Caching
-  - run get_cifar10.py under training-data dir to download the training data to local.
-  - copy the training data to S3 bucket using command below
+  - Run [get_cifar10.py](https://github.com/aws-samples/sample-cap-quant/blob/main/quant-research/vit_tr_ray_on_gpu/training-data/get_cifar10.py) to download the training data to local.
+  - Copy the training data to S3 bucket using command below
     ```sh
     cd /training-data
     aws s3 cp . s3://<s3 bucket name>/ --recursive
     ```
-    the dir structure is shown per below:
+    The dir structure is shown per below:
     ```txt
     --training-data
             |--data.lock
@@ -148,11 +148,11 @@ This project aims to investigate the feasibility of performing quantitative rese
                              |--test_batch 
     ```
   - Initially, cache these data on-to JuiceFS dataset jfs-data
-    - create a pod using data-load-pod.yaml
+    - Create a pod using [data-load-pod.yaml](https://github.com/aws-samples/sample-cap-quant/blob/main/quant-research/vit_tr_ray_on_gpu/infra/data-load-pod.yaml)
       ```sh
       kubectl create -f data-load-pod.yaml
       ```
-    - login to that pod to load the training data to JuiceFS mount point /data
+    - Login to that pod to load the training data to JuiceFS mount point /data
       ```sh
       kubectl exec -it <data-load-pod name> -- /bin/bash
       cd /
