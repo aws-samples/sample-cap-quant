@@ -1,7 +1,7 @@
 apiVersion: ray.io/v1
 kind: RayJob
 metadata:
-  name: test
+  name: test-jfs
   namespace: default
 spec:
   submissionMode: K8sJobMode
@@ -10,6 +10,16 @@ spec:
     working_dir: /cnn_training
     env_vars:
       PYTHONUNBUFFERED: '0'
+    pod_spec:
+      containers:
+      - name: ray-worker
+        volumeMounts:
+        - mountPath: /data
+          name: jfs-dataset
+      volumes:
+      - name: jfs-dataset
+        persistentVolumeClaim:
+          claimName: jfs-dataset
   clusterSelector:
     ray.io/cluster: kuberay-gpu
     rayClusterNamespace: default  # Replace with the namespace where your RayCluster is deployed
