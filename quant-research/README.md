@@ -96,6 +96,7 @@ This project aims to investigate the feasibility of performing quantitative rese
 - EKS Cluster Provision
   ```sh
   cd quant-research/vit_tr_ray_on_gpu/infra
+  chmod +x 1_install_platform.sh
   ./1_install_platform.sh
   ```
   It takes 20+ minutes for the resource to be provisioned and setup.
@@ -103,7 +104,10 @@ This project aims to investigate the feasibility of performing quantitative rese
   ```sh
   aws eks --region us-east-1 update-kubeconfig --name <eks cluster name>
   ```
-- revise redis SG, add a record to make eks cluster ec2 nodes ICDR able to visit port 6379.
+- revise Redis Security Group, test EKS Cluster EC2 nodes able to visit port 6379.
+  ```
+  redis-cli -h <redis endpoint url> -p 6379 ping
+  ```
   
   
 - Get the endpoint url of the provisioned valkey cluster from previous step, and revise 2_install_fluid.sh per below. Configure specific s3 bucket for s3 data storage location as well
