@@ -127,7 +127,7 @@ stringData:
   access-key: {access-key-id}                     # AWS Account Access Key ID
   secret-key: {secrect-key-id}                     # AWS Account Secret Key ID
 ```
-  
+-  
   - 4/Configure specific s3 bucket for raw data storage location.
 ```yaml
 apiVersion: data.fluid.io/v1alpha1
