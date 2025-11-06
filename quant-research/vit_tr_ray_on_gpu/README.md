@@ -104,7 +104,7 @@ This project aims to investigate the feasibility of performing quantitative rese
   ```sh
   aws eks --region us-east-1 update-kubeconfig --name <eks cluster name>
   ```
-- revise Redis Security Group, test EKS Cluster EC2 nodes able to visit port 6379.
+- (Optional) Revise Redis Security Group, test EKS Cluster EC2 nodes able to visit port 6379.
   ```
   redis-cli -h <redis endpoint url> -p 6379 ping
   ```
