@@ -112,7 +112,7 @@ This project aims to investigate the feasibility of performing quantitative rese
 - Revise 2_install_fluid.sh according to your environment's specific context.
   - 1/Get the endpoint url of the provisioned Redis cluster from previous step, and revise 2_install_fluid.sh per below;
   - 2/Configure specific s3 bucket for meta data storage location as well;
-  - 3/Configure specific AK & SK
+  - 3/Configure specific AK & SK;
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -127,11 +127,46 @@ stringData:
   access-key: {access-key-id}                     # AWS Account Access Key ID
   secret-key: {secrect-key-id}                     # AWS Account Secret Key ID
 ```
+  
+  - 4/Configure specific s3 bucket for raw data storage location.
+```yaml
+apiVersion: data.fluid.io/v1alpha1
+kind: Dataset
+metadata:
+  name: jfs-dataset
+spec:
+  accessModes:
+    - ReadWriteMany
+  mounts:
+    - name: minio
+      mountPoint: 'juicefs:///'   
+      options:
+        bucket: "<s3 bucket https endpoint url2>"        # e.g. "https://o5-vit.s3.amazonaws.com"m to store raw data
+        storage: "s3"
+      readOnly: false
+      encryptOptions:
+        - name: metaurl                 # Connection URL for metadata engine. Required.
+          valueFrom:
+            secretKeyRef:
+              name: jfs-secret
+              key: metaurl
+        - name: access-key              # Access key of object storage. Not required, if your filesystem is already formatted, can be empty.
+          valueFrom:
+            secretKeyRef:
+              name: jfs-secret
+              key: access-key
+        - name: secret-key              # Secret key of object storage. Not required, if your filesystem is already formatted, can be empty.
+          valueFrom:
+            secretKeyRef:
+              name: jfs-secret
+              key: secret-key
+```
 
 
 - JuiceFS@Fluid Setup
   ```sh
   cd quant-research/vit_tr_ray_on_gpu/infra
+  chmod -x 2_install_fluid.sh
   ./2_install_fluid.sh
   ```
 - Training Data Caching
