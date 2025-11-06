@@ -108,10 +108,11 @@ This project aims to investigate the feasibility of performing quantitative rese
   ```
   redis-cli -h <redis endpoint url> -p 6379 ping
   ```
-  
-- 1/Get the endpoint url of the provisioned Redis cluster from previous step, and revise 2_install_fluid.sh per below;
-  2/Configure specific s3 bucket for meta data storage location as well;
-  3/Configure specific AK & SK
+
+- Revise 2_install_fluid.sh according to your environment's specific context.
+  - 1/Get the endpoint url of the provisioned Redis cluster from previous step, and revise 2_install_fluid.sh per below;
+  - 2/Configure specific s3 bucket for meta data storage location as well;
+  - 3/Configure specific AK & SK
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -126,6 +127,8 @@ stringData:
   access-key: {access-key-id}                     # AWS Account Access Key ID
   secret-key: {secrect-key-id}                     # AWS Account Secret Key ID
 ```
+
+
 - JuiceFS@Fluid Setup
   ```sh
   cd quant-research/vit_tr_ray_on_gpu/infra
