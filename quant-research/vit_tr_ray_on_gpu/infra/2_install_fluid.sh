@@ -27,12 +27,12 @@ metadata:
   name: jfs-secret
 type: Opaque
 stringData:
-  name: "my-jfs"                # JuiceFS 文件系统名称
-  metaurl: "vk7.fkdmm8.ng.0001.use1.cache.amazonaws.com:6379/1"     # 例如 "redis://host:port/1"
-  storage: "s3"                 # 存储类型
-  bucket: "https://cnn-aug13.us-east-1.s3.amazonaws.com"           # 例如 "https://mybucket.s3.amazonaws.com"
-  access-key: {access-key-id}
-  secret-key: {secrect-key-id}
+  name: "jfs"                # JuiceFS File System Name
+  metaurl: "<redis cluster endpoint url>:6379/1"     # e.g. "mc7.fkdmm8.0001.use1.cache.amazonaws.com:6379/3"
+  storage: "s3"                 # Backend Storage Type
+  bucket: "<s3 bucket https endpoint url1>"           # e.g. "https://o3-vit.s3.amazonaws.com", to store meta data
+  access-key: {access-key-id}                     # AWS Account Access Key ID
+  secret-key: {secrect-key-id}                     # AWS Account Secret Key ID
 EOF
 
 # Create JuiceFS Dataset
@@ -42,12 +42,15 @@ kind: Dataset
 metadata:
   name: jfs-dataset
 spec:
+  accessModes:
+    - ReadWriteMany
   mounts:
     - name: minio
-      mountPoint: "juicefs:///"     # Refers to the subdirectory of JuiceFS, starts with `juicefs://`. Required.
+      mountPoint: 'juicefs:///'   
       options:
-        bucket: "https://cnn-aug13.us-east-1.s3.amazonaws.com"             # Bucket URL. Not required, if your filesystem is already formatted, can be empty.
+        bucket: "<s3 bucket https endpoint url2>"        # e.g. "https://o5-vit.s3.amazonaws.com"m to store raw data
         storage: "s3"
+      readOnly: false
       encryptOptions:
         - name: metaurl                 # Connection URL for metadata engine. Required.
           valueFrom:
@@ -82,27 +85,9 @@ spec:
         low: "0.1"
 EOF
 
-# Create JuiceFS DataLoad
-kubectl apply -f - <<EOF
-apiVersion: data.fluid.io/v1alpha1
-kind: DataLoad
-metadata:
-  name: jfs-dataload
-spec:
-  dataset:
-    name: jfs-dataset
-    namespace: default
-  loadMetadata: true
-  target:
-    - path: /
-      replicas: 1
-  accessModes:
-    - ReadWriteMany
-EOF
 
 echo "JuiceFS with Fluid deployment completed!"
 echo "Check the status with:"
 echo "  kubectl get pods -n fluid-system"
 echo "  kubectl get dataset"
 echo "  kubectl get juicefsruntime"
-echo "  kubectl get dataload"
