@@ -109,21 +109,23 @@ This project aims to investigate the feasibility of performing quantitative rese
   redis-cli -h <redis endpoint url> -p 6379 ping
   ```
   
-- Get the endpoint url of the provisioned Redis cluster from previous step, and revise 2_install_fluid.sh per below. Configure specific s3 bucket for s3 data storage location as well
-  ```yaml
-  apiVersion: v1
-  kind: Secret
-  metadata:
-    name: jfs-secret
-  type: Opaque
-  stringData:
-    name: "my-jfs"               
-    metaurl: "<valkey cluster endpoint url>:6379/1"
-    storage: "s3"                
-    bucket: "https://<s3 bucket name>.s3.amazonaws.com"
-    access-key: {access-key-id}
-    secret-key: {secrect-key-id}
-  ```
+- 1/Get the endpoint url of the provisioned Redis cluster from previous step, and revise 2_install_fluid.sh per below;
+  2/Configure specific s3 bucket for meta data storage location as well;
+  3/Configure specific AK & SK
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jfs-secret
+type: Opaque
+stringData:
+  name: "jfs"                # JuiceFS File System Name
+  metaurl: "<redis cluster endpoint url>:6379/1"     # e.g. "mc7.fkdmm8.0001.use1.cache.amazonaws.com:6379/3"
+  storage: "s3"                 # Backend Storage Type
+  bucket: "<s3 bucket https endpoint url1>"           # e.g. "https://o3-vit.s3.amazonaws.com", to store meta data
+  access-key: {access-key-id}                     # AWS Account Access Key ID
+  secret-key: {secrect-key-id}                     # AWS Account Secret Key ID
+```
 - JuiceFS@Fluid Setup
   ```sh
   cd quant-research/vit_tr_ray_on_gpu/infra
