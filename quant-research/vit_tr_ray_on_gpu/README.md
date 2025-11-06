@@ -109,8 +109,7 @@ This project aims to investigate the feasibility of performing quantitative rese
   redis-cli -h <redis endpoint url> -p 6379 ping
   ```
   
-  
-- Get the endpoint url of the provisioned valkey cluster from previous step, and revise 2_install_fluid.sh per below. Configure specific s3 bucket for s3 data storage location as well
+- Get the endpoint url of the provisioned Redis cluster from previous step, and revise 2_install_fluid.sh per below. Configure specific s3 bucket for s3 data storage location as well
   ```yaml
   apiVersion: v1
   kind: Secret
