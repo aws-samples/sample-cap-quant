@@ -90,7 +90,7 @@ variable "kms_key_admin_roles" {
 variable "enable_elastic_cache_redis" {
   description = "Flag to enable Elastic Cache for Redis"
   type        = bool
-  default     = false
+  default     = true
 }
 
 
