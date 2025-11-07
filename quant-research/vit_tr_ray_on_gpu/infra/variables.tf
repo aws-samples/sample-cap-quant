@@ -1,7 +1,7 @@
 variable "name" {
   description = "Name of the VPC and EKS Cluster"
   type        = string
-  default     = "mc5"
+  default     = "mc5"  # needs update accordingly
 }
 
 # NOTE: As of 2024/01/04 Trainium instances only available in us-west-2, us-east-1, and us-east-2 regions
@@ -9,7 +9,7 @@ variable "name" {
 variable "region" {
   description = "region"
   type        = string
-  default     = "us-east-1"
+  default     = "us-east-1"  # needs update accordingly
 }
 
 variable "eks_cluster_version" {
