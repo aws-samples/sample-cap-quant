@@ -145,7 +145,7 @@ stringData:
   secret-key: {secrect-key-id}                     # AWS Account Secret Key ID
 ```
 -  
-  - 4/Configure specific s3 bucket for raw data storage location.
+  - 3/Configure specific s3 bucket for raw data storage location.
 ```yaml
 apiVersion: data.fluid.io/v1alpha1
 kind: Dataset
@@ -228,7 +228,7 @@ spec:
   ./cnn-gpu-kuberay-build-image-m4.sh
   #input the ECR version, e.g. V0.1
   ```
-  - Update raycluster-with-jfs.yaml line33 & line85 with the specific ECR url, e.g. 135709585800.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.9.2
+  - Update raycluster-with-jfs.yaml line33 & line85 with the specific ECR url, e.g. <aws-account-id>.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.9.2
   
 - Raycluster Creation
   first time ray cluster pods creation needs to wait for 5-6 minutes, cause the ECR Image is 14GB large.
