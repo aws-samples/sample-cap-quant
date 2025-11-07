@@ -4,8 +4,8 @@
 This project aims to investigate the feasibility of performing quantitative research by leveraging [Amazon Elastic Kubernetes Service (EKS)](https://aws.amazon.com/eks/), [KubeRay](https://github.com/ray-project/kuberay), and [CNCF Fluid](https://github.com/fluid-cloudnative/fluid) as the underlying infrastructure components. Both Amazon Trainium and Nvidia GPU have been used for deep learning model training.
 
 ## Pre-requisites
-*Make sure the laptop has the right permission to access the resources on AWS account.*
-*Make sure the laptop has [docker.deksptop app](https://docs.docker.com/desktop/setup/install/mac-install/) installed*
+- *Make sure the laptop has the right permission to access the resources on AWS account.*
+- *Make sure the laptop has [docker.deksptop app](https://docs.docker.com/desktop/setup/install/mac-install/) installed*
 ### **Use MacOS laptop**
   - install AWS CLI
     ```sh
