@@ -1,5 +1,7 @@
 #!/bin/bash
 
+kubectl create namespace fluid-system
+
 # Install Helm
 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
 chmod 700 get_helm.sh
@@ -29,8 +31,8 @@ type: Opaque
 stringData:
   name: "jfs"                # JuiceFS File System Name
   metaurl: "<redis cluster endpoint url>:6379/1"     # e.g. "mc7.fkdmm8.0001.use1.cache.amazonaws.com:6379/3"
-  storage: "s3"                 # Backend Storage Type
-  bucket: "<s3 bucket https endpoint url1>"           # e.g. "https://o3-vit.s3.amazonaws.com", to store meta data
+  # storage: "s3"                 # Backend Storage Type
+  # bucket: "<s3 bucket https endpoint url1>"           # e.g. "https://o3-vit.s3.amazonaws.com", to store meta data
   access-key: {access-key-id}                     # AWS Account Access Key ID
   secret-key: {secrect-key-id}                     # AWS Account Secret Key ID
 EOF
@@ -48,7 +50,7 @@ spec:
     - name: minio
       mountPoint: 'juicefs:///'   
       options:
-        bucket: "<s3 bucket https endpoint url2>"        # e.g. "https://o5-vit.s3.amazonaws.com"m to store raw data
+        bucket: "<s3 bucket https endpoint url>"        # e.g. "https://s3.us-west-2.amazonaws.com/nov6-vit-2"  to store raw data
         storage: "s3"
       readOnly: false
       encryptOptions:
