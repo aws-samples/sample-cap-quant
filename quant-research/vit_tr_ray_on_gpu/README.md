@@ -254,6 +254,12 @@ spec:
   ```sh
   kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n kube-prometheus-stack
   ```
+- Ray metrics are not enabled by Prometheus and Grafana by default. Enable Ray metrics by running the follow command
+  ```sh
+  cd quant-research/vit_tr_ray_on_gpu/app
+  kubectl create -f ray-servicemonitor.yaml
+  ```
+  
 ## Clean up
 ```sh
 cd quant-research/vit_tr_ray_on_gpu/infra #cd quant-research/llama_ptr_ray_on_trn1/infra
