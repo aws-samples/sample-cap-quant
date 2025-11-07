@@ -62,10 +62,8 @@ module "eks" {
 
   eks_managed_node_group_defaults = {
     iam_role_additional_policies = {
-      # Not required, but used in the example to access the nodes to inspect mounted volumes
       AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-      # Required for FSx for Lustre dynamic provisioning
-      AmazonFSxFullAccess = "arn:aws:iam::aws:policy/AmazonFSxFullAccess"
+      AmazonS3FullAccess = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
     }
 
     ebs_optimized = true
