@@ -144,7 +144,7 @@ def train_cifar_10(num_workers, use_gpu):
     run_config = RunConfig(
         # /mnt/cluster_storage is an Anyscale-specific storage path.
         # OSS users should set up this path themselves.
-        storage_path="/shared/cluster_storage", 
+        storage_path="s3://cnn-training-data-vir/ray-results",        # needs update accordingly 
         name=f"train_run-{uuid.uuid4().hex}",
     )
     trainer = TorchTrainer(
