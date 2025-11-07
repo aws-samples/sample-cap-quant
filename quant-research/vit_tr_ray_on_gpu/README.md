@@ -89,30 +89,49 @@ This project aims to investigate the feasibility of performing quantitative rese
     rm terraform_1.9.4_linux_amd64.zip
 
 ## Deployment - vit_tr_ray_on_gpu
+- Pre-requisites
+  - Make sure there is at least one VPC quota available in the target region, because the HCL will create a VPC.
+  - Make sure there is at least one EIP quota available in the target region, because the EKS cluster will use one EIP for its NAT Gateway.
+  - Create 2 s3 buckets in the target region. One is to store the raw data of JuiceFS, the other is to store the training results of the Ray cluster.
+
 - Clone the repo
   ```sh
   git clone https://github.com/aws-samples/sample-cap-quant.git
+  cd quant-research/vit_tr_ray_on_gpu/infra  
+  ```
+- Update variables.tf "Name of the VPC and EKS Cluster" and "region"
+  ```tf
+	variable "name" {
+	  description = "Name of the VPC and EKS Cluster"
+	  type        = string
+	  default     = "mc5"  # needs update accordingly
+	}
+	variable "region" {
+	  description = "region"
+	  type        = string
+	  default     = "us-east-1"  # needs update accordingly
+	}
   ```
 - EKS Cluster Provision
   ```sh
-  cd quant-research/vit_tr_ray_on_gpu/infra
   chmod +x 1_install_platform.sh
   ./1_install_platform.sh
   ```
   It takes 20+ minutes for the resource to be provisioned and setup.
-- add EKS cluster context in the jumpserver, so that the jumpserver can access EKS cluster.
+
+- add EKS cluster context in the jumpserver (either using MacOS or Linux), so that the jumpserver can access EKS cluster.
   ```sh
-  aws eks --region us-east-1 update-kubeconfig --name <eks cluster name>
+  aws eks --region <region id> update-kubeconfig --name <eks cluster name>      # region id like us-east-1
+
+  kubectl get nodes      # there should be 5 nodes: 3 core nodes, 2 g6 2xlarge GPU nodes
   ```
-- (Optional) Revise Redis Security Group, test EKS Cluster EC2 nodes able to visit port 6379.
+- (Optional) Test EKS Cluster EC2 nodes able to visit port 6379, if cannot, revise EC2's Security Group.
   ```
   redis-cli -h <redis endpoint url> -p 6379 ping
   ```
-
-- Revise 2_install_fluid.sh according to your environment's specific context.
+- Update 2_install_fluid.sh according to your environment's specific context.
   - 1/Get the endpoint url of the provisioned Redis cluster from previous step, and revise 2_install_fluid.sh per below;
-  - 2/Configure specific s3 bucket for meta data storage location as well;
-  - 3/Configure specific AK & SK;
+  - 2/Configure specific AK & SK;
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -122,8 +141,6 @@ type: Opaque
 stringData:
   name: "jfs"                # JuiceFS File System Name
   metaurl: "<redis cluster endpoint url>:6379/1"     # e.g. "mc7.fkdmm8.0001.use1.cache.amazonaws.com:6379/3"
-  storage: "s3"                 # Backend Storage Type
-  bucket: "<s3 bucket https endpoint url1>"           # e.g. "https://o3-vit.s3.amazonaws.com", to store meta data
   access-key: {access-key-id}                     # AWS Account Access Key ID
   secret-key: {secrect-key-id}                     # AWS Account Secret Key ID
 ```
@@ -141,7 +158,7 @@ spec:
     - name: minio
       mountPoint: 'juicefs:///'   
       options:
-        bucket: "<s3 bucket https endpoint url2>"        # e.g. "https://o5-vit.s3.amazonaws.com"m to store raw data
+        bucket: "<s3 bucket https endpoint url2>"        #  e.g. "https://s3.us-west-2.amazonaws.com/nov6-vit-2"  to store raw data
         storage: "s3"
       readOnly: false
       encryptOptions:
@@ -165,7 +182,6 @@ spec:
 
 - JuiceFS@Fluid Setup
   ```sh
-  cd quant-research/vit_tr_ray_on_gpu/infra
   chmod -x 2_install_fluid.sh
   ./2_install_fluid.sh
   ```
@@ -198,20 +214,29 @@ spec:
     - Login to that pod to load the training data to JuiceFS mount point /data
       ```sh
       kubectl exec -it <data-load-pod name> -- /bin/bash
-      cd /
-      aws s3 cp aws s3 cp s3://<s3 bucket name>/data.lock data.lock
       cd /data
-      aws s3 cp aws s3 cp s3://<s3 bucket name>/data . --recursive
+      aws s3 cp s3://<s3 bucket name>/data . --recursive
       ```
+
+- ECR Image Creation
+  - Update cnn-gpu-kuberay-build-image-m4.sh line34 region id (e.g. us-east-1) to your specific context
+  - Update ray.ddp.py line147 storage_path to s3 bucket that is created before to store the training results of the Ray cluster.
   
-- Raycluster Creation
   ```sh
   cd quant-research/vit_tr_ray_on_gpu/app
+  chmod 700 cnn-gpu-kuberay-build-image-m4.sh
+  ./cnn-gpu-kuberay-build-image-m4.sh
+  #input the ECR version, e.g. V0.1
+  ```
+  - Update raycluster-with-jfs.yaml line33 & line85 with the specific ECR url, e.g. 135709585800.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.9.2
+  
+- Raycluster Creation
+  first time ray cluster pods creation needs to wait for 5-6 minutes, cause the ECR Image is 14GB large.
+  ```sh
   kubectl create -f raycluster-with-jfs.yaml
   ```
 - Rayjob Submission
   ```sh
-  cd quant-research/vit_tr_ray_on_gpu/app
   #model train
   kubectl create -f 1-rayjob-training.yaml
   ```
