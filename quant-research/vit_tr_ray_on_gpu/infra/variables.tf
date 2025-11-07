@@ -4,8 +4,6 @@ variable "name" {
   default     = "mc5"  # needs update accordingly
 }
 
-# NOTE: As of 2024/01/04 Trainium instances only available in us-west-2, us-east-1, and us-east-2 regions
-#       Inferentia instances are available in the above regions + several others
 variable "region" {
   description = "region"
   type        = string
