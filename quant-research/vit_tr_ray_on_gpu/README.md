@@ -76,7 +76,7 @@ This project aims to investigate the feasibility of performing quantitative rese
   ```
   It takes 20+ minutes for the resource to be provisioned and setup.
 
-- add EKS cluster context in the jumpserver (either using MacOS or Linux), so that the jumpserver can access EKS cluster.
+- add EKS cluster context in the MacOS jumpserver, so that the jumpserver can access EKS cluster.
   ```sh
   aws eks --region <region id> update-kubeconfig --name <eks cluster name>      # region id like us-east-1
 
