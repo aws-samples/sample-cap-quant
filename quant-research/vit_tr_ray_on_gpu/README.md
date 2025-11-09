@@ -187,14 +187,15 @@ spec:
   #input the ECR version, e.g. V0.1
   ```
   Initially, it takes 40 minutes around to create the ECR image.
-  
-  - Update raycluster-with-jfs.yaml line33 & line85 with the specific ECR url, e.g. <aws-account-id>.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.9.2
-  
+    
 - Raycluster Creation
-  first time ray cluster pods creation needs to wait for 5-6 minutes, cause the ECR Image is 14GB large.
+  - Update raycluster-with-jfs.yaml line33 & line85 with the specific ECR url, e.g. <aws-account-id>.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.9.2
+  - run the following command to create the ray cluster
   ```sh
   kubectl create -f raycluster-with-jfs.yaml
   ```
+  first time ray cluster pods creation needs to wait for 5-6 minutes, cause the ECR Image is 14GB large.
+
 - Rayjob Submission
   ```sh
   #model train
