@@ -186,6 +186,8 @@ spec:
   ./cnn-gpu-kuberay-build-image-m4.sh
   #input the ECR version, e.g. V0.1
   ```
+  Initially, it takes 40 minutes around to create the ECR image.
+  
   - Update raycluster-with-jfs.yaml line33 & line85 with the specific ECR url, e.g. <aws-account-id>.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.9.2
   
 - Raycluster Creation
