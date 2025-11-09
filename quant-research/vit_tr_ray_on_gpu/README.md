@@ -142,7 +142,7 @@ spec:
   chmod -x 2_install_fluid.sh
   ./2_install_fluid.sh
   ```
-- Training Data Caching
+- Training Data Preparation and Caching
   - Run [get_cifar10.py](https://github.com/aws-samples/sample-cap-quant/blob/main/quant-research/vit_tr_ray_on_gpu/training-data/get_cifar10.py) to download the training data to local.
   - Copy the training data to S3 bucket using command below
     ```sh
@@ -179,7 +179,7 @@ spec:
   - Open docker.desktop app.
   - Update cnn-gpu-kuberay-build-image-m4.sh line34 region id (e.g. us-east-1) to your specific context
   - Update ray.ddp.py line147 storage_path to s3 bucket that is created before to store the training results of the Ray cluster.
-  
+  - run cnn-gpu-kuberay-build-image-m4.sh  
   ```sh
   cd quant-research/vit_tr_ray_on_gpu/app
   chmod 700 cnn-gpu-kuberay-build-image-m4.sh
