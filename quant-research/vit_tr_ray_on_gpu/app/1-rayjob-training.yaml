@@ -1,7 +1,7 @@
 apiVersion: ray.io/v1
 kind: RayJob
 metadata:
-  name: test-jfs
+  name: rayjob1
   namespace: default
 spec:
   submissionMode: K8sJobMode
