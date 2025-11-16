@@ -21,17 +21,10 @@ RUN pip3 install ray[default]==2.22.0 aiohttp \
 RUN pip3 install wget awscli regex boto3 pyarrow transformers==4.31.0 tensorboard datasets \
     && rm -rf /root/.cache/
 
-
 # Copy the main Python script to the working directory for Ray to find it
-# COPY ./cnn_training/setup_gpu.sh /cnn_training/
-# COPY ./cnn_training/test1_gpu_enhanced.py /cnn_training/
-# COPY ./cnn_training/customize.py /cnn_training/
 COPY ./cnn_training/ray_ddp.py /cnn_training/
 
-
-
 # Make shell scripts executable
-# RUN chmod +x /cnn_training/setup_gpu.sh 
 RUN chmod +x /cnn_training/ray_ddp.py 
 
 
