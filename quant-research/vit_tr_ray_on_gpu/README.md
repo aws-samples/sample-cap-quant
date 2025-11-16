@@ -68,7 +68,7 @@ This project aims to investigate the feasibility of performing quantitative rese
 - EKS Cluster Provision
   ```sh
   chmod +x 01_install_platform.sh
-  ./1_install_platform.sh
+  ./01_install_platform.sh
   ```
   It takes 20+ minutes for the resource to be provisioned and setup.
 
