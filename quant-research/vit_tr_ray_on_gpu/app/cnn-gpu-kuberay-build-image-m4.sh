@@ -1,5 +1,7 @@
 #!/bin/bash
 ECR_REPO_NAME="kuberay_cnn_gpu"
+REGION_ID=$(terraform output -raw region_id)
+
 
 # Check that we are running on an x86_64 instance to avoid issues with docker build
 # arch=$(uname -m)
@@ -31,7 +33,7 @@ read -p "Enter the ECR version (e.g.: V0.4): " ecr_version
 
 # ecr_version="V0.8"
 
-region="us-east-1"
+region=$REGION_ID
 echo $region > .eks_region
 
 
