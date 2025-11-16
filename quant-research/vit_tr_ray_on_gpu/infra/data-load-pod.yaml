@@ -5,16 +5,35 @@ metadata:
 spec:
   containers:
   - name: app
-    image: ubuntu:latest
-    command: ["sleep", "3600"]
+    image: python:3.9
     command: ["/bin/bash", "-c"]
     args:
       - |
-        apt-get update && \
-        apt-get install -y curl unzip && \
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
-        unzip awscliv2.zip && \
-        ./aws/install && \
+        pip install torch torchvision filelock tqdm && \
+        cd /data && \
+        python -c "
+        import os
+        from filelock import FileLock
+        from torchvision import datasets, transforms
+        from torchvision.transforms import Normalize, ToTensor
+
+        transform = transforms.Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+        with FileLock('/data/data.lock'):
+            training_data = datasets.CIFAR10(
+                root='/data/',
+                train=True,
+                download=True,
+                transform=transform,
+            )
+            testing_data = datasets.CIFAR10(
+                root='/data/',
+                train=False,
+                download=True,
+                transform=transform,
+            )
+        print('CIFAR10 dataset downloaded successfully to /data')
+        " && \
         sleep infinity
     volumeMounts:
     - name: jfs-data
@@ -24,4 +43,5 @@ spec:
   - name: jfs-data
     persistentVolumeClaim:
       claimName: jfs-dataset
+
 
