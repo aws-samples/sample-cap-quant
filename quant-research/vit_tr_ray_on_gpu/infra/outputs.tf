@@ -29,10 +29,6 @@ output "region_id" {
   value = var.region
 }
 
-output "ray_cluster_result_s3bucket_url" {
-  value = var.ray_cluster_result_s3bucket_url
-}
-
 output "ecr_url" {
   value = var.ecr_url
 }
