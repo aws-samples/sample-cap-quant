@@ -60,22 +60,14 @@ This project aims to investigate the feasibility of performing quantitative rese
   git clone https://github.com/aws-samples/sample-cap-quant.git
   cd quant-research/vit_tr_ray_on_gpu/infra  
   ```
-- Update variables.tf "Name of the VPC and EKS Cluster" and "region"
-  ```tf
-	variable "name" {
-	  description = "Name of the VPC and EKS Cluster"
-	  type        = string
-	  default     = "mc5"  # needs update accordingly
-	}
-	variable "region" {
-	  description = "region"
-	  type        = string
-	  default     = "us-east-1"  # needs update accordingly
-	}
-  ```
+- Update 00_init_variables.sh according to your specific context, and then
+  ```sh
+  chmod +x 00_init_variables.sh
+  source ./00_init_variables.sh
+  ```  
 - EKS Cluster Provision
   ```sh
-  chmod +x 1_install_platform.sh
+  chmod +x 01_install_platform.sh
   ./1_install_platform.sh
   ```
   It takes 20+ minutes for the resource to be provisioned and setup.
@@ -86,124 +78,39 @@ This project aims to investigate the feasibility of performing quantitative rese
 
   kubectl get nodes      # there should be 5 nodes: 3 core nodes, 2 g6 2xlarge GPU nodes
   ```
-- (Optional) Test EKS Cluster EC2 nodes able to visit port 6379, if cannot, revise EC2's Security Group.
-  ```
-  redis-cli -h <redis endpoint url> -p 6379 ping
-  ```
-- Update 2_install_fluid.sh according to your environment's specific context.
-  - 1/Get the endpoint url of the provisioned Redis cluster from previous step, and revise 2_install_fluid.sh per below;
-  - 2/Configure specific AK & SK;
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: jfs-secret
-type: Opaque
-stringData:
-  name: "jfs"                # JuiceFS File System Name
-  metaurl: "<redis cluster endpoint url>:6379/1"     # e.g. "mc7.fkdmm8.0001.use1.cache.amazonaws.com:6379/3"
-  access-key: {access-key-id}                     # AWS Account Access Key ID
-  secret-key: {secrect-key-id}                     # AWS Account Secret Key ID
-```
--  
-  - 3/Configure specific s3 bucket for raw data storage location.
-```yaml
-apiVersion: data.fluid.io/v1alpha1
-kind: Dataset
-metadata:
-  name: jfs-dataset
-spec:
-  accessModes:
-    - ReadWriteMany
-  mounts:
-    - name: minio
-      mountPoint: 'juicefs:///'   
-      options:
-        bucket: "<s3 bucket https endpoint url2>"        #  e.g. "https://s3.us-west-2.amazonaws.com/nov6-vit-2"  to store raw data
-        storage: "s3"
-      readOnly: false
-      encryptOptions:
-        - name: metaurl                 # Connection URL for metadata engine. Required.
-          valueFrom:
-            secretKeyRef:
-              name: jfs-secret
-              key: metaurl
-        - name: access-key              # Access key of object storage. Not required, if your filesystem is already formatted, can be empty.
-          valueFrom:
-            secretKeyRef:
-              name: jfs-secret
-              key: access-key
-        - name: secret-key              # Secret key of object storage. Not required, if your filesystem is already formatted, can be empty.
-          valueFrom:
-            secretKeyRef:
-              name: jfs-secret
-              key: secret-key
-```
-
-
-- JuiceFS@Fluid Setup
+- Install Fluid
   ```sh
-  chmod -x 2_install_fluid.sh
-  ./2_install_fluid.sh
+  chmod +x 02_install_fluid.sh
+  ./02_install_fluid.sh
   ```
-- Training Data Preparation and Caching
-  - Run [get_cifar10.py](https://github.com/aws-samples/sample-cap-quant/blob/main/quant-research/vit_tr_ray_on_gpu/training-data/get_cifar10.py) to download the training data to local.
-  - Copy the training data to S3 bucket using command below
-    ```sh
-    cd /training-data
-    aws s3 cp . s3://<s3 bucket name>/ --recursive
-    ```
-    The dir structure is shown per below:
-    ```txt
-    --training-data
-            |--data.lock
-            |--data
-                 |--cifar-10-python.tar.gz
-                 |--cifar-10-batched-py
-                             |--batches.meta
-                             |--data_batch_1
-                                ... ...
-                             |--data_batch_5
-                             |--readme.html
-                             |--test_batch 
-    ```
-  - Initially, cache these data on-to JuiceFS dataset jfs-data
-    - Create a pod using [data-load-pod.yaml](https://github.com/aws-samples/sample-cap-quant/blob/main/quant-research/vit_tr_ray_on_gpu/infra/data-load-pod.yaml)
-      ```sh
-      kubectl create -f data-load-pod.yaml
-      ```
-    - Login to that pod to load the training data to JuiceFS mount point /data
-      ```sh
-      kubectl exec -it <data-load-pod name> -- /bin/bash
-      cd /data
-      aws s3 cp s3://<s3 bucket name>/data . --recursive
-      ```
+
+- Training Data Preparation and Caching by creating data-load-pod
+  ```sh
+  kubectl create -f data-load-pod.yaml
+
+  kubectl exec -it data-load-pod -- /bin/bash -c "cd /data && ls -la"  
+  ```
 
 - ECR Image Creation
   - Open docker.desktop app.
-  - Update cnn-gpu-kuberay-build-image-m4.sh line34 region id (e.g. us-east-1) to your specific context
-  - Update ray.ddp.py line147 storage_path to s3 bucket that is created before to store the training results of the Ray cluster.
-  - run cnn-gpu-kuberay-build-image-m4.sh  
-  ```sh
-  cd quant-research/vit_tr_ray_on_gpu/app
-  chmod 700 cnn-gpu-kuberay-build-image-m4.sh
-  ./cnn-gpu-kuberay-build-image-m4.sh
-  #input the ECR version, e.g. V0.1
-  ```
+  - build image
+    ```sh
+    chmod +x 00_build_image.sh
+    ./00_build_image.sh #input specific version of the ECR image
+    ```
   Initially, it takes 40 minutes around to create the ECR image.
     
 - Raycluster Creation
-  - Update raycluster-with-jfs.yaml line33 & line85 with the specific ECR url, e.g. <aws-account-id>.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.9.2
   - run the following command to create the ray cluster
   ```sh
-  kubectl create -f raycluster-with-jfs.yaml
+  chmod +x 01_deploy_ray_cluster.sh
+  ./01_deploy_ray_cluster.sh
   ```
   first time ray cluster pods creation needs to wait for 5-6 minutes, cause the ECR Image is 14GB large.
 
 - Rayjob Submission
   ```sh
-  #model train
-  kubectl create -f 1-rayjob-training.yaml
+  kubectl create -f rayjob-training.yaml
   ```
 
 ## Observability
@@ -227,7 +134,7 @@ spec:
   
 ## Clean up
 ```sh
-cd quant-research/vit_tr_ray_on_gpu/infra #cd quant-research/llama_ptr_ray_on_trn1/infra
+cd quant-research/vit_tr_ray_on_gpu/infra 
 ./cleanup.sh
 ```
 
