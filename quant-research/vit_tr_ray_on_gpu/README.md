@@ -93,6 +93,7 @@ This project aims to investigate the feasibility of performing quantitative rese
 
 - ECR Image Creation
   - Open docker.desktop app.
+  - update ray.ddp.py line147 storage_path to s3 bucket that is created before to store the training results of the Ray cluster.
   - build image
     ```sh
     chmod +x 00_build_image.sh
