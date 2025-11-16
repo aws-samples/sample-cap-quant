@@ -1,13 +1,45 @@
 variable "name" {
   description = "Name of the VPC and EKS Cluster"
   type        = string
-  default     = "mc5"  # needs update accordingly
+  default     = "mc8"  # needs update accordingly
 }
 
 variable "region" {
   description = "region"
   type        = string
-  default     = "us-east-1"  # needs update accordingly
+  default     = "us-west-2"  # needs update accordingly
+}
+
+
+variable "accesskey" {
+  description = "accesskey"
+  type        = string
+  default     = "<your ak>"  # needs update accordingly
+}
+
+variable "secrectkey" {
+  description = "secrectkey"
+  type        = string
+  default     = "<your ak>"  # needs update accordingly
+}
+
+
+variable "raw_data_s3bucket_https_endpoint_url" {
+  description = "raw_data_s3bucket_https_endpoint_url"
+  type        = string
+  default     = "https://s3.us-west-2.amazonaws.com/nov6-vit-2"  # needs update accordingly
+}
+
+variable "ray_cluster_result_s3bucket__url" {
+  description = "ray_cluster_result_s3bucket__url"
+  type        = string
+  default     = "s3://cnn-training-data-vir/ray-results" # needs update accordingly
+}
+
+variable "ecr_url" {
+  description = "ecr_url"
+  type        = string
+  default     = "135709585800.dkr.ecr.us-west-2.amazonaws.com/kuberay_cnn_gpu:V0.3"  # needs update accordingly
 }
 
 variable "eks_cluster_version" {
