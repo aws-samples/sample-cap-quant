@@ -1,6 +1,6 @@
 #!/bin/bash
 ECR_REPO_NAME="kuberay_cnn_gpu"
-REGION_ID=$(terraform output -raw region_id)
+REGION_ID=$(cd ../infra && terraform output -raw region_id)
 
 
 # Check that we are running on an x86_64 instance to avoid issues with docker build
