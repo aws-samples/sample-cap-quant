@@ -134,7 +134,8 @@ This project aims to investigate the feasibility of performing quantitative rese
   
 ## Clean up
 ```sh
-cd quant-research/vit_tr_ray_on_gpu/infra 
+cd quant-research/vit_tr_ray_on_gpu/infra
+chmod +x cleanup.sh
 ./cleanup.sh
 ```
 
