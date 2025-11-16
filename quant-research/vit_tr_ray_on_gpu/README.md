@@ -44,7 +44,11 @@ This project aims to investigate the feasibility of performing quantitative rese
     # Verify installation
     terraform version
     ```
-
+  - install gettext
+    ```sh
+    brew install gettext
+    export PATH="/opt/homebrew/opt/gettext/bin:$PATH"
+    ```
 ## Deployment - vit_tr_ray_on_gpu
 - Pre-requisites
   - Make sure there is at least one VPC quota available in the target region, because the HCL will create a VPC.
