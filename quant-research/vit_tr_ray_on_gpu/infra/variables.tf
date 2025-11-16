@@ -14,13 +14,13 @@ variable "region" {
 variable "accesskey" {
   description = "accesskey"
   type        = string
-  default     = "<your ak>"  # needs update accordingly
+  default     = "<your_access_key>"  # needs update accordingly
 }
 
 variable "secrectkey" {
   description = "secrectkey"
   type        = string
-  default     = "<your ak>"  # needs update accordingly
+  default     = "<your_secret_key>"  # needs update accordingly
 }
 
 
