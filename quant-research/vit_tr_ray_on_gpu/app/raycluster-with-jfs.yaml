@@ -30,7 +30,7 @@ spec:
       spec:
         containers:
         - name: ray-head
-          image: 135709585800.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.9.2
+          image: ${ECR_URL}
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -82,7 +82,7 @@ spec:
       spec:
         containers:
         - name: ray-worker
-          image: 135709585800.dkr.ecr.us-east-1.amazonaws.com/kuberay_cnn_gpu:V0.9.2
+          image: ${ECR_URL}
           imagePullPolicy: Always
           lifecycle:
             preStop:
