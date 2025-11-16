@@ -30,8 +30,8 @@ variable "raw_data_s3bucket_https_endpoint_url" {
   default     = "https://s3.us-west-2.amazonaws.com/nov6-vit-2"  # needs update accordingly
 }
 
-variable "ray_cluster_result_s3bucket__url" {
-  description = "ray_cluster_result_s3bucket__url"
+variable "ray_cluster_result_s3bucket_url" {
+  description = "ray_cluster_result_s3bucket_url"
   type        = string
   default     = "s3://cnn-training-data-vir/ray-results" # needs update accordingly
 }
