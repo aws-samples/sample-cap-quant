@@ -1,7 +1,4 @@
 #!/bin/bash
-# SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "fluid_credential" --region us-west-2 --query SecretString --output text)
-# ACCESS_KEY=$(echo $SECRET_JSON | jq -r '.access_key')
-# SECRET_KEY=$(echo $SECRET_JSON | jq -r '.secret_key')
 RAW_DATA_S3_URL=$(terraform output -raw raw_data_s3bucket_https_endpoint_url)
 CACHE_URL=$(terraform output -raw elastic_cache_redis_endpoint)
 
