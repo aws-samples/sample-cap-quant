@@ -1,6 +1,7 @@
 #!/bin/bash
-ACCESS_KEY=$(terraform output -raw accesskey)
-SECRET_KEY=$(terraform output -raw secrectkey)
+# SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "fluid_credential" --region us-west-2 --query SecretString --output text)
+# ACCESS_KEY=$(echo $SECRET_JSON | jq -r '.access_key')
+# SECRET_KEY=$(echo $SECRET_JSON | jq -r '.secret_key')
 RAW_DATA_S3_URL=$(terraform output -raw raw_data_s3bucket_https_endpoint_url)
 CACHE_URL=$(terraform output -raw elastic_cache_redis_endpoint)
 
@@ -35,8 +36,6 @@ type: Opaque
 stringData:
   name: "jfs"                # JuiceFS File System Name
   metaurl: "${CACHE_URL}:6379/1"     # e.g. "mc7.fkdmm8.0001.use1.cache.amazonaws.com:6379/3"
-  access-key: $ACCESS_KEY                    # AWS Account Access Key ID
-  secret-key: $SECRET_KEY                    # AWS Account Secret Key ID
 EOF
 
 # Create JuiceFS Dataset
@@ -61,16 +60,6 @@ spec:
             secretKeyRef:
               name: jfs-secret
               key: metaurl
-        - name: access-key              # Access key of object storage. Not required, if your filesystem is already formatted, can be empty.
-          valueFrom:
-            secretKeyRef:
-              name: jfs-secret
-              key: access-key
-        - name: secret-key              # Secret key of object storage. Not required, if your filesystem is already formatted, can be empty.
-          valueFrom:
-            secretKeyRef:
-              name: jfs-secret
-              key: secret-key
 EOF
 
 # Create JuiceFS Runtime
@@ -95,4 +84,3 @@ echo "Check the status with:"
 echo "  kubectl get pods -n fluid-system"
 echo "  kubectl get dataset"
 echo "  kubectl get juicefsruntime"
-
