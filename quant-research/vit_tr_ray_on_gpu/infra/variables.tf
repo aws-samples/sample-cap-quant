@@ -1,38 +1,31 @@
 variable "name" {
   description = "Name of the VPC and EKS Cluster"
   type        = string
-  default     = "mc8"  
+  default     = "mc8"
 }
 
 variable "region" {
   description = "region"
   type        = string
-  default     = "us-west-2"  
-}
-
-
-variable "accesskey" {
-  description = "accesskey"
-  type        = string
-  default     = "<your_access_key>" 
-}
-
-variable "secrectkey" {
-  description = "secrectkey"
-  type        = string
-  default     = "<your_secret_key>"  
+  default     = "us-west-2"
 }
 
 variable "raw_data_s3bucket_https_endpoint_url" {
   description = "raw_data_s3bucket_https_endpoint_url"
   type        = string
-  default     = "https://s3.us-west-2.amazonaws.com/nov6-vit-2"  
+  default     = "https://s3.us-west-2.amazonaws.com/nov6-vit-2"
+}
+
+variable "ray_cluster_result_s3bucket_url" {
+  description = "ray_cluster_result_s3bucket_url"
+  type        = string
+  default     = "s3://cnn-training-data-vir/ray-results"
 }
 
 variable "ecr_url" {
   description = "ecr_url"
   type        = string
-  default     = "<your-aws-account-id>.dkr.ecr.us-west-2.amazonaws.com/kuberay_cnn_gpu:V0.3"  
+  default     = "135709585800.dkr.ecr.us-west-2.amazonaws.com/kuberay_cnn_gpu:V0.3"
 }
 
 variable "eks_cluster_version" {
@@ -41,15 +34,12 @@ variable "eks_cluster_version" {
   default     = "1.31"
 }
 
-# VPC with 2046 IPs (10.1.0.0/21) and 2 AZs
 variable "vpc_cidr" {
   description = "VPC CIDR. This should be a valid private (RFC 1918) CIDR range"
   type        = string
   default     = "10.1.0.0/21"
 }
 
-# RFC6598 range 100.64.0.0/10
-# Note you can only /16 range to VPC. You can add multiples of /16 if required
 variable "secondary_cidr_blocks" {
   description = "Secondary CIDR blocks to be attached to VPC"
   type        = list(string)
@@ -116,9 +106,15 @@ variable "enable_elastic_cache_redis" {
   default     = true
 }
 
-
 variable "access_entries" {
   description = "Map of access entries to add to the cluster"
   type        = any
   default     = {}
+}
+
+# New variables for pod identity
+variable "service_account_name" {
+  description = "Name of the Kubernetes service account for pod identity"
+  type        = string
+  default     = "ray-service-account"
 }
