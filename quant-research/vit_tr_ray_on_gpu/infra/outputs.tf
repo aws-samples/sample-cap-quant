@@ -13,13 +13,6 @@ output "elastic_cache_redis_endpoint" {
   value       = module.elasticache.cluster_cache_nodes[0].address
 }
 
-output "accesskey" {
-  value = var.accesskey
-}
-
-output "secrectkey" {
-  value = var.secrectkey
-}
 
 output "raw_data_s3bucket_https_endpoint_url" {
   value = var.raw_data_s3bucket_https_endpoint_url
@@ -31,4 +24,14 @@ output "region_id" {
 
 output "ecr_url" {
   value = var.ecr_url
+}
+
+output "ray_pod_role_arn" {
+  description = "ARN of the IAM role for Ray pods"
+  value       = aws_iam_role.ray_pod_role.arn
+}
+
+output "ray_service_account_name" {
+  description = "Name of the Kubernetes service account"
+  value       = kubernetes_service_account.ray_service_account.metadata[0].name
 }
