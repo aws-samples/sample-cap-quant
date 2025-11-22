@@ -1,8 +1,8 @@
 #!/bin/bash
 
 TERRAFORM_COMMAND="terraform destroy -auto-approve"
-CLUSTERNAME="ai-stack"
-REGION="region"
+CLUSTERNAME=$TF_VAR_name
+REGION=$TF_VAR_region
 # Check if blueprint.tfvars exists
 if [ -f "../blueprint.tfvars" ]; then
   TERRAFORM_COMMAND="$TERRAFORM_COMMAND -var-file=../blueprint.tfvars"
