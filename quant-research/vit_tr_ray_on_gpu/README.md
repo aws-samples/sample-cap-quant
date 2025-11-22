@@ -5,7 +5,7 @@ This project aims to investigate the feasibility of performing quantitative rese
 
 ## Pre-requisites
 - *Make sure the laptop has the right permission to access the resources on AWS account.*
-- *Make sure the laptop has [docker.deksptop app](https://docs.docker.com/desktop/setup/install/mac-install/) installed*
+- *Make sure the laptop has [docker.desktop app](https://docs.docker.com/desktop/setup/install/mac-install/) installed*
 ### **Use MacOS laptop**
   - install AWS CLI
     ```sh
