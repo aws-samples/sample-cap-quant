@@ -1,6 +1,7 @@
 #!/bin/bash
 ECR_REPO_NAME="kuberay_cnn_gpu"
 REGION_ID=$(cd ../infra && terraform output -raw region_id)
+AWS_ACCOUNT_ID=$(cd ../infra && terraform output -raw aws_account_id)
 
 
 # Check that we are running on an x86_64 instance to avoid issues with docker build
@@ -60,19 +61,19 @@ echo $ECR_REPO_URI > .ecr_repo_uri
 # Login to ECR
 echo -e "\nLogging in to ECR"
 aws ecr get-login-password --region "$region" | docker login --username AWS --password-stdin $ECR_REPO_URI
-aws ecr get-login-password --region "$region" | docker login --username AWS --password-stdin 135709585800.dkr.ecr.${region}.amazonaws.com/pytorch-training-neuronx
+aws ecr get-login-password --region "$region" | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.${region}.amazonaws.com/pytorch-training-neuronx
 
 # Login to ECR Public Registry (required for pulling public images)
 echo -e "\nLogging in to ECR Public Registry"
 aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
 
 # Create and use a new builder instance for multi-arch builds
-#docker buildx create --use --name mybuilder --driver docker-container
-#docker buildx inspect mybuilder --bootstrap
+# docker buildx create --use --name mybuilder --driver docker-container
+# docker buildx inspect mybuilder --bootstrap
 
-#echo -e "\nBuilding kuberay_trn1 docker image" \
-#  && docker buildx build --platform linux/amd64 -t $ECR_REPO_URI:$ecr_version --build-arg REGION=$region . --push \
-#  && echo -e "\nImage successfully pushed to ECR"
+# echo -e "\nBuilding kuberay_trn1 docker image" \
+#   && docker buildx build --platform linux/amd64 -t $ECR_REPO_URI:$ecr_version --build-arg REGION=$region . --push \
+#   && echo -e "\nImage successfully pushed to ECR"
 
 echo -e "\nBuilding kuberay_gpu docker image" \
   && docker buildx build --platform linux/amd64 -t $ECR_REPO_URI:$ecr_version --build-arg REGION=$region .  \
