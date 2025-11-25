@@ -10,6 +10,12 @@ variable "region" {
   default     = "us-west-2"
 }
 
+variable "aws_account_id" {
+  description = "aws_account+id"
+  type        = string
+  default     = "<specific aws account id>"
+}
+
 variable "raw_data_s3bucket_https_endpoint_url" {
   description = "raw_data_s3bucket_https_endpoint_url"
   type        = string
@@ -25,7 +31,7 @@ variable "ray_cluster_result_s3bucket_url" {
 variable "ecr_url" {
   description = "ecr_url"
   type        = string
-  default     = "135709585800.dkr.ecr.us-west-2.amazonaws.com/kuberay_cnn_gpu:V0.3"
+  default     = "135709585800.dkr.ecr.us-west-2.amazonaws.com/kuberay_cnn_gpu:latest"
 }
 
 variable "eks_cluster_version" {
