@@ -18,8 +18,16 @@ output "raw_data_s3bucket_https_endpoint_url" {
   value = var.raw_data_s3bucket_https_endpoint_url
 }
 
+output "name" {
+  value = var.name
+}
+
 output "region_id" {
   value = var.region
+}
+
+output "aws_account_id" {
+  value = var.aws_account_id
 }
 
 output "ecr_url" {
