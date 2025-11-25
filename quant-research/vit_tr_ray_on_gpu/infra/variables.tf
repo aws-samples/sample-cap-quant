@@ -31,7 +31,7 @@ variable "ray_cluster_result_s3bucket_url" {
 variable "ecr_url" {
   description = "ecr_url"
   type        = string
-  default     = "135709585800.dkr.ecr.us-west-2.amazonaws.com/kuberay_cnn_gpu:latest"
+  default     = "<aws-account-id>.dkr.ecr.us-west-2.amazonaws.com/kuberay_cnn_gpu:latest"
 }
 
 variable "eks_cluster_version" {
