@@ -29,9 +29,9 @@ if [[ "$?" -ne 0 ]]; then
 fi
 
 # Prompt user for desired region
-read -p "Enter the ECR version (e.g.: V0.4): " ecr_version
+#read -p "Enter the ECR version (e.g.: V0.4): " ecr_version
 
-# ecr_version="V0.8"
+ecr_version="latest"
 
 region=$REGION_ID
 echo $region > .eks_region
