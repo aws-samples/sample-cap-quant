@@ -3,35 +3,23 @@
 TERRAFORM_COMMAND="terraform destroy -auto-approve"
 CLUSTERNAME=$TF_VAR_name
 REGION=$TF_VAR_region
-# Check if blueprint.tfvars exists
-if [ -f "../blueprint.tfvars" ]; then
-  TERRAFORM_COMMAND="$TERRAFORM_COMMAND -var-file=../blueprint.tfvars"
-  CLUSTERNAME="$(echo "var.name" | terraform console -var-file=../blueprint.tfvars | tr -d '"')"
-  REGION="$(echo "var.region" | terraform console -var-file=../blueprint.tfvars | tr -d '"')"
-fi
+
 echo "Destroying Terraform $CLUSTERNAME"
 echo "Destroying RayService..."
 
-# Delete the Ingress/SVC before removing the addons
 TMPFILE=$(mktemp)
 terraform output -raw configure_kubectl > "$TMPFILE"
-# check if TMPFILE contains the string "No outputs found"
 if [[ ! $(cat $TMPFILE) == *"No outputs found"* ]]; then
-  echo "No outputs found, skipping kubectl delete"
   source "$TMPFILE"
   kubectl delete rayjob -A --all
   kubectl delete rayservice -A --all
 fi
 
-
-# List of Terraform modules to destroy in sequence
 targets=(
-  "module.data_addons"
-  "module.eks_blueprints_addons"
+  "module.vpc"
   "module.eks"
 )
 
-# Destroy modules in sequence
 for target in "${targets[@]}"
 do
   echo "Destroying module $target..."
@@ -45,7 +33,6 @@ do
 done
 
 echo "Destroying Load Balancers..."
-
 for arn in $(aws resourcegroupstaggingapi get-resources \
   --resource-type-filters elasticloadbalancing:loadbalancer \
   --tag-filters "Key=elbv2.k8s.aws/cluster,Values=$CLUSTERNAME" \
@@ -73,12 +60,10 @@ for sg in $(aws ec2 describe-security-groups \
     aws ec2 delete-security-group --no-cli-pager --region $REGION --group-id "$sg"; \
   done
 
-# List of Terraform modules to destroy in sequence
 targets=(
   "module.vpc"
 )
 
-# Destroy modules in sequence
 for target in "${targets[@]}"
 do
   echo "Destroying module $target..."
@@ -91,7 +76,6 @@ do
   fi
 done
 
-## Final destroy to catch any remaining resources
 echo "Destroying remaining resources..."
 destroy_output=$($TERRAFORM_COMMAND -var="region=$REGION" 2>&1 | tee /dev/tty)
 if [[ ${PIPESTATUS[0]} -eq 0 && $destroy_output == *"Destroy complete"* ]]; then
