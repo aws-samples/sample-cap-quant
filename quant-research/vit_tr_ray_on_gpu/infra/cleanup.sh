@@ -11,8 +11,19 @@ TMPFILE=$(mktemp)
 terraform output -raw configure_kubectl > "$TMPFILE"
 if [[ ! $(cat $TMPFILE) == *"No outputs found"* ]]; then
   source "$TMPFILE"
-  kubectl delete rayjob -A --all
-  kubectl delete rayservice -A --all
+  
+  echo "Uninstalling Helm releases..."
+  helm list -A --short | while read release; do
+    namespace=$(helm list -A | grep "^$release" | awk '{print $2}')
+    echo "Uninstalling $release from namespace $namespace..."
+    helm uninstall "$release" -n "$namespace" --wait=false --timeout=30s || true
+  done
+  
+  echo "Deleting Ray resources..."
+  kubectl delete rayjob -A --all --wait=false --timeout=30s || true
+  kubectl delete rayservice -A --all --wait=false --timeout=30s || true
+  
+  sleep 10
 fi
 
 targets=(
