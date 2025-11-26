@@ -65,7 +65,7 @@ aws ecr get-login-password --region "$region" | docker login --username AWS --pa
 
 # Login to ECR Public Registry (required for pulling public images)
 echo -e "\nLogging in to ECR Public Registry"
-aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+aws ecr-public get-login-password --region $region | docker login --username AWS --password-stdin public.ecr.aws
 
 # Create and use a new builder instance for multi-arch builds
 # docker buildx create --use --name mybuilder --driver docker-container
