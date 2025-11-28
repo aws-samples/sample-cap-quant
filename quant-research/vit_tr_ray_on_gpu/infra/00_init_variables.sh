@@ -4,12 +4,12 @@
 # Replace placeholder values with your actual configuration
 
 # Basic configuration
-export TF_VAR_name="mcp2"
-export TF_VAR_region="us-west-2"
-export TF_VAR_s3_bucket_name1="<s3-bucket-name1>"
-export TF_VAR_s3_bucket_name2="<s3-bucket-name2>"
-export TF_VAR_aws_account_id="<aws-account-id>"
-export TF_VAR_prefix_name="<prefix-name>"
+export TF_VAR_name="<eks-cluster-name>"
+export TF_VAR_region="<region-id>"
+export TF_VAR_s3_bucket_name1="<name-of-the-bucket-for-filesystem-metadata-storage>"
+export TF_VAR_s3_bucket_name2="<name-of-the-bucket-for-storing-ray-training-result>"
+export TF_VAR_aws_account_id="<your-aws-account-id>"
+export TF_VAR_prefix_name="ray-results"
 
 # S3 bucket endpoints
 export TF_VAR_raw_data_s3bucket_https_endpoint_url="https://s3.us-west-2.amazonaws.com/${TF_VAR_s3_bucket_name1}"
