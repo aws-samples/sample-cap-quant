@@ -88,6 +88,7 @@ This project aims to investigate the feasibility of performing quantitative rese
   ```sh
   kubectl create -f data-load-pod.yaml
 
+  #wait for 2-3 minutes for the data to be downloaded to the pod
   kubectl exec -it data-load-pod -- /bin/bash -c "cd /data && ls -la"  
   ```
 
