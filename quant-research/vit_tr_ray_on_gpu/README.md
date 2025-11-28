@@ -60,7 +60,7 @@ This project aims to investigate the feasibility of performing quantitative rese
   git clone https://github.com/aws-samples/sample-cap-quant.git
   cd quant-research/vit_tr_ray_on_gpu/infra  
   ```
-- Update the below variables in 00_init_variables.sh according to your specific context
+- Update the below variables in 00_init_variables.sh according to your specific context and save the file.
   ```sh
   # Basic configuration
   export TF_VAR_name="<eks-cluster-name>"
