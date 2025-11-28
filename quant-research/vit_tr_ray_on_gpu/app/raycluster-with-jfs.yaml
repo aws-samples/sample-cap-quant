@@ -26,6 +26,7 @@ spec:
   headGroupSpec:
     rayStartParams:
       dashboard-host: 0.0.0.0
+      metrics-export-port: "8080"
     template:
       spec:
         containers:
@@ -48,6 +49,9 @@ spec:
             protocol: TCP
           - containerPort: 10001
             name: object-manager
+            protocol: TCP
+          - containerPort: 8080
+            name: metrics
             protocol: TCP
           resources:
             requests:
