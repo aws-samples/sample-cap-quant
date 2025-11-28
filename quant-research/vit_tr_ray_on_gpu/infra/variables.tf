@@ -37,7 +37,7 @@ variable "ecr_url" {
 variable "eks_cluster_version" {
   description = "EKS Cluster version"
   type        = string
-  default     = "1.31"
+  default     = "1.33"
 }
 
 variable "vpc_cidr" {
