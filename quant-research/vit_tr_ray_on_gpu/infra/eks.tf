@@ -93,7 +93,7 @@ module "eks" {
       )
 
       # aws ssm get-parameters --names /aws/service/eks/optimized-ami/1.27/amazon-linux-2/recommended/image_id --region us-west-2
-      ami_type     = "AL2_x86_64" # Use this for Graviton AL2_ARM_64
+      ami_type     = "AL2023_x86_64_NVIDIA"
       min_size     = 3
       max_size     = 8
       desired_size = 3
@@ -125,7 +125,7 @@ module "eks" {
       subnet_ids = [module.vpc.private_subnets[2]]
       # aws ssm get-parameters --names /aws/service/eks/optimized-ami/1.27/amazon-linux-2-gpu/recommended/image_id --region us-west-2
       # ami_id   = "ami-013c203ec6e2ee114" # Use this to pass custom AMI ID and ignore ami_type
-      ami_type       = "AL2_x86_64_GPU" # Contains Neuron driver
+      ami_type       = "AL2023_x86_64_NVIDIA" # Contains Neuron driver
       instance_types = ["g6.2xlarge"]
 
       pre_bootstrap_user_data = <<-EOT
