@@ -60,7 +60,17 @@ This project aims to investigate the feasibility of performing quantitative rese
   git clone https://github.com/aws-samples/sample-cap-quant.git
   cd quant-research/vit_tr_ray_on_gpu/infra  
   ```
-- Update 00_init_variables.sh according to your specific context, and then
+- Update the below variables in 00_init_variables.sh according to your specific context
+  ```sh
+  # Basic configuration
+  export TF_VAR_name="<eks-cluster-name>"
+  export TF_VAR_region="<region-id>"
+  export TF_VAR_s3_bucket_name1="<name-of-the-bucket-for-filesystem-metadata-storage>"
+  export TF_VAR_s3_bucket_name2="<name-of-the-bucket-for-storing-ray-training-result>"
+  export TF_VAR_aws_account_id="<your-aws-account-id>"
+  export TF_VAR_prefix_name="ray-results"
+  ```
+- And then run the following command
   ```sh
   chmod +x 00_init_variables.sh
   source ./00_init_variables.sh
@@ -88,19 +98,18 @@ This project aims to investigate the feasibility of performing quantitative rese
   ```sh
   kubectl create -f data-load-pod.yaml
 
-  #wait for 2-3 minutes for the data to be downloaded to the pod
+  #wait for 2-3 minutes for the data to be downloaded
   kubectl exec -it data-load-pod -- /bin/bash -c "cd /data && ls -la"  
   ```
 
 - ECR Image Creation
   - Open docker.desktop app.
-  - update [ray.ddp.py](https://github.com/aws-samples/sample-cap-quant/blob/main/quant-research/vit_tr_ray_on_gpu/app/cnn_training/ray_ddp.py) line147 storage_path to s3 bucket that is created before to store the training results of the Ray cluster.
   - build image
     ```sh
     chmod +x 00_build_image.sh
-    ./00_build_image.sh #input specific version of the ECR image
+    ./00_build_image.sh
     ```
-  Initially, it takes 40 minutes around to create the ECR image.
+  Initially, it takes 40-60 minutes around to create the ECR image.
     
 - Raycluster Creation
   - run the following command to create the ray cluster
