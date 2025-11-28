@@ -112,7 +112,7 @@ module "eks" {
     }
 
     #--------------------------------------------------
-    # Trainium node group for Trn1.32xlarge
+    # GPU node group for G6.2xlarge
     #--------------------------------------------------
     # Trainium node group creation can take upto 6 mins
     g6_2xl_ng = {
@@ -125,7 +125,7 @@ module "eks" {
       subnet_ids = [module.vpc.private_subnets[2]]
       # aws ssm get-parameters --names /aws/service/eks/optimized-ami/1.27/amazon-linux-2-gpu/recommended/image_id --region us-west-2
       # ami_id   = "ami-013c203ec6e2ee114" # Use this to pass custom AMI ID and ignore ami_type
-      ami_type       = "AL2023_x86_64_NVIDIA" # Contains Neuron driver
+      ami_type       = "AL2023_x86_64_NVIDIA"
       instance_types = ["g6.2xlarge"]
 
       pre_bootstrap_user_data = <<-EOT
