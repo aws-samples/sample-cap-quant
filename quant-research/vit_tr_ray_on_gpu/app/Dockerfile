@@ -4,6 +4,10 @@ ARG REGION
 # FROM public.ecr.aws/neuron/pytorch-training-neuronx:2.6.0-neuronx-py310-sdk2.23.0-ubuntu22.04
 FROM public.ecr.aws/deep-learning-containers/tensorflow-training:2.18.0-gpu-py310-cu125-ubuntu22.04-ec2-v1.25
 
+# Make GPU optional - don't require GPU devices on non-GPU nodes
+ENV NVIDIA_VISIBLE_DEVICES=void
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
 
 # RUN pip install -U "tensorboard" "timm"
 RUN python3 -m pip install scikit-learn
@@ -30,3 +34,4 @@ RUN chmod +x /cnn_training/ray_ddp.py
 
 # Set the working directory to scripts
 WORKDIR /cnn_training
+
