@@ -12,7 +12,7 @@ export TF_VAR_aws_account_id="<your-aws-account-id>"
 export TF_VAR_prefix_name="ray-results"
 
 # S3 bucket endpoints
-export TF_VAR_raw_data_s3bucket_https_endpoint_url="https://s3.us-west-2.amazonaws.com/${TF_VAR_s3_bucket_name1}"
+export TF_VAR_raw_data_s3bucket_https_endpoint_url="https://s3.${TF_VAR_region}.amazonaws.com/${TF_VAR_s3_bucket_name1}"
 export TF_VAR_ray_cluster_result_s3bucket_url="s3://${TF_VAR_s3_bucket_name2}/${TF_VAR_prefix_name}"
 
 # ECR repository URL
