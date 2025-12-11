@@ -9,7 +9,8 @@ spec:
     command: ["/bin/bash", "-c"]
     args:
       - |
-        pip install torch torchvision filelock tqdm && \
+        pip install torch==2.1.1+cpu torchvision==0.14.1+cpu torchaudio==0.10.1+cpu && \
+        pip install filelock && \
         cd /data && \
         python -c "
         import os
@@ -43,5 +44,4 @@ spec:
   - name: jfs-data
     persistentVolumeClaim:
       claimName: jfs-dataset
-
 
