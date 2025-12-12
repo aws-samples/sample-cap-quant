@@ -106,6 +106,7 @@ This project aims to investigate the feasibility of performing quantitative rese
   - Open docker.desktop app.
   - build image
     ```sh
+    cd quant-research/vit_tr_ray_on_gpu/app/ 
     chmod +x 00_build_image.sh
     ./00_build_image.sh
     ```
