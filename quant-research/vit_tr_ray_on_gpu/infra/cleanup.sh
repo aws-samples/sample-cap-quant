@@ -27,8 +27,8 @@ if [[ ! $(cat $TMPFILE) == *"No outputs found"* ]]; then
 fi
 
 targets=(
-  "module.vpc"
   "module.eks"
+  "module.vpc"
 )
 
 for target in "${targets[@]}"
@@ -70,22 +70,6 @@ for sg in $(aws ec2 describe-security-groups \
   --query 'SecurityGroups[].GroupId' --output text); do \
     aws ec2 delete-security-group --no-cli-pager --region $REGION --group-id "$sg"; \
   done
-
-targets=(
-  "module.vpc"
-)
-
-for target in "${targets[@]}"
-do
-  echo "Destroying module $target..."
-  destroy_output=$($TERRAFORM_COMMAND -target="$target" 2>&1 | tee /dev/tty)
-  if [[ ${PIPESTATUS[0]} -eq 0 && $destroy_output == *"Destroy complete"* ]]; then
-    echo "SUCCESS: Terraform destroy of $target completed successfully"
-  else
-    echo "FAILED: Terraform destroy of $target failed"
-    exit 1
-  fi
-done
 
 echo "Destroying remaining resources..."
 destroy_output=$($TERRAFORM_COMMAND -var="region=$REGION" 2>&1 | tee /dev/tty)
