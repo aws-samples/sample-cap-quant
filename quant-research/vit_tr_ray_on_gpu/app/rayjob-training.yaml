@@ -10,6 +10,7 @@ spec:
     working_dir: /cnn_training
     env_vars:
       PYTHONUNBUFFERED: '0'
+      TF_VAR_ray_cluster_result_s3bucket_url: '${RAY_CLUSTER_RESULT_S3BUCKET_URL}'
     pod_spec:
       containers:
       - name: ray-worker
