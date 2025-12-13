@@ -81,4 +81,4 @@ echo -e "\nBuilding kuberay_gpu docker image" \
 #   && docker build --platform linux/amd64 -t $ECR_REPO_URI:$ecr_version --build-arg REGION=$region . \
 #   && docker push $ECR_REPO_URI:$ecr_version \
 #   && echo -e "\nImage successfully pushed to ECR"
-
+ 
