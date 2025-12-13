@@ -122,7 +122,8 @@ This project aims to investigate the feasibility of performing quantitative rese
 
 - Rayjob Submission
   ```sh
-  kubectl create -f rayjob-training.yaml
+  chmod +x 02_create_rayjob.sh
+  ./02_create_rayjob.sh
   ```
 
 ## Observability
