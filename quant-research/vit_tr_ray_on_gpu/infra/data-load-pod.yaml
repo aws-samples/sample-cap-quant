@@ -9,7 +9,8 @@ spec:
     command: ["/bin/bash", "-c"]
     args:
       - |
-        pip install torch==2.1.1+cpu torchvision==0.14.1+cpu torchaudio==0.10.1+cpu && \
+        pip install --upgrade pip && \
+        pip install torch==2.1.1+cpu torchvision==0.16.1+cpu torchaudio==2.1.1+cpu --index-url https://download.pytorch.org/whl/cpu --trusted-host download.pytorch.org && \
         pip install filelock && \
         cd /data && \
         python -c "
