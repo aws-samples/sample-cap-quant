@@ -71,12 +71,12 @@ aws ecr-public get-login-password --region us-east-1 | docker login --username A
 # docker buildx create --use --name mybuilder --driver docker-container
 # docker buildx inspect mybuilder --bootstrap
 
-# If IDE is vscode, use below: (by default, IDE is vscode)
+# If using docker desktop app, run below: (by default)
 echo -e "\nBuilding kuberay_gpu docker image" \
   && docker buildx build --platform linux/amd64 -t $ECR_REPO_URI:$ecr_version --build-arg REGION=$region . --push \
   && echo -e "\nImage successfully pushed to ECR"
 
-# If IDE is podman, use below:
+# If using podman desktop, run below:
 # echo -e "\nBuilding kuberay_gpu docker image" \
 #   && docker build --platform linux/amd64 -t $ECR_REPO_URI:$ecr_version --build-arg REGION=$region . \
 #   && docker push $ECR_REPO_URI:$ecr_version \
