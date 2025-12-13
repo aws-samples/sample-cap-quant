@@ -4,11 +4,11 @@
 # Replace placeholder values with your actual configuration
 
 # Basic configuration
-export TF_VAR_name="mc-dec13"
-export TF_VAR_region="us-east-1"
-export TF_VAR_s3_bucket_name1="dec11-meta"
-export TF_VAR_s3_bucket_name2="dec11-ray"
-export TF_VAR_aws_account_id="135709585800"
+export TF_VAR_name="<eks-cluster-name>"
+export TF_VAR_region="<region-id>"
+export TF_VAR_s3_bucket_name1="<name-of-the-bucket-for-filesystem-metadata-storage>"
+export TF_VAR_s3_bucket_name2="<name-of-the-bucket-for-storing-ray-training-result>"
+export TF_VAR_aws_account_id="<your-aws-account-id>"
 export TF_VAR_prefix_name="ray-results"
 
 # S3 bucket endpoints
