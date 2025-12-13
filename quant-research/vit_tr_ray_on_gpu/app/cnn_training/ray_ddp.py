@@ -144,7 +144,7 @@ def train_cifar_10(num_workers, use_gpu):
     run_config = RunConfig(
         # /mnt/cluster_storage is an Anyscale-specific storage path.
         # OSS users should set up this path themselves.
-        storage_path=os.environ.get("TF_VAR_ray_cluster_result_s3bucket_url", ""),
+        storage_path=os.environ.get("TF_VAR_ray_cluster_result_s3bucket_url", "test"),
         name=f"train_run-{uuid.uuid4().hex}",
     )
     trainer = TorchTrainer(
@@ -159,3 +159,5 @@ def train_cifar_10(num_workers, use_gpu):
 if __name__ == "__main__":
     train_cifar_10(num_workers=2, use_gpu=True)
     print("enter the main")
+    print("--------------")
+    print(os.environ.get("TF_VAR_ray_cluster_result_s3bucket_url", "test"))
