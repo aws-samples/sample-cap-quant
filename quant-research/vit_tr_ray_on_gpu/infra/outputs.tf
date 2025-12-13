@@ -18,6 +18,10 @@ output "raw_data_s3bucket_https_endpoint_url" {
   value = var.raw_data_s3bucket_https_endpoint_url
 }
 
+output "ray_cluster_result_s3bucket_url" {
+  value = var.ray_cluster_result_s3bucket_url
+}
+
 output "name" {
   value = var.name
 }
