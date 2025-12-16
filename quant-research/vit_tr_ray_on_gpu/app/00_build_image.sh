@@ -67,18 +67,8 @@ aws ecr get-login-password --region "$region" | docker login --username AWS --pa
 echo -e "\nLogging in to ECR Public Registry"
 aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
 
-# Create and use a new builder instance for multi-arch builds
-# docker buildx create --use --name mybuilder --driver docker-container
-# docker buildx inspect mybuilder --bootstrap
-
-# If using docker desktop app, run below: (by default)
 echo -e "\nBuilding kuberay_gpu docker image" \
-  && docker buildx build --platform linux/amd64 -t $ECR_REPO_URI:$ecr_version --build-arg REGION=$region . --push \
+  && docker build --platform linux/amd64 -t $ECR_REPO_URI:$ecr_version --build-arg REGION=$region . \
+  && docker push $ECR_REPO_URI:$ecr_version \
   && echo -e "\nImage successfully pushed to ECR"
-
-# If using podman desktop, run below:
-# echo -e "\nBuilding kuberay_gpu docker image" \
-#   && docker build --platform linux/amd64 -t $ECR_REPO_URI:$ecr_version --build-arg REGION=$region . \
-#   && docker push $ECR_REPO_URI:$ecr_version \
-#   && echo -e "\nImage successfully pushed to ECR"
  
