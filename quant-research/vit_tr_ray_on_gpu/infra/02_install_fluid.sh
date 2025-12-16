@@ -4,10 +4,22 @@ CACHE_URL=$(terraform output -raw elastic_cache_redis_endpoint)
 
 kubectl create namespace fluid-system
 
-# Install Helm
-curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-chmod 700 get_helm.sh
-./get_helm.sh
+# Check if Helm is installed
+if command -v helm &> /dev/null; then
+    echo "Helm is already installed. Skipping installation."
+else
+    echo "Helm is not installed."
+    read -p "Do you want to install Helm? (y/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        chmod 700 get_helm.sh
+        ./get_helm.sh
+    else
+        echo "Helm installation cancelled. Exiting."
+        exit 1
+    fi
+fi
 
 # Add Fluid repository
 helm repo add fluid https://fluid-cloudnative.github.io/charts
