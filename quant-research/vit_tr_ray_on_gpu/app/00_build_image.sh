@@ -67,8 +67,13 @@ aws ecr get-login-password --region "$region" | docker login --username AWS --pa
 echo -e "\nLogging in to ECR Public Registry"
 aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
 
-echo -e "\nBuilding kuberay_gpu docker image" \
-  && docker build --platform linux/amd64 -t $ECR_REPO_URI:$ecr_version --build-arg REGION=$region . \
-  && docker push $ECR_REPO_URI:$ecr_version \
-  && echo -e "\nImage successfully pushed to ECR"
+read -p "Do you want to build and push the docker image? (y/n): " build_choice
+if [[ "$build_choice" =~ ^[Yy]$ ]]; then    
+  echo -e "\nBuilding kuberay_gpu docker image" \
+    && docker build --platform linux/amd64 -t $ECR_REPO_URI:$ecr_version --build-arg REGION=$region . \
+    && docker push $ECR_REPO_URI:$ecr_version \
+    && echo -e "\nImage successfully pushed to ECR"
+else
+  echo "Skipping docker build."
+fi
  
