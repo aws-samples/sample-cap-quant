@@ -57,7 +57,7 @@ spec:
   accessModes:
     - ReadWriteMany
   mounts:
-    - name: minio
+    - name: jfs
       mountPoint: 'juicefs:///'   
       options:
         bucket: $RAW_DATA_S3_URL        # e.g. "https://s3.us-west-2.amazonaws.com/nov6-vit-2"  to store raw data
