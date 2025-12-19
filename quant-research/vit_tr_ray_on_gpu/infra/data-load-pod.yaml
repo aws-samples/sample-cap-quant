@@ -5,7 +5,7 @@ metadata:
 spec:
   containers:
   - name: app
-    image: python:3.9
+    image: python:3.13
     command: ["/bin/bash", "-c"]
     args:
       - |
