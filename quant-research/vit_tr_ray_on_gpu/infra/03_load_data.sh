@@ -1,11 +1,13 @@
 #!/bin/bash
 
 kubectl apply -f data-load-pod.yaml
-kubectl wait --for=condition=Ready pod/data-load-pod --timeout=160s
 echo "please wait for data loading..."
 
-if kubectl exec data-load-pod -- ls /data/cifar-10-python.tar.gz &>/dev/null; then
-    echo "data loading success"
-else
-    echo "data loading failed"
-fi
+while true; do
+    size=$(kubectl exec data-load-pod -- stat -c %s /data/cifar-10-python.tar.gz 2>/dev/null)
+    if [ "$size" = "170498071" ]; then
+        echo "data load success"
+        break
+    fi
+    sleep 10
+done
