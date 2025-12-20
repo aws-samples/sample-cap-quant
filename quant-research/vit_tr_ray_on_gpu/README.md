@@ -94,11 +94,11 @@ This project aims to investigate the feasibility of performing quantitative rese
   ./02_install_fluid.sh
   ```
 
-- Training Data Preparation and Caching by creating data-load-pod
+- Training Data Preparation and Caching
   ```sh
-  kubectl create -f data-load-pod.yaml
-
-  #wait for 2-3 minutes for the data to be downloaded
+  chmod +x 03_load_data.sh
+  ./03_load_data.sh
+  
   kubectl exec -it data-load-pod -- /bin/bash -c "cd /data && ls -la"  
   ```
 
