@@ -147,22 +147,22 @@ aws datasync create-location-s3 --s3-bucket-arn arn:aws:s3:::<source-bucket> --s
 
 - Create a data sync task on the cx side.
 
-<img width="414" height="177" alt="image" src="https://github.com/user-attachments/assets/03e364b2-7826-4698-88ac-3e216bb44c1b" />
+<img width="828" height="354" alt="image" src="https://github.com/user-attachments/assets/03e364b2-7826-4698-88ac-3e216bb44c1b" />
 
 
-<img width="414" height="351" alt="image" src="https://github.com/user-attachments/assets/355bc88d-3b7e-4cc2-a1bd-d0f980c4e6bd" />
+<img width="828" height="702" alt="image" src="https://github.com/user-attachments/assets/355bc88d-3b7e-4cc2-a1bd-d0f980c4e6bd" />
 
 
 For the first full data synchronization, the task configuration should be set as follows:
 
 
-<img width="414" height="295" alt="image" src="https://github.com/user-attachments/assets/5b56acc3-a0ef-4d97-9cb1-da5b56b4cffc" />
+<img width="828" height="590" alt="image" src="https://github.com/user-attachments/assets/5b56acc3-a0ef-4d97-9cb1-da5b56b4cffc" />
 
 
 For incremental data, datasync provides options for processing incremental data, as well as the period for scheduled synchronization. metabit allows you to select the synchronization period for Daily.
 
 
-<img width="414" height="363" alt="image" src="https://github.com/user-attachments/assets/57e49ef1-ea10-4e9a-bec6-6a95bdf58205" />
+<img width="828" height="726" alt="image" src="https://github.com/user-attachments/assets/57e49ef1-ea10-4e9a-bec6-6a95bdf58205" />
 
 
 ## Transmission speed estimation
