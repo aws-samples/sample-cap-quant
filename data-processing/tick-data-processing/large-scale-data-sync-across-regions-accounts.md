@@ -52,11 +52,15 @@
 
 <img width="414" height="283" alt="image" src="https://github.com/user-attachments/assets/47e95946-e473-4b14-b870-52a5ae72ac72" />
 
+
 <img width="414" height="146" alt="image" src="https://github.com/user-attachments/assets/ee61caf7-fdd9-4aef-ba19-f73d772b4efe" />
+
 
 <img width="414" height="368" alt="image" src="https://github.com/user-attachments/assets/2bacefe5-a488-4d9f-8f5e-c6f9fb469458" />
 
+
 <img width="414" height="256" alt="image" src="https://github.com/user-attachments/assets/6088c952-ecbd-472c-a0d4-4cb72b6b583e" />
+
 
 Inline policy JSON:
 
@@ -145,13 +149,18 @@ aws datasync create-location-s3 --s3-bucket-arn arn:aws:s3:::<source-bucket> --s
 
 <img width="414" height="177" alt="image" src="https://github.com/user-attachments/assets/03e364b2-7826-4698-88ac-3e216bb44c1b" />
 
+
 <img width="414" height="351" alt="image" src="https://github.com/user-attachments/assets/355bc88d-3b7e-4cc2-a1bd-d0f980c4e6bd" />
+
 
 For the first full data synchronization, the task configuration should be set as follows:
 
+
 <img width="414" height="295" alt="image" src="https://github.com/user-attachments/assets/5b56acc3-a0ef-4d97-9cb1-da5b56b4cffc" />
 
+
 For incremental data, datasync provides options for processing incremental data, as well as the period for scheduled synchronization. metabit allows you to select the synchronization period for Daily.
+
 
 <img width="414" height="363" alt="image" src="https://github.com/user-attachments/assets/57e49ef1-ea10-4e9a-bec6-6a95bdf58205" />
 
