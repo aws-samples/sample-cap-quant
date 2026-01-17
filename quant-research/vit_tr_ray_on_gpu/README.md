@@ -99,7 +99,9 @@ This project aims to investigate the feasibility of performing quantitative rese
   chmod +x 03_load_data.sh
   ./03_load_data.sh
   
-  kubectl exec -it data-load-pod -- /bin/bash -c "cd /data && ls -la"  
+  kubectl exec -it data-load-pod -- /bin/bash -c "cd /data && ls -la"
+  #or
+  kubectl exec data-load-pod -- ls -la /data
   ```
 
 - ECR Image Creation
