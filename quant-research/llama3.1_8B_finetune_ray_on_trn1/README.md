@@ -1,4 +1,4 @@
-# Quant Research using Amazon EKS,Kuberay,CNCF Fluid (using Trainium)
+# Quant Research using Amazon EKS,Kuberay,CNCF Fluid (using Trainium1)
 
 ## Overview
 This project aims to investigate the feasibility of performing quantitative research by leveraging [Amazon Elastic Kubernetes Service (EKS)](https://aws.amazon.com/eks/), [KubeRay](https://github.com/ray-project/kuberay), and [CNCF Fluid](https://github.com/fluid-cloudnative/fluid) as the underlying infrastructure components. Amazon Trainium1 is used as DL model training power. 
