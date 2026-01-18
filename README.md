@@ -7,7 +7,7 @@ Cloud computing platforms have become the new paradigm for modern IT infrastruct
 
 - Quant Research
   - [Leveraging on GPU](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/vit_tr_ray_on_gpu)
-  - Leveraging on Trainium
+  - [Leveraging on Trainium1](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/llama3.1_8B_finetune_ray_on_trn1)
 - Data Processing
   - [CME MDP Multicast Data Access](https://github.com/aws-samples/sample-cap-quant/tree/main/data-processing/cme-mdp-multicast-data-access)
   - [Cross Region, Cross Account Large Historical Data Sync from Data Vendor ](https://github.com/aws-samples/sample-cap-quant/blob/main/data-processing/tick-data-processing/large-scale-data-sync-across-regions-accounts.md)
