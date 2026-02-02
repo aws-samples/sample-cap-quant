@@ -6,6 +6,8 @@ Because the production environment involves access and communication with the CM
 ## Experiment Architecture Diagram
 <img width="4120" height="2112" alt="01experiment" src="https://github.com/user-attachments/assets/a4e4e1c3-92fa-41c3-99c8-e8122b4ee998" />
 
+https://github.com/aws-samples/sample-cap-quant/blob/main/data-processing/cme-mdp-multicast-data-access/architecture-diagram/01experiment.png
+
 The multicast data sender + virtual router (on-prem) is implemented by subscribing to the Cisco Catalyst 8000V on the Amazon Web Services Marketplace and provisioning it in the designated/created Transit VPC. It is an EC2 instance with the c5n.large specification visible in the Amazon Web Services console . The virtual router (on the cloud) is created in the Transit VPC in the same way. The difference is that this EC2 instance needs to be configured with a **LAN** port *(note that the original WAN port and the newly added LAN port need to be in different subnets)*. A **GRE Tunnel** and **PIM neighbor relationship** need to be established between the two virtual routers. An EC2 instance needs to be provisioned in the designated/created App VPC as the multicast data receiver. A Transit Gateway is created through the Amazon Web Services console. During the creation process, please note: 
 
 - 1/ Multicast needs to be enabled;
