@@ -13,7 +13,7 @@ Cloud computing platforms have become the new paradigm for modern IT infrastruct
   - [Cross Region, Cross Account Large Historical Data Sync from Data Vendor ](https://github.com/aws-samples/sample-cap-quant/blob/main/data-processing/tick-data-processing/large-scale-data-sync-across-regions-accounts.md)
 
 ## Contributor
-- Shiyang Wei, AWS Sr. Solutions Architect
+- Shiyang Wei, Sr. Solutions Architect, AWS
 
 # Security
 
