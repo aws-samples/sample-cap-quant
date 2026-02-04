@@ -12,6 +12,8 @@ Cloud computing platforms have become the new paradigm for modern IT infrastruct
   - [CME MDP Multicast Data Access](https://github.com/aws-samples/sample-cap-quant/tree/main/data-processing/cme-mdp-multicast-data-access)
   - [Cross Region, Cross Account Large Historical Data Sync from Data Vendor ](https://github.com/aws-samples/sample-cap-quant/blob/main/data-processing/tick-data-processing/large-scale-data-sync-across-regions-accounts.md)
 
+## Contributor
+- Shiyang Wei, AWS Sr. Solutions Architect
 
 # Security
 
