@@ -6,48 +6,45 @@ Because the production environment involves access and communication with the CM
 ## Experiment Architecture Diagram
 <img width="4120" height="2112" alt="01experiment" src="https://github.com/aws-samples/sample-cap-quant/blob/main/data-processing/cme-mdp-multicast-data-access/architecture-diagram/01experiment.png" />
 
+## Experimental Environment Preparation
+### VPC Planning
+The experimental environment requires planning two VPCs: Transit VPC and App VPC. The Transit VPC is used to deploy the multicast sender, cvr-onprem, and cvr-cloud. The App VPC is used to deploy the multicast receiver. The Transit VPC requires planning four subnets: subnet1 and subnet2 in one AZ, and subnet3 and subnet4 in another AZ. The rationale is as follows:
+- 1. Subnet1 Configuration The ENI (WAN Port) of the multicast sender and the ENI (LAN Port) of cvr-onprem must be in the same subnet, designated as subnet1. Because multicast traffic is Layer 2 broadcast, the sender and cvr-onprem must be in the same subnet to reach each other directly.
+- 2. Subnet2 Configuration The other ENI (WAN Port) of cvr-onprem and its ENI (LAN Port) must be in the same AZ but cannot be in the same subnet. Therefore, subnet2 is planned to host the other ENI (WAN Port) of cvr-onprem.
+- 3. Subnet3 and Subnet4 Configuration The WAN Port and LAN Port of cvr-cloud similarly need to be in the same AZ but cannot be in the same subnet. To more closely approximate the production environment, cvr-cloud's ENIs are planned in a different AZ from cvr-onprem. The cvr-cloud ENI (WAN Port) is placed in subnet3, and the ENI (LAN Port) in subnet4.
+- 4. Subnet5 Configuration The ENI of the Multicast Receiver is planned for deployment in subnet5 of the App VPC. To achieve lower latency, subnet5 is planned to be in the same AZ as subnet3 and subnet4.
 
-The multicast data sender + virtual router (on-prem) is implemented by subscribing to the Cisco Catalyst 8000V on the Amazon Web Services Marketplace and provisioning it in the designated/created Transit VPC. It is an EC2 instance with the c5n.large specification visible in the Amazon Web Services console . The virtual router (on the cloud) is created in the Transit VPC in the same way. The difference is that this EC2 instance needs to be configured with a **LAN** port *(note that the original WAN port and the newly added LAN port need to be in different subnets)*. A **GRE Tunnel** and **PIM neighbor relationship** need to be established between the two virtual routers. An EC2 instance needs to be provisioned in the designated/created App VPC as the multicast data receiver. A Transit Gateway is created through the Amazon Web Services console. During the creation process, please note: 
+Both Transit VPC and App VPC require Internet accessibility because establishing GRE Tunnels and registering Multicast Group sources and members all require the EC2 instances' public IP addresses.
 
-- 1/ Multicast needs to be enabled;
-- 2/ The Transit Gateway needs to have two attachments:
-  - one associated with the subnet where the LAN port of the virtual router (on the cloud) is located;
-  - the other associated with the subnet where the WAN port of the multicast data receiver EC2 is located.
-    
+### EC2 Instance Deployment
 
-## Implementation Steps
+In the experiment, the multicast sender and multicast receiver utilize the c5.large instance type. The operating system selected is ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20251015. The multicast sender is deployed in subnet1 of the Transit VPC, while the multicast receiver is deployed in subnet5 of the App VPC.
 
-### Cisco Catalyst 8000V in the Amazon Web Services Marketplace
-<img width="936" height="328" alt="image" src="https://github.com/user-attachments/assets/83e35770-521f-4252-9333-9db079e4f237" />
+The two virtual routers (cvr-onprem and cvr-cloud) are deployed in the Transit VPC by subscribing to Cisco Catalyst 8000V on AWS Marketplace. The cvr-onprem is deployed in subnet2, and the cvr-cloud is deployed in subnet3.
 
-After the subscription is successful, you can see it in Manage subscripts . Click "Launch" on the right to deploy.
+To deploy the virtual routers, you need to subscribe to Cisco Catalyst 8000V through the AWS Marketplace.
 
-<img width="936" height="220" alt="image" src="https://github.com/user-attachments/assets/f845be8b-8e8a-43f7-b693-1d0cd7144e7f" />
+<img width="468" height="164" alt="image" src="https://github.com/user-attachments/assets/cb8e1a0b-5f3e-4e39-8e37-aa2c99adcc30" />
+ 
+After successful subscription, you can view it in Manage subscriptions. Click the "Launch" button on the right side to proceed with deployment.
+ 
+It is recommended to select Amazon EC2 in the Service option and choose Launch from EC2 Console as the Launch method. It is important to note that both EC2 instances must have Auto-assign public IP enabled.
 
-We recommend selecting Amazon EC2 as the Service and Launch from EC2 Console as the Launch method. Note that both EC2 instances require the Auto- assign public IP setting .
+<img width="468" height="225" alt="image" src="https://github.com/user-attachments/assets/d7df01e8-6330-4441-97be-412529759d7f" />
 
-<img width="936" height="450" alt="image" src="https://github.com/user-attachments/assets/846c51bc-0a81-411c-8a88-03d9ca3ec40e" />
+### Configuration Steps
+#### Configuring cvr-cloud
+Adding LAN Port ENI to cvr-cloud
 
-
-### Create a data receiver EC2
-
-Provision an EC2 instance as the data receiver in the specified/created App VPC.
-
-### Create and configure a multicast data sender + virtual router (under the simulated cloud) and a virtual router (on the cloud)
-
-In the Transit VPC you created, provision two EC2 instances as described above, naming them cvr -onprem and cvr -cloud .
-Execute the following command locally or on a jump server in the cloud to add a LAN port to cvr -cloud . If executing locally, ensure that the AWS CLI SDK is installed locally and that the API key for operating this account's resources is configured. If operating on the cloud, ensure that the jump server can access cvr -cloud and cvr -onprem . Note that the subnet - id in the command below cannot be the ID of the subnet where cvr -cloud is currently located; it must be the ID of another subnet. The Groups parameter is the ID of the security group of this EC2 instance.
-
+Execute the following command from your local machine or a cloud-based bastion host to add a LAN interface to cvr-cloud. If executing locally, ensure that AWS CLI SDK is installed and API keys are configured for operating resources in this account. If executing from the cloud, ensure that the bastion host can access cvr-cloud. Note that the subnet-id in the command below is not the ID of subnet3, but rather the ID of subnet4. The Groups parameter is the security group ID of cvr-cloud.
 ```sh
 aws ec2 create-network-interface \
     --subnet-id subnet-0524c3xxxxxxx \
     --description "LAN port" \
     --groups sg-xxxxxxx
 ```
-
-After execution, the following Json is obtained, from which the ENI ID is read as the input of the network-interface-id parameter of the following command.
-
-```json
+After execution, you will receive the following JSON output. Extract the ENI ID from it to use as the network-interface-id parameter input for the subsequent command.
+```sh
 {
     "NetworkInterface": {
         "AvailabilityZone": "us-west-2c",
@@ -83,203 +80,238 @@ After execution, the following Json is obtained, from which the ENI ID is read a
 }
 ```
 
-instance-id is the instance-id corresponding to cvr -cloud , which can be obtained from the EC2 console.
-
+The instance-id is the instance ID corresponding to cvr-cloud, which can be obtained from the EC2 console.
 ```sh
 aws ec2 attach-network-interface \
     --network-interface-id eni-0edcxxxxxxxx \
     --instance-id i-05682xxxxxxxxx \
     --device-index 1
 ```
-Next, you need to execute the following two commands to shut down the source- dest -desk of the WAN port and LAN port of cvr -cloud respectively.
-
+Next, you need to execute the following two commands separately to disable SourceDestCheck on both the WAN port and LAN port of cvr-cloud.
 ```sh
-aws ec2 modify-network-interface-attribute --network-interface-id <WAN port ENI id> --no-source- dest -check
-aws ec2 modify-network-interface-attribute --network-interface-id <LAN port ENI id> --no-source- dest -check
+aws ec2 modify-network-interface-attribute --network-interface-id <WAN port ENI id> --no-source-dest-check
+aws ec2 modify-network-interface-attribute --network-interface-id <LAN port ENI id> --no-source-dest-check
 ```
-
-This concludes the configuration process using the CLI locally or remotely from a cloud-based jump server. The remaining operations require logging in to cvr -cloud or cvr -onprem .
-
-log in to cvr -cloud using the following command .
-
+The CLI-based configuration operations from your local machine or cloud bastion host are now complete.
+The following operations require logging into cvr-cloud directly.
+First, use the following command to log into cvr-cloud:
 ```sh
-ssh -i " <public key>" -o PubkeyAcceptedKeyTypes =+ssh- rsa ec2-user@< cvr -cloud's IP address>
+ssh -i "<public key>" -o PubkeyAcceptedKeyTypes=+ssh-rsa ec2-user@<cvr-cloud’s IP address>
 ```
+The public key format is xxx.pem.
 
-The public key format is xxx.pem . If logging in via the internet, the IP address is the EC2's public DNS address, in the format ec2-xx-xx-xx-xx.us-west-2.compute.amazonaws.com . If logging in via the intranet, the IP address is the EC2's private IPv4 address , in the format xx.xx.xx.xx.
+IP Address Selection:
+  - Internet login: Use the EC2's Public DNS with the format ec2-xx-xx-xx-xx.us-west-2.compute.amazonaws.com
+  - Internal network login: Use the EC2's private IPv4 address with the format xx.xx.xx.xx
 
-In cvr -cloud , execute config t to enter config mode. You need to configure the following configuration items.
-
-- Configure a GRE tunnel on the WAN port. ABCD is the public network address of c vr-onprem .
-
-```txt
+Once logged into cvr-cloud, execute config t to enter configuration mode. The following configuration items need to be configured:
+- Configure the GRE tunnel on the WAN port, where A.B.C.D represents the public IP address of cvr-onprem.
+```sh
 interface tunnel 0
     ip address 169.254.100.2 255.255.255.252
     tunnel source GigabitEthernet1
     tunnel destination A.B.C.D
 ```
 
-- Enable multicast routing
-
-```txt
+- Enable Multicast Routing
+```sh
 ip multicast-routing distributed
 ```
-
-- Enable PIM multicast routing protocol on the port - upstream port (tunnel port connected to the multicast source), which is the WAN port of cvr - cloud.
-
-```txt
+- Configure PIM multicast routing protocol on the upstream port, which is the WAN port of cvr-cloud (the tunnel port connected to the multicast source).
+```sh
 interface tunnel 0
     ip pim sparse-mode
 ```
-
-- Enable PIM multicast routing protocol on the downstream port (the LAN port you want to forward traffic to), which is the LAN port of the cvr -cloud .
-
-```txt
-interface GigabitEthernet3
+- Configure PIM multicast routing protocol on the downstream port, which is the LAN port of cvr-cloud (the port where you want to forward multicast traffic).
+```sh
+interface GigabitEthernet2
     ip address dhcp
     no shutdown
     ip pim sparse-mode
 ```
-
-- Because the Transit Gateway does not support transparent transmission of IGMP Join messages, the virtual router cannot dynamically detect receivers . Please manually configure static IGMP Join for the required multicast group on the virtual router .
-
-```txt
-interface GigabitEthernet3
+- Since Transit Gateway does not support transparent transmission of IGMP join messages, the virtual router cannot dynamically detect receivers. Therefore, you must manually configure static IGMP join for the required multicast groups on the virtual router.
+```sh
+interface GigabitEthernet2
     ip igmp static-group 232.0.0.1
 ```
-
-- If it is PIM-SM mode, you need to specify RP, which is the GRE tunnel address of the local router.
-
-```txt
+- If using PIM-SM (PIM Sparse Mode), you need to specify the Rendezvous Point (RP), which should be set to the local router's GRE tunnel address.
+```sh
 ip pim rp-address 169.254.100.1
 ```
+- Enabling OSFP Routing Protocol
+```sh
+router ospf 1
+ network 169.254.100.0 0.0.0.3 area 0
+```
+After entering the above configurations sequentially, type end to exit configuration mode. In the # (privileged EXEC) mode, enter write to save the configuration. To view all configurations, enter show run in the # mode.
 
-After entering the above configurations, press end to exit config mode. Then, press write in # mode to save the configurations. To view all configurations, press show run in # mode .
-
-configuring cvr -cloud , configure cvr- onprem . Log in to cvr- onprem in the same way . After entering config mode, configure as follows
-
-- Configure a GRE tunnel on the WAN port, where ABCD is the public network address of cvr - cloud .
-
-```txt
+#### Configuring cvr-onprem
+After completing the cvr-cloud configuration, proceed to configure cvr-onprem.
+Adding LAN Port ENI to cvr-onprem
+Execute the following command from your local machine or a cloud-based bastion host to add a LAN interface to cvr-onprem. If executing locally, ensure that AWS CLI SDK is installed and API keys are configured for operating resources in this account. If executing from the cloud, ensure that the bastion host can access cvr-onprem. Note that the subnet-id in the command below is not the ID of subnet2, but rather the ID of subnet1. The Groups parameter is the security group ID of cvr-onprem.
+```sh
+aws ec2 create-network-interface \
+    --subnet-id subnet-0524c3xxxxxxx \
+    --description "LAN port" \
+    --groups sg-xxxxxxx
+```
+After execution, you will receive the following JSON output. Extract the ENI ID from it to use as the network-interface-id parameter input for the subsequent command.
+```sh
+{
+    "NetworkInterface": {
+        "AvailabilityZone": "us-west-2c",
+        "Description": "LAN port",
+        "Groups": [
+            {
+                "GroupName": "default",
+                "GroupId": "sg-xxxxxx"
+            }
+        ],
+        "InterfaceType": "interface",
+        "Ipv6Addresses": [],
+        "MacAddress": "0a:6a:79:2e:58:47",
+        "NetworkInterfaceId": "eni-0edcxxxxxxxx",
+        "OwnerId": "xxxxxxxxxxxx",
+        "PrivateDnsName": "ip-xx-xx-xx-xx.us-west-2.compute.internal",
+        "PrivateIpAddress": "xx.xx.xx.xx",
+        "PrivateIpAddresses": [
+            {
+                "Primary": true,
+                "PrivateDnsName": "ip-xx-xx-xx-xx.us-west-2.compute.internal",
+                "PrivateIpAddress": "xx.xx.xx.xx"
+            }
+        ],
+        "RequesterId": "AROAxxxxxx:i-00d63xxxxxx",
+        "RequesterManaged": false,
+        "SourceDestCheck": true,
+        "Status": "pending",
+        "SubnetId": "subnet-0524xxxxxx",
+        "TagSet": [],
+        "VpcId": "vpc-7xxxxxx"
+    }
+}
+```
+The instance-id is the instance ID corresponding to cvr-onprem, which can be obtained from the EC2 console.
+```sh
+aws ec2 attach-network-interface \
+    --network-interface-id eni-0edcxxxxxxxx \
+    --instance-id i-05682xxxxxxxxx \
+    --device-index 1
+```
+Next, you need to execute the following two commands separately to disable SourceDestCheck on both the WAN port and LAN port of cvr-onprem.
+```sh
+aws ec2 modify-network-interface-attribute --network-interface-id <WAN port ENI id> --no-source-dest-check
+aws ec2 modify-network-interface-attribute --network-interface-id <LAN port ENI id> --no-source-dest-check
+```
+The CLI-based configuration operations from your local machine or cloud bastion host are now complete.
+The following operations require logging into cvr-onprem directly.
+First, use the following command to log into cvr-onprem:
+```sh
+ssh -i "<public key>" -o PubkeyAcceptedKeyTypes=+ssh-rsa ec2-user@<cvr-cloud’s IP address>
+The public key format is xxx.pem.
+```
+IP Address Selection:
+  - Internet login: Use the EC2's Public DNS with the format ec2-xx-xx-xx-xx.us-west-2.compute.amazonaws.com
+  - Internal network login: Use the EC2's private IPv4 address with the format xx.xx.xx.xx
+Once logged into cvr-cloud, execute config t to enter configuration mode. The following configuration items need to be configured:
+- Configure the GRE tunnel on the WAN port, where E.F.G.H represents the public IP address of cvr-onprem.
+```sh
 interface tunnel 0
     ip address 169.254.100.2 255.255.255.252
     tunnel source GigabitEthernet1
-    tunnel destination A.B.C.D
+    tunnel destination E.F.G.H
 ```
-In this way, cvr -cloud and cvr- onprem are configured.
-
-### Creating and configuring a Transit Gateway
-
-- Gateway with Multicast Capabilities
-
-<img width="570" height="238" alt="image" src="https://github.com/user-attachments/assets/6ce996f9-9209-4aaa-8948-33ade07351a4" />
-
-- Creating a multicast domain
-
-<img width="702" height="316" alt="image" src="https://github.com/user-attachments/assets/62b63d4e-762e-4f29-8ef5-def68eb6f478" />
-
-- Associate the LAN subnet of the virtual router in the Transit VPC with the subnet of the multicast receiving EC2 in the App VPC
-
-<img width="936" height="370" alt="image" src="https://github.com/user-attachments/assets/5686e350-e04a-4d16-9080-a9558f768cc4" />
-
-- Configure IGMP v2 on the EC2 receiving multicast data and join the 232.0.0.1 multicast group. To do this, log in to the EC2 receiving multicast data from a local or cloud-based server and run the following commands one by one.
-
+- Configure GRE Tunnel on LAN Port
+```
+interface GigabitEthernet2
+    ip address dhcp
+    no shutdown
+interface tunnel 1
+    ip address 169.254.200.1 255.255.255.252
+    tunnel source GigabitEthernet2
+    tunnel destination <multicast sender private IP address>
+```
+- Enable Multicast Routing
 ```sh
-sudo -i
-route add -net 224.0.0.0 netmask 240.0.0.0 ens5
-echo '2' > /proc/sys/net/ipv4/conf/ens5/force_igmp_version
-cat /proc/net/ igmp
+ip multicast-routing distributed
 ```
-
-The screenshot after the command is executed is as follows :
-
-<img width="936" height="100" alt="image" src="https://github.com/user-attachments/assets/dadfeb03-7222-4c91-b0ec-673f861fc705" />
-
+- Enable PIM Multicast Routing Protocol on Interfaces
+```
+interface tunnel 0
+ip pim sparse-mode
+interface tunnel 1
+ip pim sparse-mode
+```
+- Specify Rendezvous Point (RP)
 ```sh
-iperf -s -u -B 232.0.0.1- i 1
+ip pim rp-address 169.254.100.1
 ```
-
-The screenshot after the command is executed is as follows:
-
-<img width="936" height="118" alt="image" src="https://github.com/user-attachments/assets/d23ea6b4-7d56-43ee-b620-05323bdc7a40" />
-
-Multicast reception observed on Transit Gateway EC2 ENI joins a multicast group
-
-<img width="936" height="368" alt="image" src="https://github.com/user-attachments/assets/5dc4a9e5-3561-46d0-9b1d-650a8a11aa4d" />
-
-## Experimental verification
-### Multicast Configuration Verification
-
-- Check whether IGMP has joined the 232.0.0.1 multicast group status
-
-Log in to cvr -cloud and execute the following command in # mode
-
+- Enable OSPF Routing Protocol
 ```sh
-show ip igmp groups
+router ospf 1
+ network 169.254.100.0 0.0.0.3 area 0
+ network 169.254.200.0 0.0.0.3 area 0
 ```
-The results are shown below:
+After entering the above configurations sequentially, type end to exit configuration mode. In the # (privileged EXEC) mode, enter write to save the configuration. To view all configurations, enter show run in the # mode.
+With these steps completed, both cvr-cloud and cvr-onprem are now fully configured.
 
-<img width="936" height="68" alt="image" src="https://github.com/user-attachments/assets/9679d82b-1410-44e1-949d-4eee9f860e94" />
-
-
-- Check whether the PIM port is enabled
-
-Log in to cvr -cloud and execute the following command in # mode
-
+#### Configuring multicast sender and multicast receiver
+You need to execute the following commands to disable SourceDestCheck on the WAN port of both the multicast sender and multicast receiver.
 ```sh
-show ip pim interface
+aws ec2 modify-network-interface-attribute --network-interface-id <WAN port ENI id> --no-source-dest-check
 ```
-
-The results are shown below (GigabitEthernet2 is optional):
-
-<img width="936" height="92" alt="image" src="https://github.com/user-attachments/assets/d9b97145-7243-4258-a87f-1a11d9d2797f" />
-
-- Check the PIM neighbor status
-
-Log in to cvr -cloud and execute the following command in # mode
-
+Log into the multicast sender and create a GRE tunnel between the multicast sender and cvr-onprem.
 ```sh
-show ip pim neighbor
+sudo ip tunnel add gre1 mode gre local <multicast sender private IP address> remote <cvr-onprem LAN IP address> ttl 255
+sudo ip addr add 169.254.200.2/30 dev gre1
+sudo ip link set gre1 up
+sudo ip route add 224.0.0.0/4 dev gre1
 ```
 
-The results are shown below:
+The reason for creating this GRE tunnel is that the experimental environment is completed within an AWS VPC, and VPCs do not natively support multicast. Therefore, multicast data needs to be encapsulated within a GRE tunnel to enable transmission. In the actual production environment, this portion of the implementation is completed in CME's on-premises data center and is not subject to AWS VPC limitations.
 
-<img width="936" height="122" alt="image" src="https://github.com/user-attachments/assets/6994df5c-34c8-4e08-afa5-b254bc92e232" />
+#### Configuring Transit Gateway
+- Navigate to below positon and creae transit gateway
+<img width="152" height="131" alt="image" src="https://github.com/user-attachments/assets/fa62fc7a-a689-45b3-a3b2-6f66db4762e4" />
 
-- Check the multicast routing table
+- Create Transit Gateway with Multicast Capability
+<img width="285" height="119" alt="image" src="https://github.com/user-attachments/assets/ba3dfa14-4424-4c24-8d24-a88ab46ec030" />
 
-Log in to cvr -cloud and execute the following command in # mode
+- Navigate to below positon and creae transit gateway multicast
+<img width="162" height="140" alt="image" src="https://github.com/user-attachments/assets/b1754ff0-975b-42d9-a10d-163ac72841a3" />
+<img width="254" height="88" alt="image" src="https://github.com/user-attachments/assets/485d630d-4d2b-4518-b5c3-c93b8e9f25eb" />
 
+- Create Transit gateway attachments
+<img width="147" height="142" alt="image" src="https://github.com/user-attachments/assets/d5b8162c-884c-412c-89a6-9614e9a38e6e" />
+
+VPC Attachment Configuration: Keep the VPC attachment settings at their default values, as shown in the screenshot.
+<img width="219" height="149" alt="image" src="https://github.com/user-attachments/assets/027cd359-ffd7-49fb-9709-558dc7c9d6d1" />
+ 
+Create two Transit Gateway attachments: 1/Transit VPC Attachment: Associate with subnet4 in the Transit VPC; 2/App VPC Attachment: Associate with subnet5 in the App VPC.
+Associate these two Transit Gateway attachments with the previously created TGW Multicast Domain.
+<img width="468" height="273" alt="image" src="https://github.com/user-attachments/assets/b4e586d5-603b-4dc7-b4c2-6dca371d7134" />
+
+Configuration Parameters
+1. Multicast Group Address: 232.0.0.1
+2. Multicast Source: cvr-cloud's LAN port ENI
+3. Multicast Member: Multicast Receiver's ENI
+The configuration commands are as follows:
 ```sh
-show ip mroute
+aws ec2 register-transit-gateway-multicast-group-sources \
+  --transit-gateway-multicast-domain-id <tgw multicast domain id> \
+  --group-ip-address 232.0.0.1 \
+  --network-interface-ids <cvr-cloud LAN Port ENI id> \
+  --region us-east-1
 ```
-
-The results are shown below:
-
-<img width="936" height="422" alt="image" src="https://github.com/user-attachments/assets/a311b337-0255-4012-b955-b65bebe304b2" />
-
-### Multicast data reception verification
-
-Log in to the multicast data receiver EC2 and execute the following command
-
 ```sh
-sudo tcpdump -n icmp
+aws ec2 register-transit-gateway-multicast-group-members \
+  --transit-gateway-multicast-domain-id <tgw multicast domain id> \
+  --group-ip-address 232.0.0.1 \
+  --network-interface-ids <multicast receiver ENI id> \
+  --region us-east-1
 ```
-
-Log in to cvr- onprem and execute the following command in # mode:
-
-```sh
-ping 232.0.0.1 source tunnel 0 repeat 5
-```
-
-the cvr- onprem side are as follows:
-
-<img width="936" height="68" alt="image" src="https://github.com/user-attachments/assets/3882a93c-02fa-438a-bb79-65786343bf82" />
-
-The results of logging into the EC2 side of the multicast data receiver are as follows:
-
-<img width="936" height="140" alt="image" src="https://github.com/user-attachments/assets/703a1a14-f9f7-4a81-bfa3-09a2680e8a4c" />
-
+#### Configuring Security Group
+Ensure that the security group inbound rules in both the Transit VPC and App VPC allow traffic on UDP Port 5000. Port 5000 is the application-layer port used in this experiment for transmitting multicast data.
 
 
 
