@@ -14,7 +14,7 @@ Cloud computing platforms have become the new paradigm for modern IT infrastruct
 
 
 # 
-built by Shiyang Wei, Sr. Solutions Architect, AWS
+*built by Shiyang Wei, Sr. Solutions Architect*
 
 # Security
 
