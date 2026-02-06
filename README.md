@@ -16,7 +16,7 @@ This repository consolidates best practices from cloud-native quantitative tradi
 
 
 # 
-*built by Shiyang Wei, Sr. Solutions Architect*
+*built by Shiyang Wei, Sr. Solutions Architect, AWS*
 
 # Security
 
