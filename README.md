@@ -1,7 +1,9 @@
 # Capital Market - Quant Trading Engineering - Solution Guidance
 
 ## Introduction
-Cloud computing platforms have become the new paradigm for modern IT infrastructure. With their excellent global deployment capabilities and centralized operations management, enterprises can confidently address global business expansion while significantly reducing operational costs and achieving efficient infrastructure management. Following this trend, quantitative hedge funds and private equity firms are increasingly migrating their infrastructure to cloud platforms. This repository collects best practices from industry-leading quantitative investment institutions in building research environments and data processing systems on the AWS platform, aiming to provide valuable references and guidance for peers in the industry.
+Cloud computing platforms have emerged as the foundational paradigm for modern IT infrastructure. With their robust global deployment capabilities and centralized operations management, enterprises can confidently pursue worldwide business expansion while substantially reducing operational costs and achieving streamlined infrastructure management. Aligned with this transformative trend, quant trading firms as well as private equity firms are increasingly migrating their infrastructure to cloud platforms.
+
+This repository consolidates best practices from cloud-native quantitative trading institutions, focusing on building research environments and data processing systems on the AWS platform. It aims to provide valuable references and actionable guidance for industry peers navigating their own cloud transformation journeys.
 
 ## Contents
 
