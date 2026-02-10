@@ -3,7 +3,7 @@
 ## Introduction
 Cloud computing platforms have emerged as the foundational paradigm for modern IT infrastructure. With their robust global deployment capabilities and centralized operations management, enterprises can confidently pursue worldwide business expansion while substantially reducing operational costs and achieving streamlined infrastructure management. Aligned with this transformative trend, quant trading firms as well as private equity firms are increasingly migrating their infrastructure to cloud platforms.
 
-This repository consolidates best practices from cloud-native quantitative trading institutions, focusing on building research environments and data processing systems on the AWS platform. It aims to provide valuable references and actionable guidance for industry peers navigating their own cloud transformation journeys.
+This repo consolidates best practices from cloud-native quantitative trading institutions, focusing on building research environments and data processing systems on the AWS platform. It aims to provide valuable references and actionable guidance for industry peers navigating their own cloud transformation journeys.
 
 ## Quant Trading Context
 
@@ -30,16 +30,55 @@ This repository consolidates best practices from cloud-native quantitative tradi
 - Market Data Provider → Quant Trading: Market data providers supply real-time prices, historical data, and market information to quant trading firms for algorithmic analysis and strategy development.
 - Market Surveillance → Quant Trading: Market surveillance monitors quant trading patterns for potential manipulation, spoofing, or regulatory violations, providing oversight and compliance alerts.
 
+## Quant Trading Workload Overview
+
+<img width="3735" height="2112" alt="2" src="https://github.com/user-attachments/assets/bc7d5370-f45c-4de0-8b02-b86d1ce1e51d" />
+
+**Phase 1: Data Accessing & Pre-processing**
+
+The foundation of the system handles data acquisition and preparation:
+
+- Data Accessing: Collects raw market data from exchanges, market data providers, and alternative data sources
+- Data Pre-processing: Cleans, normalizes, and transforms data into usable formats, handling missing values, outliers, and standardization
+
+This phase ensures high-quality, consistent data flows into the research environment.
+
+**Phase 2: Research**
+
+The core analytical phase where quantitative strategies are developed and validated:
+
+- Data Exploration & Analysis: Initial statistical analysis, pattern discovery, feature engineering, and correlation studies to understand market dynamics.
+
+- Data Modeling (the highlighted central component containing four specialized models):
+
+    - Alpha Modeling: Develops predictive signals that forecast asset returns and identify trading opportunities, representing excess returns above market benchmarks
+    - Risk Modeling: Quantifies portfolio risk through volatility estimation, Value-at-Risk (VaR), stress testing, and factor risk decomposition
+    - Transaction Cost Modeling: Estimates trading costs including market impact, bid-ask spreads, slippage, and commissions to ensure realistic profitability
+    - Portfolio Construction Modeling: Optimizes asset allocation by combining alpha signals while managing risk constraints, position limits, and capital allocation
+
+- Back-testing: Validates strategies through historical simulation, evaluating performance metrics (Sharpe ratio, drawdown, turnover) and testing model robustness.
+
+**Phase 3: Model Serving & Execution**
+
+The production phase that operationalizes research models into live trading:
+
+- A, R, T, P (four specialized execution modules): These mirror the research modeling components, likely representing real-time Alpha signal processing, Risk management monitoring, Transaction cost analysis, and Portfolio optimization in production.
+
+- OMS, EMS (Order Management System & Execution Management System): The OMS manages order lifecycle, compliance checks, and position tracking, while the EMS handles actual order execution, smart order routing, and algorithmic execution strategies.
+
+- Custody, Clearing & Settlement: Manages post-trade processing, asset custody, trade clearing, final settlement, and reconciliation with broker-dealers and exchanges.
 
 
-## Contents
+## Repo Contents
+This repo discusses Data Accessing and Research Modeling. 
 
-- Quant Research
-  - [Leveraging on GPU](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/vit_tr_ray_on_gpu)
-  - [Leveraging on Trainium1](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/llama3.1_8B_finetune_ray_on_trn1)
-- Data Processing
+- Data Accessing
   - [CME MDP Multicast Data Access](https://github.com/aws-samples/sample-cap-quant/tree/main/data-processing/cme-mdp-multicast-data-access)
   - [Cross Region, Cross Account Large Historical Data Sync from Data Vendor ](https://github.com/aws-samples/sample-cap-quant/blob/main/data-processing/tick-data-processing/large-scale-data-sync-across-regions-accounts.md)
+
+- Research Modeling
+  - [Leveraging on GPU](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/vit_tr_ray_on_gpu)
+  - [Leveraging on Trainium1](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/llama3.1_8B_finetune_ray_on_trn1)
 
 
 # 
