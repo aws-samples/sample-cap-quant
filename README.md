@@ -7,6 +7,8 @@ This repository consolidates best practices from cloud-native quantitative tradi
 
 ## Quant Trading Context
 
+<img width="984" height="906" alt="1" src="https://github.com/user-attachments/assets/d9da359b-3e8d-4cab-a38c-1a155050031f" />
+
 **Key Components:**
 - **Quant Trading** serves as the primary actor initiating trading activities using algorithmic and quantitative strategies.
 - **Market Data Provider** supplies real-time and historical market data to multiple participants through both direct feeds to quant trading firms and distribution channels to broker-dealers.
