@@ -30,7 +30,7 @@ Three multicast distribution modes were evaluated to assess TGW's multi-receiver
 - Mode 2: Single App VPC with 2 multicast receivers
 - Mode 3: Two App VPCs, each hosting 1 multicast receiver
 These scenarios validate TGW's ability to efficiently distribute multicast traffic across different VPC topologies.
-<img width="468" height="243" alt="image" src="https://github.com/user-attachments/assets/61f092d4-06d6-4b90-8c34-471c1b60a2f3" />
+<img width="936" height="486" alt="image" src="https://github.com/user-attachments/assets/61f092d4-06d6-4b90-8c34-471c1b60a2f3" />
 
  
 ## Test Data Specification
