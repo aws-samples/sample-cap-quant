@@ -75,7 +75,7 @@ The production phase that operationalizes research models into live trading:
 - [Quant Alpha Modeling Strategy Review](https://symeta.medium.com/quant-alpha-modeling-strategy-review-d625beb2dede)
 
 ## 📚Repo Contents
-This repo discusses Data Accessing and Research Modeling. 
+This repo discusses ++Data Accessing++ and ++Research Modeling++. 
 
 🌟 Data Accessing
 
