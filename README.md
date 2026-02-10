@@ -16,6 +16,7 @@ This repository consolidates best practices from cloud-native quantitative tradi
 - **Market Surveillance** monitors market activity for regulatory compliance, market manipulation detection, and trading pattern analysis, overseeing both quant trading activities and broker-dealer operations.
 
 **Workflow:**
+
 **Transaction Flow**
 - Quant Trading → Broker-Dealer: Quantitative trading firms generate and submit buy/sell orders and trading instructions to their broker-dealers. This represents the core transactional order flow.
 - Broker-Dealer → Exchange: Broker-dealer route client orders to exchanges for matching and execution in the public marketplace. This is the primary execution pathway where trades are actually executed.
