@@ -272,23 +272,29 @@ The reason for creating this GRE tunnel is that the experimental environment is 
 
 #### Configuring Transit Gateway
 - Navigate to below positon and creae transit gateway
+
 <img width="152" height="131" alt="image" src="https://github.com/user-attachments/assets/fa62fc7a-a689-45b3-a3b2-6f66db4762e4" />
 
 - Create Transit Gateway with Multicast Capability
+
 <img width="285" height="119" alt="image" src="https://github.com/user-attachments/assets/ba3dfa14-4424-4c24-8d24-a88ab46ec030" />
 
 - Navigate to below positon and creae transit gateway multicast
+
 <img width="162" height="140" alt="image" src="https://github.com/user-attachments/assets/b1754ff0-975b-42d9-a10d-163ac72841a3" />
 <img width="254" height="88" alt="image" src="https://github.com/user-attachments/assets/485d630d-4d2b-4518-b5c3-c93b8e9f25eb" />
 
 - Create Transit gateway attachments
+
 <img width="147" height="142" alt="image" src="https://github.com/user-attachments/assets/d5b8162c-884c-412c-89a6-9614e9a38e6e" />
 
 VPC Attachment Configuration: Keep the VPC attachment settings at their default values, as shown in the screenshot.
+
 <img width="219" height="149" alt="image" src="https://github.com/user-attachments/assets/027cd359-ffd7-49fb-9709-558dc7c9d6d1" />
  
 Create two Transit Gateway attachments: 1/Transit VPC Attachment: Associate with subnet4 in the Transit VPC; 2/App VPC Attachment: Associate with subnet5 in the App VPC.
 Associate these two Transit Gateway attachments with the previously created TGW Multicast Domain.
+
 <img width="468" height="273" alt="image" src="https://github.com/user-attachments/assets/b4e586d5-603b-4dc7-b4c2-6dca371d7134" />
 
 Configuration Parameters
@@ -296,6 +302,7 @@ Configuration Parameters
 2. Multicast Source: cvr-cloud's LAN port ENI
 3. Multicast Member: Multicast Receiver's ENI
 The configuration commands are as follows:
+
 ```sh
 aws ec2 register-transit-gateway-multicast-group-sources \
   --transit-gateway-multicast-domain-id <tgw multicast domain id> \
