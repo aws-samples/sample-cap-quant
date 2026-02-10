@@ -24,13 +24,13 @@ The two virtual routers (cvr-onprem and cvr-cloud) are deployed in the Transit V
 
 To deploy the virtual routers, you need to subscribe to Cisco Catalyst 8000V through the AWS Marketplace.
 
-<img width="468" height="164" alt="image" src="https://github.com/user-attachments/assets/cb8e1a0b-5f3e-4e39-8e37-aa2c99adcc30" />
+<img width="936" height="328" alt="image" src="https://github.com/user-attachments/assets/cb8e1a0b-5f3e-4e39-8e37-aa2c99adcc30" />
  
 After successful subscription, you can view it in Manage subscriptions. Click the "Launch" button on the right side to proceed with deployment.
  
 It is recommended to select Amazon EC2 in the Service option and choose Launch from EC2 Console as the Launch method. It is important to note that both EC2 instances must have Auto-assign public IP enabled.
 
-<img width="468" height="225" alt="image" src="https://github.com/user-attachments/assets/d7df01e8-6330-4441-97be-412529759d7f" />
+<img width="936" height="450" alt="image" src="https://github.com/user-attachments/assets/d7df01e8-6330-4441-97be-412529759d7f" />
 
 ### Configuration Steps
 #### Configuring cvr-cloud
@@ -273,29 +273,29 @@ The reason for creating this GRE tunnel is that the experimental environment is 
 #### Configuring Transit Gateway
 - Navigate to below positon and creae transit gateway
 
-<img width="152" height="131" alt="image" src="https://github.com/user-attachments/assets/fa62fc7a-a689-45b3-a3b2-6f66db4762e4" />
+<img width="304" height="262" alt="image" src="https://github.com/user-attachments/assets/fa62fc7a-a689-45b3-a3b2-6f66db4762e4" />
 
 - Create Transit Gateway with Multicast Capability
 
-<img width="285" height="119" alt="image" src="https://github.com/user-attachments/assets/ba3dfa14-4424-4c24-8d24-a88ab46ec030" />
+<img width="570" height="238" alt="image" src="https://github.com/user-attachments/assets/ba3dfa14-4424-4c24-8d24-a88ab46ec030" />
 
 - Navigate to below positon and creae transit gateway multicast
 
-<img width="162" height="140" alt="image" src="https://github.com/user-attachments/assets/b1754ff0-975b-42d9-a10d-163ac72841a3" />
-<img width="254" height="88" alt="image" src="https://github.com/user-attachments/assets/485d630d-4d2b-4518-b5c3-c93b8e9f25eb" />
+<img width="324" height="280" alt="image" src="https://github.com/user-attachments/assets/b1754ff0-975b-42d9-a10d-163ac72841a3" />
+<img width="508" height="176" alt="image" src="https://github.com/user-attachments/assets/485d630d-4d2b-4518-b5c3-c93b8e9f25eb" />
 
 - Create Transit gateway attachments
 
-<img width="147" height="142" alt="image" src="https://github.com/user-attachments/assets/d5b8162c-884c-412c-89a6-9614e9a38e6e" />
+<img width="294" height="284" alt="image" src="https://github.com/user-attachments/assets/d5b8162c-884c-412c-89a6-9614e9a38e6e" />
 
 VPC Attachment Configuration: Keep the VPC attachment settings at their default values, as shown in the screenshot.
 
-<img width="219" height="149" alt="image" src="https://github.com/user-attachments/assets/027cd359-ffd7-49fb-9709-558dc7c9d6d1" />
+<img width="438" height="298" alt="image" src="https://github.com/user-attachments/assets/027cd359-ffd7-49fb-9709-558dc7c9d6d1" />
  
 Create two Transit Gateway attachments: 1/Transit VPC Attachment: Associate with subnet4 in the Transit VPC; 2/App VPC Attachment: Associate with subnet5 in the App VPC.
 Associate these two Transit Gateway attachments with the previously created TGW Multicast Domain.
 
-<img width="468" height="273" alt="image" src="https://github.com/user-attachments/assets/b4e586d5-603b-4dc7-b4c2-6dca371d7134" />
+<img width="936" height="546" alt="image" src="https://github.com/user-attachments/assets/b4e586d5-603b-4dc7-b4c2-6dca371d7134" />
 
 Configuration Parameters
 1. Multicast Group Address: 232.0.0.1
