@@ -92,11 +92,11 @@ This repo discusses Data Accessing and Research Modeling.
 *built with ❤️ by Shiyang Wei, Sr. Solutions Architect, AWS*
 
 
-# Security
+# 🔐Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
 
-# License
+# 💼License
 
 This library is licensed under the MIT-0 License. See the [LICENSE](https://github.com/aws-samples/sample-cap-quant/blob/main/LICENSE) file.
 
