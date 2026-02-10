@@ -313,5 +313,7 @@ aws ec2 register-transit-gateway-multicast-group-members \
 #### Configuring Security Group
 Ensure that the security group inbound rules in both the Transit VPC and App VPC allow traffic on UDP Port 5000. Port 5000 is the application-layer port used in this experiment for transmitting multicast data.
 
+## Test
+After the environment is setup, please refer to [Testing Guidance](https://github.com/aws-samples/sample-cap-quant/blob/main/data-processing/cme-mdp-multicast-data-access/test.md) for performance testing
 
 
