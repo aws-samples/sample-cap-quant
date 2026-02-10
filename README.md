@@ -5,7 +5,7 @@ Cloud computing platforms have emerged as the foundational paradigm for modern I
 
 This repo consolidates best practices from cloud-native quantitative trading institutions, focusing on building research environments and data processing systems on the AWS platform. It aims to provide valuable references and actionable guidance for industry peers navigating their own cloud transformation journeys.
 
-## Quant Trading Context
+## 🏃‍♀️Quant Trading Context
 
 <img width="3735" height="2112" alt="1" src="https://github.com/user-attachments/assets/031c7a71-bc5a-48c8-b275-7eadd2fbf2bd" />
 
@@ -30,7 +30,7 @@ This repo consolidates best practices from cloud-native quantitative trading ins
 - Market Data Provider → Quant Trading: Market data providers supply real-time prices, historical data, and market information to quant trading firms for algorithmic analysis and strategy development.
 - Market Surveillance → Quant Trading: Market surveillance monitors quant trading patterns for potential manipulation, spoofing, or regulatory violations, providing oversight and compliance alerts.
 
-## Quant Trading Workload Overview
+## 🏗️Quant Trading Workload Overview
 
 <img width="3735" height="2112" alt="2" src="https://github.com/user-attachments/assets/bc7d5370-f45c-4de0-8b02-b86d1ce1e51d" />
 
@@ -68,26 +68,29 @@ The production phase that operationalizes research models into live trading:
 
 - Custody, Clearing & Settlement: Manages post-trade processing, asset custody, trade clearing, final settlement, and reconciliation with broker-dealers and exchanges.
 
-**For detailed analysis of Quant Trading's Research Workload**
+**🔗For detailed analysis of Quant Trading's Research Workload**
 
 - [Inside the Black Box: A Quant Trading Research Architecture Analysis](https://medium.com/@symeta/inside-the-black-box-a-qhf-research-architecture-analysis-750d07914b08)
 - [Technical Anaylsis of Quant Trading Research Workload](https://medium.com/@symeta/technical-anaylsis-of-quant-trading-research-workload-0ea59dbde4ed)
 - [Quant Alpha Modeling Strategy Review](https://symeta.medium.com/quant-alpha-modeling-strategy-review-d625beb2dede)
 
-## Repo Contents
+## 📚Repo Contents
 This repo discusses Data Accessing and Research Modeling. 
 
-- Data Accessing
-  - [CME MDP Multicast Data Access](https://github.com/aws-samples/sample-cap-quant/tree/main/data-processing/cme-mdp-multicast-data-access)
-  - [Cross Region, Cross Account Large Historical Data Sync from Data Vendor ](https://github.com/aws-samples/sample-cap-quant/blob/main/data-processing/tick-data-processing/large-scale-data-sync-across-regions-accounts.md)
+🌟 Data Accessing
 
-- Research Modeling
-  - [Leveraging on GPU](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/vit_tr_ray_on_gpu)
-  - [Leveraging on Trainium1](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/llama3.1_8B_finetune_ray_on_trn1)
+- 🎯 [CME MDP Multicast Data Access](https://github.com/aws-samples/sample-cap-quant/tree/main/data-processing/cme-mdp-multicast-data-access)
+- 🎯 [Cross Region, Cross Account Large Historical Data Sync from Data Vendor ](https://github.com/aws-samples/sample-cap-quant/blob/main/data-processing/tick-data-processing/large-scale-data-sync-across-regions-accounts.md)
+
+🌟 Research Modeling
+
+- 🎯 [Leveraging on GPU](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/vit_tr_ray_on_gpu)
+- 🎯 [Leveraging on Trainium1](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/llama3.1_8B_finetune_ray_on_trn1)
 
 
 # 
-*built by Shiyang Wei, Sr. Solutions Architect, AWS*
+*built with ❤️ by Shiyang Wei, Sr. Solutions Architect, AWS*
+
 
 # Security
 
