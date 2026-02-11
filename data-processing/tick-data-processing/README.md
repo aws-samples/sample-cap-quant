@@ -17,7 +17,7 @@
 
 ## Implementatin
 
-- The destination bucket on the quant trading side needs to be configured with the following bucket policy:
+- The destination bucket on the quant side needs to be configured with the following bucket policy:
 
 ```json
 {
