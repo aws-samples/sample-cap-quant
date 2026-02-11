@@ -496,9 +496,9 @@ numactl --cpunodebind=$NIC_NUMA --membind=$NIC_NUMA \
 
 ## Summary
 
-    - Disable all offloads (GRO, TSO, GSO) for predictable latency
-    - Disable DIM to eliminate adaptive buffering
-    - Enable busy polling for sub-20μs response
-    - Pin IRQs and applications to NUMA-local CPUs
-    - Use AF_XDP for ultimate performance (58% latency reduction)
-    - Test iteratively - layer optimizations and measure each step
+- Disable all offloads (GRO, TSO, GSO) for predictable latency
+- Disable DIM to eliminate adaptive buffering
+- Enable busy polling for sub-20μs response
+- Pin IRQs and applications to NUMA-local CPUs
+- Use AF_XDP for ultimate performance (58% latency reduction)
+- Test iteratively - layer optimizations and measure each step
