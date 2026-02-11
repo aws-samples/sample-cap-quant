@@ -88,11 +88,8 @@ This repo discusses **Data Accessing** and **Research Modeling** as well as **Ho
 - 🎯 [Leveraging on GPU](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/vit_tr_ray_on_gpu)
 - 🎯 [Leveraging on Trainium1](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/llama3.1_8B_finetune_ray_on_trn1)
 
-🌟 Execution
-- 🎯 [How to achieve low latency]()
-
-# 
-*built with ❤️ by Shiyang Wei, Sr. Solutions Architect, AWS*
+🌟 Low Latency
+- 🎯 [How to achieve low latency (under review)](https://github.com/aws-samples/sample-cap-quant/tree/main/low-latency)
 
 
 # 🔐Security
@@ -103,3 +100,5 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 
 This library is licensed under the MIT-0 License. See the [LICENSE](https://github.com/aws-samples/sample-cap-quant/blob/main/LICENSE) file.
 
+# 
+*built with ❤️ by Shiyang Wei, Sr. Solutions Architect, AWS*
