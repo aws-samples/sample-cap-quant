@@ -11,12 +11,13 @@
 
 - AWS DataSync is applied to synchronize existing and incremental data.
 
-<img width="3735" height="1925" alt="3" src="https://github.com/user-attachments/assets/c9745c04-c1f9-4d54-8c68-b15fc518a024" />
+<img width="3735" height="1925" alt="3" src="https://github.com/user-attachments/assets/0a941f24-e350-4611-a3f0-f5a3683c4003" />
+
 
 
 ## Implementatin
 
-- The destination bucket on the metabit side needs to be configured with the following bucket policy:
+- The destination bucket on the quant trading side needs to be configured with the following bucket policy:
 
 ```json
 {
@@ -27,8 +28,8 @@
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::<metabit-aws-account-id>:role/datasync-role",
-          "arn:aws:iam::<metabit-aws-account-id>:user/<specific-cx-iam-user>"
+          "arn:aws:iam::<quant's-aws-account-id>:role/datasync-role",
+          "arn:aws:iam::<quant's-aws-account-id>:user/<specific-cx-iam-user>"
         ]
       },
       "Action": [
@@ -51,7 +52,7 @@
   ]
 }
 ```
-- On the cx side, an IAM role named datasync-role needs to be created. The creation process is as follows:
+- On the quant's side, an IAM role named datasync-role needs to be created. The creation process is as follows:
 
 <img width="828" height="566" alt="image" src="https://github.com/user-attachments/assets/47e95946-e473-4b14-b870-52a5ae72ac72" />
 
@@ -108,8 +109,8 @@ Inline policy JSON:
             "Effect": "Allow",
             "Principal": {
                 "AWS": [
-                    "arn:aws:iam::<metabit-aws-account-id>:role/datasync-role",
-                    "arn:aws:iam::<metabit-aws-account-id>:user/<specific-cx-iam-user>"
+                    "arn:aws:iam::<quant's-aws-account-id>:role/datasync-role",
+                    "arn:aws:iam::<quant's-aws-account-id>:user/<specific-cx-iam-user>"
                 ]
             },
             "Action": [
@@ -123,8 +124,8 @@ Inline policy JSON:
             "Effect": "Allow",
             "Principal": {
                 "AWS": [
-                    "arn:aws:iam::<metabit-aws-account-id>:role/datasync-role",
-                    "arn:aws:iam::<metabit-aws-account-id>:user/<specific-cx-iam-user>"
+                    "arn:aws:iam::<quant's-aws-account-id>:role/datasync-role",
+                    "arn:aws:iam::<quant's-aws-account-id>:user/<specific-cx-iam-user>"
                 ]
             },
             "Action": [
@@ -142,10 +143,10 @@ Inline policy JSON:
 }
 ```
 
-- Create a datasync source location on the cx side.
+- Create a datasync source location on the quant's side.
 
 ```sh
-aws datasync create-location-s3 --s3-bucket-arn arn:aws:s3:::<source-bucket> --s3-storage-class STANDARD --s3-config BucketAccessRoleArn="arn:aws:iam::<cx-aws-account-id>:role/datasync-role" --region us-east-1
+aws datasync create-location-s3 --s3-bucket-arn arn:aws:s3:::<source-bucket> --s3-storage-class STANDARD --s3-config BucketAccessRoleArn="arn:aws:iam::<quant's-aws-account-id>:role/datasync-role" --region us-east-1
 ```
 
 - Create a data sync task on the cx side.
