@@ -73,7 +73,7 @@ The production phase that operationalizes research models into live trading:
 
 - [Inside the Black Box: A Quant Trading Research Architecture Analysis](https://medium.com/@symeta/inside-the-black-box-a-qhf-research-architecture-analysis-750d07914b08)
 - [Technical Anaylsis of Quant Trading Research Workload](https://medium.com/@symeta/technical-anaylsis-of-quant-trading-research-workload-0ea59dbde4ed)
-- [Quant Alpha Modeling Strategy Review](https://symeta.medium.com/quant-alpha-modeling-strategy-review-d625beb2dede)
+- [Quant Alpha Modeling Strategy Review](https://medium.com/@symeta/quant-alpha-modeling-strategy-review-d625beb2dede)
 
 ## 📚Repo Contents
 This repo discusses **Data Accessing** and **Research Modeling**. 
