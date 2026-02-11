@@ -5,5 +5,5 @@
 - [Network Stack Tuning](https://github.com/aws-samples/sample-cap-quant/blob/main/low-latency/Network%20Stack%20Tuning.md)
 - [Kernel Bypass Technologies](https://github.com/aws-samples/sample-cap-quant/blob/main/low-latency/Kernel%20Bypass%20Technologies.md)
 - [Architecture Best Practices]()
-- [Time Synchronization]()
+- [Time Synchronization](https://github.com/aws-samples/sample-cap-quant/blob/main/low-latency/Time%20Synchronization.md)
 - [Performance Benchmarking]()
