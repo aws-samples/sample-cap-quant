@@ -7,9 +7,12 @@
 
 - The first synchronization involved 100TB of historical data, with approximately 100GB of incremental data to be added daily thereafter.
 
-## Solution Brief
+## Solution Architecture
 
-- AWS DataSync can be used to synchronize existing and incremental data.
+- AWS DataSync is applied to synchronize existing and incremental data.
+
+<img width="3735" height="1925" alt="3" src="https://github.com/user-attachments/assets/03ca08f0-8301-4c02-99cf-5f55f7610399" />
+
 
 ## Implementatin
 
