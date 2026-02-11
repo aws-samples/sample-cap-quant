@@ -89,7 +89,7 @@ This repo discusses **Data Accessing** and **Research Modeling** as well as **Ho
 - 🎯 [Leveraging on Trainium1](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/llama3.1_8B_finetune_ray_on_trn1)
 
 🌟 Low Latency
-- 🎯 [How to achieve low latency (under review)](https://github.com/aws-samples/sample-cap-quant/tree/main/low-latency)
+- 🎯 [How to achieve low latency (under review)](https://github.com/symeta/low-latency/)
 
 
 # 🔐Security
