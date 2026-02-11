@@ -99,7 +99,7 @@ Inline policy JSON:
 }
 ```
 
-- The data provider's source bucket requires a configured policy, and a sample configuration is shown below:
+- The **data provider**'s source bucket requires a configured policy, and a sample configuration is shown below:
 
 ```json
 {
