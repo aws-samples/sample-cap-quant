@@ -213,16 +213,16 @@
 
 - Architecture Patterns:
 
-- Single-Region to Single-Region:
+    - Single-Region to Single-Region:
 
-```txt
-VPC → VGW → DX → Third-Party Network → DX → VGW → VPC
-```
+    ```txt
+    VPC → VGW → DX → Third-Party Network → DX → VGW → VPC
+    ```
 
-- Multi-Region Hub:
-```txt
-VPC → DX Gateway → Multiple DX Connections → Third-Party Providers
-```
+    - Multi-Region Hub:
+    ```txt
+    VPC → DX Gateway → Multiple DX Connections → Third-Party Providers
+    ```
 - Avoid:
 ```txt
 VPC → TGW → DX Gateway → DX (adds TGW hop)
@@ -254,9 +254,9 @@ VPC → Inspection VPC → DX (adds inspection overhead)
 
 - Real-World Performance Expectations
 
-- Typical Latencies:
+    - Typical Latencies:
 
-    - Same AZ (CPG): 10-50μs round-trip
-    - Cross-AZ (same region): 1-2ms round-trip
-    - Cross-region (AWS backbone): 20-100ms depending on distance
-    - Cross-region (third-party): 10-50% improvement over AWS backbone
+        - Same AZ (CPG): 10-50μs round-trip
+        - Cross-AZ (same region): 1-2ms round-trip
+        - Cross-region (AWS backbone): 20-100ms depending on distance
+        - Cross-region (third-party): 10-50% improvement over AWS backbone
