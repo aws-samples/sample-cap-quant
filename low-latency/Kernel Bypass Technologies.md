@@ -80,14 +80,14 @@ Packet Rate vs Latency Benefit:
 1M+ pps:   DPDK gain = ~90%
 ```
     - 2.Large Payloads with Batching
-```txt
-Packet Size   | Throughput    | DPDK Advantage
--------------------------------------------------
-64 bytes      | 14.88 Mpps    | Minimal
-256 bytes     | 3.72 Mpps     | Moderate (40%)
-1024 bytes    | 930 kpps      | Significant (70%)
-1500 bytes    | 812 kpps      | Maximum (85%)
-```
+
+|Packet Size   | Throughput    | DPDK Advantage|
+|--------------|---------------|----------------|
+|64 bytes      | 14.88 Mpps    | Minimal|
+|256 bytes     | 3.72 Mpps     | Moderate (40%)|
+|1024 bytes    | 930 kpps      | Significant (70%)|
+|1500 bytes    | 812 kpps      | Maximum (85%)|
+
     - 3.Market Data Distribution
 
     - Multicast fan-out to many subscribers
@@ -403,15 +403,13 @@ Aeron (DPDK):
 
 Performance sweet spot:
 
-```txt
-Packet Rate    | AF_XDP vs DPDK  | Complexity Ratio
---------------------------------------------------------
-<10k pps       | Tie             | AF_XDP: 1x, DPDK: 10x
-50k pps        | 90% of DPDK     | AF_XDP: 1x, DPDK: 10x
-100k pps       | 85% of DPDK     | AF_XDP: 1x, DPDK: 10x
-500k pps       | 75% of DPDK     | AF_XDP: 1x, DPDK: 10x
-1M+ pps        | 60% of DPDK     | AF_XDP: 1x, DPDK: 10x
-```
+|Packet Rate    | AF_XDP vs DPDK  | Complexity Ratio|
+|---------------|-----------------|------------------|
+|<10k pps       | Tie             | AF_XDP: 1x, DPDK: 10x|
+|50k pps        | 90% of DPDK     | AF_XDP: 1x, DPDK: 10x|
+|100k pps       | 85% of DPDK     | AF_XDP: 1x, DPDK: 10x|
+|500k pps       | 75% of DPDK     | AF_XDP: 1x, DPDK: 10x|
+|1M+ pps        | 60% of DPDK     | AF_XDP: 1x, DPDK: 10x|
 
 Implementation: AF_XDP with ENA
 
@@ -585,22 +583,22 @@ sudo ip link set dev eth0 xdp obj xdp_filter.o sec xdp
 
 Comprehensive Comparison Matrix
 
-Feature          | Kernel Stack | eBPF/XDP | AF_XDP   | DPDK
------------------------------------------------------------------
-Latency (P50)    | 52 μs       | 35 μs    | 22 μs    | 18 μs
-Latency (P99)    | 145 μs      | 85 μs    | 38 μs    | 28 μs
-Latency (P99.9)  | 380 μs      | 180 μs   | 65 μs    | 45 μs
-Max Throughput   | 3.5 Mpps    | 8 Mpps   | 10 Mpps  | 14.8 Mpps
-CPU Efficiency   | Good        | Very Good| Good     | Excellent
-Implementation   | Trivial     | Moderate | Moderate | Complex
-Maintenance      | Easy        | Easy     | Moderate | Hard
-Kernel Bypass    | No          | No       | Partial  | Complete
-Zero-Copy        | No          | No       | Yes      | Yes
-Learning Curve   | 1 week      | 2 weeks  | 3 weeks  | 2-3 months
-AWS Support      | Full        | Full     | Full     | Full
+|Feature          | Kernel Stack | eBPF/XDP | AF_XDP   | DPDK|
+|-----------------|--------------|----------|----------|------|
+|Latency (P50)    | 52 μs       | 35 μs    | 22 μs    | 18 μs|
+|Latency (P99)    | 145 μs      | 85 μs    | 38 μs    | 28 μs|
+|Latency (P99.9)  | 380 μs      | 180 μs   | 65 μs    | 45 μs|
+|Max Throughput   | 3.5 Mpps    | 8 Mpps   | 10 Mpps  | 14.8 Mpps|
+|CPU Efficiency   | Good        | Very Good| Good     | Excellent|
+|Implementation   | Trivial     | Moderate | Moderate | Complex|
+|Maintenance      | Easy        | Easy     | Moderate | Hard|
+|Kernel Bypass    | No          | No       | Partial  | Complete|
+|Zero-Copy        | No          | No       | Yes      | Yes|
+|Learning Curve   | 1 week      | 2 weeks  | 3 weeks  | 2-3 months|
+|AWS Support      | Full        | Full     | Full     | Full|
 
 Decision Framework
-
+```sh
 What's your packet rate?
   ↓
 < 10k pps → Standard Kernel Stack (optimized)
@@ -622,34 +620,34 @@ Special requirements?
 ├─ Maximum simplicity → Kernel Stack
 ├─ Filtering only → eBPF/XDP
 └─ Zero-copy essential → AF_XDP or DPDK
-
+```
 Real-World Recommendations
 
 Cryptocurrency Market Making:
 
-Exchange    | Packet Rate | Latency Req | Recommendation
-----------------------------------------------------------------
-Binance     | 150k pps    | P99 < 50 μs | AF_XDP + eBPF filter
-Coinbase    | 80k pps     | P99 < 80 μs | Kernel Stack optimized
-Kraken      | 120k pps    | P99 < 60 μs | AF_XDP
-OKX         | 200k pps    | P99 < 40 μs | DPDK
+|Exchange    | Packet Rate | Latency Req | Recommendation|
+|------------|-------------|-------------|----------------|
+|Binance     | 150k pps    | P99 < 50 μs | AF_XDP + eBPF filter|
+|Coinbase    | 80k pps     | P99 < 80 μs | Kernel Stack optimized|
+|Kraken      | 120k pps    | P99 < 60 μs | AF_XDP|
+|OKX         | 200k pps    | P99 < 40 μs | DPDK|
 
 Equity/Derivatives Trading:
 
-Use Case              | Packet Rate | Latency Req | Recommendation
-------------------------------------------------------------------------
-Market data consumer  | 300k pps    | P99 < 30 μs | DPDK
-Order entry          | 5k pps      | P99 < 50 μs | Kernel Stack
-Algorithmic trading  | 50k pps     | P99 < 100μs | Kernel Stack
-HFT market making    | 800k pps    | P99 < 20 μs | DPDK (only option)
+|Use Case              | Packet Rate | Latency Req | Recommendation|
+|----------------------|-------------|-------------|---------------|
+|Market data consumer  | 300k pps    | P99 < 30 μs | DPDK|
+|Order entry          | 5k pps      | P99 < 50 μs | Kernel Stack|
+|Algorithmic trading  | 50k pps     | P99 < 100μs | Kernel Stack|
+|HFT market making    | 800k pps    | P99 < 20 μs | DPDK (only option)|
 
 
 Performance Summary
 
-Technology      | Typical P99 | Max Throughput | Complexity | AWS Support
-------------------------------------------------------------------------------
-Kernel (opt)    | 68 μs      | 3.5 Mpps       | Low        | Full
-eBPF/XDP        | 85 μs      | 8 Mpps         | Medium     | Full
-AF_XDP          | 38 μs      | 10 Mpps        | Medium     | Full (ENA 2.13+)
-DPDK            | 28 μs      | 14.8 Mpps      | High       | Full (ENA PMD)
-Onload          | N/A        | N/A            | N/A        | NOT SUPPORTED
+|Technology      | Typical P99 | Max Throughput | Complexity | AWS Support|
+|----------------|-------------|----------------|------------|------------|
+|Kernel (opt)    | 68 μs      | 3.5 Mpps       | Low        | Full|
+|eBPF/XDP        | 85 μs      | 8 Mpps         | Medium     | Full|
+|AF_XDP          | 38 μs      | 10 Mpps        | Medium     | Full (ENA 2.13+)|
+|DPDK            | 28 μs      | 14.8 Mpps      | High       | Full (ENA PMD)|
+|Onload          | N/A        | N/A            | N/A        | NOT SUPPORTED|
