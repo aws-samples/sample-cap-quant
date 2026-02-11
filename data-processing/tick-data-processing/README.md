@@ -1,9 +1,9 @@
 # Large-scale data synchronization across regions and accounts
 
 ## Requirements
-- The data provider's data is stored in an S3 bucket in its AWS account in the Virginia region. The existing data volume is 100TB.
+- The **data provider**'s data is stored in an S3 bucket in its AWS account in the Virginia region. The existing data volume is 100TB.
 
-- Quant's need to copy the S3 bucket data stored in the Virginia region of your data provider's AWS account to quant's own Singapore region of AWS account.
+- **Quant**'s need to copy the S3 bucket data stored in the Virginia region of the **data provider**'s AWS account to **quant**'s own Singapore region of AWS account.
 
 - The first synchronization involved 100TB of historical data, with approximately 100GB of incremental data to be added daily thereafter.
 
@@ -17,7 +17,7 @@
 
 ## Implementatin
 
-- The destination bucket on the quant side needs to be configured with the following bucket policy:
+- The destination bucket on the **quant** side needs to be configured with the following bucket policy:
 
 ```json
 {
@@ -29,7 +29,7 @@
       "Principal": {
         "AWS": [
           "arn:aws:iam::<quant's-aws-account-id>:role/datasync-role",
-          "arn:aws:iam::<quant's-aws-account-id>:user/<specific-cx-iam-user>"
+          "arn:aws:iam::<quant's-aws-account-id>:user/<specific-quant's-iam-user>"
         ]
       },
       "Action": [
@@ -52,7 +52,7 @@
   ]
 }
 ```
-- On the quant's side, an IAM role named datasync-role needs to be created. The creation process is as follows:
+- On the **quant**'s side, an IAM role named datasync-role needs to be created. The creation process is as follows:
 
 <img width="828" height="566" alt="image" src="https://github.com/user-attachments/assets/47e95946-e473-4b14-b870-52a5ae72ac72" />
 
@@ -110,7 +110,7 @@ Inline policy JSON:
             "Principal": {
                 "AWS": [
                     "arn:aws:iam::<quant's-aws-account-id>:role/datasync-role",
-                    "arn:aws:iam::<quant's-aws-account-id>:user/<specific-cx-iam-user>"
+                    "arn:aws:iam::<quant's-aws-account-id>:user/<specific-quant's-iam-user>"
                 ]
             },
             "Action": [
@@ -125,7 +125,7 @@ Inline policy JSON:
             "Principal": {
                 "AWS": [
                     "arn:aws:iam::<quant's-aws-account-id>:role/datasync-role",
-                    "arn:aws:iam::<quant's-aws-account-id>:user/<specific-cx-iam-user>"
+                    "arn:aws:iam::<quant's-aws-account-id>:user/<specific-quant's-iam-user>"
                 ]
             },
             "Action": [
@@ -143,13 +143,13 @@ Inline policy JSON:
 }
 ```
 
-- Create a datasync source location on the quant's side.
+- Create a datasync source location on the **quant**'s side.
 
 ```sh
 aws datasync create-location-s3 --s3-bucket-arn arn:aws:s3:::<source-bucket> --s3-storage-class STANDARD --s3-config BucketAccessRoleArn="arn:aws:iam::<quant's-aws-account-id>:role/datasync-role" --region us-east-1
 ```
 
-- Create a data sync task on the cx side.
+- Create a data sync task on the **quant** side.
 
 <img width="828" height="354" alt="image" src="https://github.com/user-attachments/assets/03e364b2-7826-4698-88ac-3e216bb44c1b" />
 
