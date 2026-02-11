@@ -76,7 +76,7 @@ The production phase that operationalizes research models into live trading:
 - [Quant Alpha Modeling Strategy Review](https://medium.com/@symeta/quant-alpha-modeling-strategy-review-d625beb2dede)
 
 ## 📚Repo Contents
-This repo discusses **Data Accessing** and **Research Modeling**. 
+This repo discusses **Data Accessing** and **Research Modeling** as well as **How to achieve low latency on AWS**
 
 🌟 Data Accessing
 
@@ -88,6 +88,8 @@ This repo discusses **Data Accessing** and **Research Modeling**.
 - 🎯 [Leveraging on GPU](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/vit_tr_ray_on_gpu)
 - 🎯 [Leveraging on Trainium1](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/llama3.1_8B_finetune_ray_on_trn1)
 
+🌟 Execution
+- 🎯 [How to achieve low latency]()
 
 # 
 *built with ❤️ by Shiyang Wei, Sr. Solutions Architect, AWS*
