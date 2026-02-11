@@ -2,7 +2,8 @@
 
 ## Understanding the Latency Problem
 
-- Traditional kernel network stack journey:
+**Traditional kernel network stack journey:**
+
 ```txt
 Packet arrives → DMA to ring buffer (5 μs)
 → Hardware IRQ (2 μs)
@@ -43,7 +44,7 @@ sudo ethtool -K eth0 tso off gso off
 ethtool -k eth0 | grep -E 'tcp-segmentation-offload|generic-segmentation-offload'
 ```
 
-Complete offload disabling script:
+**Complete offload disabling script:**
 
 ```sh
 #!/bin/bash
@@ -67,7 +68,7 @@ echo "Current offload settings:"
 ethtool -k $INTERFACE | grep -E 'offload|segmentation'
 ```
 
-Performance impact:
+**Performance impact:**
 
 >Before: P99 = 145 μs, P99.9 = 320 μs
 >After:  P99 = 68 μs (53% improvement!), P99.9 = 95 μs (70% improvement!)
@@ -75,6 +76,7 @@ Performance impact:
 - Disabling Dynamic Interrupt Moderation (DIM)
 
 DIM automatically adjusts interrupt coalescing, creating unpredictable latency:
+
 ```sh
 #!/bin/bash
 # disable-dim.sh
@@ -87,7 +89,7 @@ sudo ethtool -C $INTERFACE adaptive-rx off rx-usecs 0 tx-usecs 0 adaptive-tx off
 ethtool -c $INTERFACE
 ```
 
-Performance impact:
+**Performance impact:**
 
 >With DIM:    P99 = 180 μs, P99.9 = 650 μs (high variance)
 >Without DIM: P99 = 62 μs (66% improvement!), P99.9 = 88 μs (86% improvement!)
@@ -95,6 +97,7 @@ Performance impact:
 - Ring Buffer Sizing
 
 Optimal sizing balances latency vs. burst handling:
+
 ```sh
 # For low latency: keep RX ring small
 sudo ethtool -G eth0 rx 256 tx 512
@@ -103,7 +106,7 @@ sudo ethtool -G eth0 rx 256 tx 512
 ethtool -g eth0
 ```
 
-Sizing recommendations:
+**Sizing recommendations:**
 
     - 256 (recommended): Good latency (P99: 58 μs), handles moderate bursts
     - 512: Acceptable latency (P99: 65 μs), handles large bursts
@@ -111,12 +114,13 @@ Sizing recommendations:
 
 ## Part 2: AF_XDP Zero-Copy Support
 
-The Game Changer
+**The Game Changer**
 
 >Traditional socket: 2 memory copies, ~43 μs 
 >AF_XDP: Zero copies via DMA, ~18 μs (58% reduction!)
 
-Requirements
+**Requirements**
+
 ```sh
 # 1. Kernel 5.10+ (Amazon Linux 2023 or Ubuntu 22.04+)
 uname -r
@@ -129,7 +133,8 @@ sudo yum install libbpf-devel libxdp-devel  # Amazon Linux
 sudo apt install libbpf-dev libxdp-dev      # Ubuntu
 ```
 
-C Implementation Example
+**C Implementation Example**
+
 ```c
 // af_xdp_receiver.c - Zero-copy packet receiver
 #include <bpf/xsk.h>
@@ -194,9 +199,10 @@ void receive_packets(struct xsk_socket *xsk, struct xsk_ring_cons *rx) {
 }
 ```
 
-AF_XDP with Aeron (Recommended)
+**AF_XDP with Aeron (Recommended)**
 
 Aeron provides higher-level abstractions:
+
 ```sh
 # Build Aeron with AF_XDP support
 git clone https://github.com/real-logic/aeron.git
@@ -211,7 +217,7 @@ aeron.af.xdp.zero.copy=true
 aeron.threading.mode=DEDICATED
 EOF
 ```
-Performance with AF_XDP:
+**Performance with AF_XDP:**
 
 ```txt
 Benchmark: 100k messages/sec, 288-byte UDP packets
@@ -228,7 +234,7 @@ AF_XDP Zero-Copy:
 ```
 
 ## Part 3: Ntuple Flow Steering
-Purpose: Direct Specific Traffic to Specific CPU Cores
+**Purpose: Direct Specific Traffic to Specific CPU Cores**
 
 Requirements: Nitro v5+ instances (c6i, m6i, c7i, m7i, r7i)
 
@@ -237,7 +243,7 @@ Requirements: Nitro v5+ instances (c6i, m6i, c7i, m7i, r7i)
 ethtool -k eth0 | grep ntuple-filters
 ```
 
-Configuration
+**Configuration**
 
 ```sh
 #!/bin/bash
@@ -266,7 +272,8 @@ sudo ethtool -N $INTERFACE flow-type tcp4 \
 sudo ethtool -n $INTERFACE
 ```
 
-Architecture benefit:
+**Architecture benefit:**
+
 ```txt
 Without Flow Steering:
   All traffic → Round-robin across cores
@@ -280,7 +287,7 @@ With Flow Steering:
 ```
 
 ## Part 4: Kernel Tuning
-1. Busy Poll Mode
+**1. Busy Poll Mode**
 
 Eliminates interrupt latency by continuous polling:
 
@@ -301,13 +308,13 @@ EOF
 sudo sysctl -p
 ```
 
-Fine-tuning:
+**Fine-tuning:**
 
     - Few sockets (1-10): busy_poll = 50
     - Many sockets (10-100): busy_poll = 100
     - Hundreds of sockets: busy_poll = 200
 
-Application-level:
+**Application-level:**
 
 ```c
 int sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -316,7 +323,7 @@ setsockopt(sock, SOL_SOCKET, SO_BUSY_POLL,
            &busy_poll_usecs, sizeof(busy_poll_usecs));
 ```
 
-2. Disable IRQ Balancer
+**2. Disable IRQ Balancer**
 
 ```sh
 # Stop and disable
@@ -337,7 +344,7 @@ for IRQ in $IRQS; do
 done
 ```
 
-3. Network Buffer Tuning
+**3. Network Buffer Tuning**
 
 ```sh
 #!/bin/bash
@@ -362,7 +369,7 @@ EOF
 sudo sysctl -p
 ```
 
-4. RSS (Receive Side Scaling)
+**4. RSS (Receive Side Scaling)**
 
 Hardware-level packet distribution:
 
@@ -377,7 +384,7 @@ sudo ethtool -X eth0 equal 4
 watch -n 1 'ethtool -S eth0 | grep rx_queue'
 ```
 
-5. XPS (Transmit Packet Steering)
+**5. XPS (Transmit Packet Steering)**
 
 ```sh
 #!/bin/bash
@@ -393,7 +400,7 @@ done
 ```
 
 ## Part 5: CPU Affinity and NUMA Configuration
-Understanding NUMA
+**Understanding NUMA**
 
 ```txt
 c6i.16xlarge (64 vCPUs):
@@ -412,7 +419,7 @@ Local access:  ~85 ns
 Remote access: ~140 ns (65% slower!)
 ```
 
-Identifying NUMA Topology
+**Identifying NUMA Topology**
 
 ```sh
 # Install numactl
@@ -427,7 +434,7 @@ PCI_ADDRESS=$(ethtool -i $INTERFACE | grep bus-info | awk '{print $2}')
 cat /sys/bus/pci/devices/$PCI_ADDRESS/numa_node
 ```
 
-CPU Isolation
+**CPU Isolation**
 
 ```sh
 # Edit GRUB configuration
@@ -441,7 +448,7 @@ sudo grub2-mkconfig -o /boot/grub2/grub.cfg
 sudo reboot
 ```
 
-Pinning Applications
+**Pinning Applications**
 
 Method 1: taskset
 
@@ -460,7 +467,7 @@ Method 2: numactl (NUMA-aware)
 numactl --cpunodebind=0 --membind=0 --physcpubind=0-7 ./trading_engine
 ```
 
-Complete NUMA-Aware Setup
+**Complete NUMA-Aware Setup**
 
 ```sh
 #!/bin/bash
@@ -487,91 +494,7 @@ numactl --cpunodebind=$NIC_NUMA --membind=$NIC_NUMA \
     taskset -c $NUMA_CPUS ./trading_engine
 ```
 
-## Part 6: Production-Ready Complete Setup
-
-```sh
-#!/bin/bash
-# production-low-latency-setup.sh
-set -e
-
-INTERFACE="eth0"
-HOT_PATH_CPUS="0-7"
-
-echo "Low Latency Network Stack Configuration"
-echo "========================================"
-
-# 1. ENA Driver Optimization
-echo -e "
- Configuring ENA driver..."
-sudo ethtool -K $INTERFACE gro off lro off tso off gso off
-sudo ethtool -C $INTERFACE adaptive-rx off adaptive-tx off rx-usecs 0 tx-usecs 0
-sudo ethtool -G $INTERFACE rx 256 tx 512
-sudo ethtool -K $INTERFACE ntuple on
-
-# 2. Kernel Network Stack
-echo -e "
- Tuning kernel network stack..."
-sudo tee /etc/sysctl.d/99-low-latency-network.conf > /dev/null << EOF
-net.core.busy_poll = 50
-net.core.busy_read = 50
-net.core.rmem_max = 134217728
-net.core.wmem_max = 134217728
-net.core.netdev_max_backlog = 10000
-net.ipv4.tcp_rmem = 4096 87380 134217728
-net.ipv4.tcp_wmem = 4096 65536 134217728
-EOF
-sudo sysctl -p /etc/sysctl.d/99-low-latency-network.conf
-
-# 3. Disable IRQ Balancer
-echo -e "
- Disabling IRQ balancer..."
-sudo systemctl stop irqbalance
-sudo systemctl disable irqbalance
-
-# 4. Configure IRQ Affinity
-echo -e "
- Configuring IRQ affinity..."
-CPU=0
-for IRQ in $(grep $INTERFACE /proc/interrupts | awk '{print $1}' | sed 's/://'); do
-    MASK=$(printf "%x" $((1 << $CPU)))
-    echo $MASK | sudo tee /proc/irq/$IRQ/smp_affinity > /dev/null
-    echo "  IRQ $IRQ → CPU $CPU"
-    CPU=$((CPU + 1))
-done
-
-# 5. Processor Configuration
-echo -e "
- Optimizing processor settings..."
-for cpu in /sys/devices/system/cpu/cpu*/cpuidle/state*/disable; do
-    echo 1 | sudo tee $cpu > /dev/null 2>&1 || true
-done
-for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
-    echo performance | sudo tee $cpu > /dev/null 2>&1 || true
-done
-
-echo -e "
-Configuration Complete!"
-```
-
-## Performance Summary
-
-- Baseline (no optimization):
-
-    - P50: 52 μs, P99: 145 μs, P99.9: 320 μs
-
-- After ENA optimization:
-
-    - P50: 48 μs (-8%), P99: 68 μs (-53%), P99.9: 95 μs (-70%)
-
-- After full kernel tuning:
-
-    - P50: 45 μs (-13%), P99: 58 μs (-60%), P99.9: 82 μs (-74%)
-
-- With AF_XDP zero-copy:
-
-    - P50: 22 μs (-58%), P99: 38 μs (-74%), P99.9: 65 μs (-80%)
-
-## Key Takeaways
+## Summary
 
     - Disable all offloads (GRO, TSO, GSO) for predictable latency
     - Disable DIM to eliminate adaptive buffering
