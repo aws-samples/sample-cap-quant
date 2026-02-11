@@ -81,7 +81,7 @@ This repo discusses **Data Accessing** and **Research Modeling**.
 🌟 Data Accessing
 
 - 🎯 [CME MDP Multicast Data Access](https://github.com/aws-samples/sample-cap-quant/tree/main/data-processing/cme-mdp-multicast-data-access)
-- 🎯 [Cross Region, Cross Account Large Historical Data Sync from Data Vendor ](https://github.com/aws-samples/sample-cap-quant/blob/main/data-processing/)
+- 🎯 [Cross Region, Cross Account Large Historical Data Sync from Data Vendor ](https://github.com/aws-samples/sample-cap-quant/tree/main/data-processing/tick-data-processing)
 
 🌟 Research Modeling
 
