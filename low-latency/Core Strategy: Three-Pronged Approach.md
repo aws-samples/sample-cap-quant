@@ -19,60 +19,59 @@
 
 ### "EC2 Hunting" Methodology
 
-This is a systematic approach to finding optimal instance placement:
+**This is a systematic approach to finding optimal instance placement:**
 
-Step 1: Narrow Down Location
+- Step 1: Narrow Down Location
 
-    Identify specific Region and Availability Zone where the exchange endpoint resides
-    Use DNS/reverse lookup tools to pinpoint the exact location
+    - Identify specific Region and Availability Zone where the exchange endpoint resides
+    - Use DNS/reverse lookup tools to pinpoint the exact location
 
-Step 2: Deploy Test Infrastructure
+- Step 2: Deploy Test Infrastructure
 
-    Launch instances across spread/partition placement groups to scatter them across different racks
-    Deploy different EC2 instance types to prevent clustering within a single data center
-    This ensures you're testing from various physical locations within the AZ
+    - Launch instances across spread/partition placement groups to scatter them across different racks
+    - Deploy different EC2 instance types to prevent clustering within a single data center
+    - This ensures you're testing from various physical locations within the AZ
 
-Step 3: Comprehensive Testing
+- Step 3: Comprehensive Testing
 
-    Test connectivity from a broad set of EC2 instances
-    Use TCP ping + application-level ping for benchmarking
-    Measure latency from each instance to the target endpoint
-    Capture extensive data for offline analysis (histograms, percentiles)
+    - Test connectivity from a broad set of EC2 instances
+    - Use TCP ping + application-level ping for benchmarking
+    - Measure latency from each instance to the target endpoint
+    - Capture extensive data for offline analysis (histograms, percentiles)
 
-Step 4: Selection Strategy
+- Step 4: Selection Strategy
 
-    Keep only the instances with the best performance
-    Consider spinning up many instances, measuring all, then terminating all except the fastest
-    This "hunting" approach finds the optimal physical placement
+    - Keep only the instances with the best performance
+    - Consider spinning up many instances, measuring all, then terminating all except the fastest
 
 ### Cluster Placement Groups (CPGs)
 
-Standard CPGs:
+- Standard CPGs:
 
-    Essential for lowest latency within your own infrastructure
-    Places instances in close physical proximity within a single AZ
-    Provides single-digit microsecond latency between instances
+    - Essential for lowest latency within your own infrastructure
+    - Places instances in close physical proximity within a single AZ
+    - Provides single-digit microsecond latency between instances
 
-Shared CPGs (Advanced):
+- Shared CPGs (Advanced):
 
-    Allows cross-account connectivity with exchanges
-    Requires NDA discussions with the exchange
-    Provides the absolute lowest latency to exchange matching engines
-    Not all exchanges offer this, but it's worth requesting
+    - Allows cross-account connectivity with exchanges
+    - Requires NDA discussions with the exchange
+    - Provides the absolute lowest latency to exchange matching engines
+    - Not all exchanges offer this, but it's worth requesting
 
-Alternative: PrivateLink
+- Alternative: PrivateLink
 
-    Some exchanges offer PrivateLink connectivity
-    Trade-off: Adds Network Load Balancer (NLB) overhead
-    Slower than shared CPGs but still better than public internet
-    Easier to set up than shared CPGs
+    - Some exchanges offer PrivateLink connectivity
+    - Trade-off: Adds Network Load Balancer (NLB) overhead
+    - Slower than shared CPGs but still better than public internet
+    - Easier to set up than shared CPGs
 
 ### Connectivity Performance Hierarchy
 
-Fastest to Slowest:
+- Fastest to Slowest:
 
-    Shared CPG (cross-account, same physical rack)
-    Public IP in same AZ (removes NLB from path)
-    PrivateLink (adds NLB overhead)
-    Public internet (variable latency)
+    - Shared CPG (cross-account, same physical rack)
+    - Public IP in same AZ (removes NLB from path)
+    - PrivateLink (adds NLB overhead)
+    - Public internet (variable latency)
 
