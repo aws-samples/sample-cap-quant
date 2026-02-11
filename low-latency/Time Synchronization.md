@@ -436,8 +436,7 @@ def monitor_clock_accuracy(duration_seconds=60):
         time.sleep(1)
 
     # Statistics
-    print("
-=== Clock Accuracy Statistics ===")
+    print("=== Clock Accuracy Statistics ===")
     print(f"Mean error bound: {statistics.mean(error_bounds):.2f} μs")
     print(f"Median error bound: {statistics.median(error_bounds):.2f} μs")
     print(f"P95 error bound: {sorted(error_bounds)[int(len(error_bounds)*0.95)]:.2f} μs")
