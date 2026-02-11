@@ -11,7 +11,7 @@
 
 - AWS DataSync is applied to synchronize existing and incremental data.
 
-<img width="3735" height="1925" alt="3" src="https://github.com/user-attachments/assets/03ca08f0-8301-4c02-99cf-5f55f7610399" />
+<img width="3735" height="1925" alt="3" src="https://github.com/user-attachments/assets/c9745c04-c1f9-4d54-8c68-b15fc518a024" />
 
 
 ## Implementatin
