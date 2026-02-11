@@ -458,6 +458,7 @@ if __name__ == "__main__":
 - Latency Budget Analysis
 
 - Without Time Sync Optimization:
+```txt
 ┌────────────────────────────────────────────┐
 │ Market data arrives at NIC      : T0       │
 │ ↓ NIC processing                : 3 μs     │
@@ -476,8 +477,9 @@ if __name__ == "__main__":
 │   With 500 μs clock error → Can't measure │
 │   accurately (error > signal!)            │
 └────────────────────────────────────────────┘
-
+```
 - With PHC Time Sync (20-40 μs precision):
+```txt
 ┌────────────────────────────────────────────┐
 │ Same processing: 200 μs                    │
 │                                            │
@@ -493,7 +495,7 @@ if __name__ == "__main__":
 │   ✅ Compare strategy performance         │
 │   ✅ Regulatory compliance                │
 └────────────────────────────────────────────┘
-
+```
 Real-World Trading Scenarios
 
 Arbitrage with Clock-Bound:
