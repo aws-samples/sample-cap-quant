@@ -223,11 +223,11 @@
     ```txt
     VPC → DX Gateway → Multiple DX Connections → Third-Party Providers
     ```
-- Avoid:
-```txt
-VPC → TGW → DX Gateway → DX (adds TGW hop)
-VPC → Inspection VPC → DX (adds inspection overhead)
-```
+    - Avoid:
+    ```txt
+    VPC → TGW → DX Gateway → DX (adds TGW hop)
+    VPC → Inspection VPC → DX (adds inspection overhead)
+    ```
 
 **Latency Optimization Checklist for Inter-Region**
 
