@@ -471,11 +471,11 @@ if __name__ == "__main__":
 │ ↓ Exchange processing           : 50 μs    │
 │ Order acknowledgment            : T1       │
 │                                            │
-│ TOTAL LATENCY: 200 μs                     │
+│ TOTAL LATENCY: 200 μs                      │
 │                                            │
 │ TIMESTAMP MEASUREMENT ERROR:               │
-│   With 500 μs clock error → Can't measure │
-│   accurately (error > signal!)            │
+│   With 500 μs clock error → Can't measure  │
+│   accurately (error > signal!)             │
 └────────────────────────────────────────────┘
 ```
 - With PHC Time Sync (20-40 μs precision):
@@ -485,15 +485,15 @@ if __name__ == "__main__":
 │                                            │
 │ TIMESTAMP MEASUREMENT ERROR:               │
 │   With 30 μs clock error:                  │
-│   - Can measure 200 μs ± 30 μs            │
+│   - Can measure 200 μs ± 30 μs             │
 │   - 85% accuracy ✅                        │
-│   - Sufficient for optimization           │
+│   - Sufficient for optimization            │
 │                                            │
 │ BENEFITS:                                  │
-│   ✅ Accurate latency profiling           │
-│   ✅ Detect network degradation           │
-│   ✅ Compare strategy performance         │
-│   ✅ Regulatory compliance                │
+│   ✅ Accurate latency profiling            │
+│   ✅ Detect network degradation            │
+│   ✅ Compare strategy performance          │
+│   ✅ Regulatory compliance                 │
 └────────────────────────────────────────────┘
 ```
 Real-World Trading Scenarios
