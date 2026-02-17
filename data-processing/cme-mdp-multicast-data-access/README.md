@@ -6,7 +6,7 @@ Because the production environment involves access and communication with the CM
 ## Architecture Diagram
 <img width="3579" height="1746" alt="00 production" src="https://github.com/user-attachments/assets/5a3ea9eb-67a9-46d2-b00f-c0ebefbb9cf4" />
 
-## Experimental Environment Preparation
+## Environment Preparation
 ### VPC Planning
 The experimental environment requires planning two VPCs: Transit VPC and App VPC. The Transit VPC is used to deploy the multicast sender, cvr-onprem, and cvr-cloud. The App VPC is used to deploy the multicast receiver. The Transit VPC requires planning four subnets: subnet1 and subnet2 in one AZ, and subnet3 and subnet4 in another AZ. The rationale is as follows:
 - 1. Subnet1 Configuration The ENI (WAN Port) of the multicast sender and the ENI (LAN Port) of cvr-onprem must be in the same subnet, designated as subnet1. Because multicast traffic is Layer 2 broadcast, the sender and cvr-onprem must be in the same subnet to reach each other directly.
