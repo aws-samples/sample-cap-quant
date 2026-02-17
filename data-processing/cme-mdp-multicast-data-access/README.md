@@ -4,7 +4,7 @@ CME MDP data distribution utilizes multicast technology. Current native access m
 Because the production environment involves access and communication with the CME MDP product side, the reproduction cost is high. Therefore,  an experimental architecture is designed to showcase clearly the solution principles, as shown in the figure below
 
 ## Architecture Diagram
-https://github.com/aws-samples/sample-cap-quant/blob/main/data-processing/cme-mdp-multicast-data-access/architecture-diagram/00.production.png
+<img width="3579" height="1746" alt="00 production" src="https://github.com/user-attachments/assets/5a3ea9eb-67a9-46d2-b00f-c0ebefbb9cf4" />
 
 ## Experimental Environment Preparation
 ### VPC Planning
