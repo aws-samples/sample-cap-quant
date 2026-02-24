@@ -44,7 +44,7 @@ This project aims to investigate the feasibility of performing quantitative rese
     terraform version
     ```
 
-## Deployment - llama3.1_8B_finetune_ray_on_trn1
+## Deployment - llama_posttr_ray_on_trn1
 
 - Pre-requisites
   - Make sure there is at least one VPC quota available in the target region, because the HCL will create a VPC.
@@ -54,7 +54,7 @@ This project aims to investigate the feasibility of performing quantitative rese
 - Clone the repo
   ```sh
   git clone https://github.com/aws-samples/sample-cap-quant.git
-  cd quant-research/llama3.1_8B_finetune_ray_on_trn1/infra  
+  cd quant-research/llama_posttr_ray_on_trn1/infra  
   ```
 
 - Update the below variables in 00_init_variables.sh according to your specific context and save the file.
@@ -75,7 +75,7 @@ This project aims to investigate the feasibility of performing quantitative rese
 
 - EKS Cluster Provision
   ```sh
-  cd quant-research/llama3.1_8B_finetune_ray_on_trn1/infra
+  cd quant-research/llama_posttr_ray_on_trn1/infra
   ./01_install_platform.sh
   ```
   It takes 20+ minutes for the resource to be provisioned and setup.
@@ -92,7 +92,7 @@ This project aims to investigate the feasibility of performing quantitative rese
   - Open docker.desktop app.
   - build image
     ```sh
-    cd quant-research/llama3.1_8B_finetune_ray_on_trn1/app/ 
+    cd quant-research/llama_posttr_ray_on_trn1/app/ 
     chmod +x 0-kuberay-trn1-llama3-finetune-build-image.sh
     ./0-kuberay-trn1-llama3-finetune-build-image.sh
     ```
@@ -126,7 +126,8 @@ This project aims to investigate the feasibility of performing quantitative rese
   ```
 ## Clean up
 ```sh
-cd quant-research/vit_tr_ray_on_gpu/infra #cd quant-research/llama_ptr_ray_on_trn1/infra
+cd quant-research/llama_posttr_ray_on_trn1/infra
+chmod +x cleanup.sh
 ./cleanup.sh
 ```
 
