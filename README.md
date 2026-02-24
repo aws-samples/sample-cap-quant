@@ -39,8 +39,8 @@ This repo consolidates best practices from cloud-native quantitative trading ins
 
 The foundation of the system handles data acquisition and preparation:
 
-- Data Accessing: Collects raw market data from exchanges, market data providers, and alternative data sources
-- Data Pre-processing: Cleans, normalizes, and transforms data into usable formats, handling missing values, outliers, and standardization
+- **Data Accessing**: Collects raw market data from exchanges, market data providers, and alternative data sources
+- **Data Pre-processing**: Cleans, normalizes, and transforms data into usable formats, handling missing values, outliers, and standardization
 
 This phase ensures high-quality, consistent data flows into the research environment.
 
@@ -48,26 +48,26 @@ This phase ensures high-quality, consistent data flows into the research environ
 
 The core analytical phase where quantitative strategies are developed and validated:
 
-- Data Exploration & Analysis: Initial statistical analysis, pattern discovery, feature engineering, and correlation studies to understand market dynamics.
+- **Data Exploration & Analysis**: Initial statistical analysis, pattern discovery, feature engineering, and correlation studies to understand market dynamics.
 
-- Data Modeling (the highlighted central component containing four specialized models):
+- **Data Modeling (the highlighted central component containing four specialized models)**:
 
-    - Alpha Modeling: Develops predictive signals that forecast asset returns and identify trading opportunities, representing excess returns above market benchmarks
-    - Risk Modeling: Quantifies portfolio risk through volatility estimation, Value-at-Risk (VaR), stress testing, and factor risk decomposition
-    - Transaction Cost Modeling: Estimates trading costs including market impact, bid-ask spreads, slippage, and commissions to ensure realistic profitability
-    - Portfolio Construction Modeling: Optimizes asset allocation by combining alpha signals while managing risk constraints, position limits, and capital allocation
+    - **A**lpha Modeling: Develops predictive signals that forecast asset returns and identify trading opportunities, representing excess returns above market benchmarks
+    - **R**isk Modeling: Quantifies portfolio risk through volatility estimation, Value-at-Risk (VaR), stress testing, and factor risk decomposition
+    - **T**ransaction Cost Modeling: Estimates trading costs including market impact, bid-ask spreads, slippage, and commissions to ensure realistic profitability
+    - **P**ortfolio Construction Modeling: Optimizes asset allocation by combining alpha signals while managing risk constraints, position limits, and capital allocation
 
-- Back-testing: Validates strategies through historical simulation, evaluating performance metrics (Sharpe ratio, drawdown, turnover) and testing model robustness.
+- **Back-testing**: Validates strategies through historical simulation, evaluating performance metrics (Sharpe ratio, drawdown, turnover) and testing model robustness.
 
 **Phase 3: Model Serving & Execution**
 
 The production phase that operationalizes research models into live trading:
 
-- A, R, T, P (four specialized execution modules): These mirror the research modeling components, likely representing real-time Alpha signal processing, Risk management monitoring, Transaction cost analysis, and Portfolio optimization in production.
+- **A, R, T, P**: These mirror the research modeling components, representing real-time Alpha signal processing, Risk management monitoring, Transaction cost analysis, and Portfolio optimization in production respectively.
 
-- OMS, EMS (Order Management System & Execution Management System): The OMS manages order lifecycle, compliance checks, and position tracking, while the EMS handles actual order execution, smart order routing, and algorithmic execution strategies.
+- **OMS, EMS (Order Management System & Execution Management System)**: The OMS manages order lifecycle, compliance checks, and position tracking, while the EMS handles actual order execution, smart order routing, and algorithmic execution strategies.
 
-- Custody, Clearing & Settlement: Manages post-trade processing, asset custody, trade clearing, final settlement, and reconciliation with broker-dealers and exchanges.
+- **Custody, Clearing & Settlement**: Manages post-trade processing, asset custody, trade clearing, final settlement, and reconciliation with broker-dealers and exchanges.
 
 **🔗For detailed analysis of Quant Trading's Research Workload**
 
