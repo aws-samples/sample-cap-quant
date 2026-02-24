@@ -8,7 +8,7 @@ export TF_VAR_name="mctrn12"
 export TF_VAR_region="us-east-1"
 export TF_VAR_s3_bucket_name1="dec11-meta"
 export TF_VAR_s3_bucket_name2="dec11-ray"
-export TF_VAR_aws_account_id="135709585800"
+export TF_VAR_aws_account_id="<aws account id>"
 export TF_VAR_prefix_name="ray-results-jan14"
 
 # S3 bucket endpoints
