@@ -1,4 +1,4 @@
-# Quant Research using Amazon EKS,Kuberay,Pytorch,CNCF Fluid (using GPU)
+# Quant Research using Amazon EKS + Kuberay + Pytorch + CNCF Fluid (using GPU)
 
 ## Overview
 This project aims to investigate the feasibility of performing quantitative research by leveraging [Amazon Elastic Kubernetes Service (EKS)](https://aws.amazon.com/eks/), [KubeRay](https://github.com/ray-project/kuberay), and [CNCF Fluid](https://github.com/fluid-cloudnative/fluid) as the underlying infrastructure components. Nvidia GPU is used for deep learning model training.
