@@ -54,6 +54,7 @@ This project aims to investigate the feasibility of performing quantitative rese
 - Clone the repo
   ```sh
   git clone https://github.com/aws-samples/sample-cap-quant.git
+  cd quant-research/llama3.1_8B_finetune_ray_on_trn1/infra  
   ```
 
 - Update the below variables in 00_init_variables.sh according to your specific context and save the file.
@@ -92,23 +93,22 @@ This project aims to investigate the feasibility of performing quantitative rese
   - build image
     ```sh
     cd quant-research/llama3.1_8B_finetune_ray_on_trn1/app/ 
-    chmod +x 0-build_image.sh
-    ./00_build_image.sh
+    chmod +x 0-kuberay-trn1-llama3-finetune-build-image.sh
+    ./0-kuberay-trn1-llama3-finetune-build-image.sh
     ```
-  Initially, it takes 40-60 minutes around to create the ECR image.
+  Initially, it takes 60+ minutes around to create the ECR image.
     
 - Raycluster Creation
   - run the following command to create the ray cluster
   ```sh
-  chmod +x 01_deploy_ray_cluster.sh
-  ./01_deploy_ray_cluster.sh
+  kubectl create -f 1-llama3-finetune-trn1-create-raycluster.yaml
   ```
-  first time ray cluster pods creation needs to wait for 5-6 minutes, cause the ECR Image is 14GB large.
+  first time ray cluster pods creation needs to wait for 7-8 minutes, cause the ECR Image is 16GB+ large.
 
 - Rayjob Submission
   ```sh
-  chmod +x 02_create_rayjob.sh
-  ./02_create_rayjob.sh
+  kubectl create -f 2-llama3-finetune-trn1-rayjob-create-data.yaml #create data
+  kubectl create -f 3-llama3-finetune-trn1-rayjob-submit-finetuning-job.yaml #submit finetuning job
   ```
 
 ## Observability
