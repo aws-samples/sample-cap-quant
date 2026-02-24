@@ -1,4 +1,4 @@
-# Quant Research using Amazon EKS,Kuberay,Pytorch,CNCF Fluid (using Trainium1)
+# Quant Research using Amazon EKS + Kuberay + Pytorch + CNCF Fluid (using Trainium1)
 
 ## Overview
 This project aims to investigate the feasibility of performing quantitative research by leveraging [Amazon Elastic Kubernetes Service (EKS)](https://aws.amazon.com/eks/), [KubeRay](https://github.com/ray-project/kuberay), and [CNCF Fluid](https://github.com/fluid-cloudnative/fluid) as the underlying infrastructure components. Amazon Trainium1 is used as DL model training power. 
@@ -45,54 +45,70 @@ This project aims to investigate the feasibility of performing quantitative rese
     ```
 
 ## Deployment - llama3.1_8B_finetune_ray_on_trn1
+
+- Pre-requisites
+  - Make sure there is at least one VPC quota available in the target region, because the HCL will create a VPC.
+  - Make sure there is at least one EIP quota available in the target region, because the EKS cluster will use one EIP for its NAT Gateway.
+  - Create 2 s3 buckets in the target region. One is to store the raw data of JuiceFS, the other is to store the training results of the Ray cluster.
+
 - Clone the repo
   ```sh
   git clone https://github.com/aws-samples/sample-cap-quant.git
   ```
+
+- Update the below variables in 00_init_variables.sh according to your specific context and save the file.
+  ```sh
+  # Basic configuration
+  export TF_VAR_name="<eks-cluster-name>"
+  export TF_VAR_region="<region-id>"
+  export TF_VAR_s3_bucket_name1="<name-of-the-bucket-for-filesystem-metadata-storage>"
+  export TF_VAR_s3_bucket_name2="<name-of-the-bucket-for-storing-ray-training-result>"
+  export TF_VAR_aws_account_id="<your-aws-account-id>"
+  export TF_VAR_prefix_name="ray-results"
+  ```
+- And then run the following command
+  ```sh
+  chmod +x 00_init_variables.sh
+  source ./00_init_variables.sh
+  ```
+
 - EKS Cluster Provision
   ```sh
   cd quant-research/llama3.1_8B_finetune_ray_on_trn1/infra
-  ./1_install_platform.sh
+  ./01_install_platform.sh
   ```
   It takes 20+ minutes for the resource to be provisioned and setup.
   ```sh
   aws eks --region us-east-1 update-kubeconfig --name <eks cluster name>
+  kubectl get nodes      # there should be 5 nodes: 3 core nodes, 2 trn1.32xlarge nodes
   ```
-  
-- Get the endpoint url of the provisioned valkey cluster from previous step, and revise 2_install_fluid.sh per below. Configure specific s3 bucket for s3 data storage location as well
-  ```yaml
-  apiVersion: v1
-  kind: Secret
-  metadata:
-    name: jfs-secret
-  type: Opaque
-  stringData:
-    name: "my-jfs"               
-    metaurl: "<valkey cluster endpoint url>:6379/1"
-    storage: "s3"                
-    bucket: "https://<s3 bucket name>.s3.amazonaws.com"
-    access-key: {access-key-id}
-    secret-key: {secrect-key-id}
-  ```
-- JuiceFS@Fluid Setup
+- Install Fluid
   ```sh
-  cd quant-research/llama_ptr_ray_on_trn1/infra
-  ./2_install_fluid.sh
+  chmod +x 02_install_fluid.sh
+  ./02_install_fluid.sh
   ```
+- ECR Image Creation
+  - Open docker.desktop app.
+  - build image
+    ```sh
+    cd quant-research/llama3.1_8B_finetune_ray_on_trn1/app/ 
+    chmod +x 0-build_image.sh
+    ./00_build_image.sh
+    ```
+  Initially, it takes 40-60 minutes around to create the ECR image.
+    
 - Raycluster Creation
+  - run the following command to create the ray cluster
   ```sh
-  cd quant-research/llama_ptr_ray_on_trn1/app
-  kubectl create -f llama2-pretrain-trn1-raycluster.yaml  
+  chmod +x 01_deploy_ray_cluster.sh
+  ./01_deploy_ray_cluster.sh
   ```
+  first time ray cluster pods creation needs to wait for 5-6 minutes, cause the ECR Image is 14GB large.
+
 - Rayjob Submission
   ```sh
-  cd quant-research/llama_ptr_ray_on_trn1/app
-  #generate test data
-  kubectl create -f 1-llama2-pretrain-trn1-rayjob-create-test-data.yaml
-  #model precompile
-  kubectl create -f  2-llama2-pretrain-trn1-rayjob-precompilation.yaml
-  #model pretrain
-  kubectl create -f 3-llama2-pretrain-trn1-rayjob.yaml
+  chmod +x 02_create_rayjob.sh
+  ./02_create_rayjob.sh
   ```
 
 ## Observability
