@@ -18,7 +18,7 @@ This repo consolidates best practices from cloud-native quantitative trading ins
 - **Custody, Clearing & Settlement** handles all post-trade processes including asset custody, trade clearing, and final settlement of transactions.
 - **Market Surveillance** monitors market activity for regulatory compliance, market manipulation detection, and trading pattern analysis, overseeing both quant trading activities and broker-dealer operations.
 
-*There is scenario where quant trading firms straightforwardly send trading signal to and get market data from exchanges (DMA, Direct Market Access). This pattern is usually adopted by High Frequency Trading scenario which is not covered by this repo.*
+>💡*There is scenario where quant trading firms straightforwardly send trading signal to and get market data from exchanges (DMA, Direct Market Access). This pattern is usually adopted by High Frequency Trading scenario which is not covered by this repo.*
 
 **Workflow:**
 
