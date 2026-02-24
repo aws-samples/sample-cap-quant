@@ -21,15 +21,15 @@ This repo consolidates best practices from cloud-native quantitative trading ins
 **Workflow:**
 
 **Transaction Flow**
-- Quant Trading → Broker-Dealer: Quantitative trading firms generate and submit buy/sell orders and trading instructions to their broker-dealers. This represents the core transactional order flow.
-- Broker-Dealer → Exchange: Broker-dealer route client orders to exchanges for matching and execution in the public marketplace. This is the primary execution pathway where trades are actually executed.
-- Exchange → Custody, Clearing & Settlement: Once trades are executed on the exchange, the trade details flow to custody, clearing, and settlement services for finalization.
-- Broker-Dealer → Custody, Clearing & Settlement: Some trades (particularly OTC transactions) may settle directly through broker relationships, providing an alternative settlement pathway.
-- Exchange → Market Surveillance: Trade execution data sent directly to surveillance systems for monitoring
+- **Quant Trading → Broker-Dealer**: Quantitative trading firms generate and submit buy/sell orders and trading instructions to their broker-dealers. 
+- **Broker-Dealer → Exchange**: Broker-dealer route client orders to exchanges for matching and execution in the public marketplace. 
+- **Exchange → Custody, Clearing & Settlement**: Once trades are executed on the exchange, the trade details flow to custody, clearing, and settlement services for finalization.
+- **Broker-Dealer → Custody**, Clearing & Settlement: Some trades (particularly OTC transactions) may settle directly through broker relationships, providing an alternative settlement pathway.
+- **Exchange → Market Surveillance**: Trade execution data sent directly to surveillance systems for monitoring
 
 **Information Flow**
-- Market Data Provider → Quant Trading: Market data providers supply real-time prices, historical data, and market information to quant trading firms for algorithmic analysis and strategy development.
-- Market Surveillance → Quant Trading: Market surveillance monitors quant trading patterns for potential manipulation, spoofing, or regulatory violations, providing oversight and compliance alerts.
+- **Market Data Provider → Quant Trading**: Market data providers supply real-time prices, historical data, and market information to quant trading firms for algorithmic analysis and strategy development.
+- **Market Surveillance → Quant Trading**: Market surveillance monitors quant trading patterns for potential manipulation, spoofing, or regulatory violations, providing oversight and compliance alerts.
 
 ## 🏗️Quant Trading Workload Overview
 
