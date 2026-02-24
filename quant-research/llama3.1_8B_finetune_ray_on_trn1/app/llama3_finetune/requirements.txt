@@ -1,7 +1,0 @@
-lightning==2.6.0
-regex
-tensorboard
-datasets
-sentencepiece
-neuronx_distributed
-ray[data,train,tune,serve]==2.52.1
