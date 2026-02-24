@@ -37,7 +37,7 @@ This repo consolidates best practices from cloud-native quantitative trading ins
 
 <img width="3735" height="2112" alt="2" src="https://github.com/user-attachments/assets/bc7d5370-f45c-4de0-8b02-b86d1ce1e51d" />
 
-**Phase 1: Data Accessing & Pre-processing**
+**Part 1: Data Accessing & Pre-processing**
 
 The foundation of the system handles data acquisition and preparation:
 
@@ -46,7 +46,7 @@ The foundation of the system handles data acquisition and preparation:
 
 This phase ensures high-quality, consistent data flows into the research environment.
 
-**Phase 2: Research**
+**Part 2: Research**
 
 The core analytical phase where quantitative strategies are developed and validated:
 
@@ -61,7 +61,7 @@ The core analytical phase where quantitative strategies are developed and valida
 
 - **Back-testing**: Validates strategies through historical simulation, evaluating performance metrics (Sharpe ratio, drawdown, turnover) and testing model robustness.
 
-**Phase 3: Model Serving & Execution**
+**Part 3: Model Serving & Execution**
 
 The production phase that operationalizes research models into live trading:
 
