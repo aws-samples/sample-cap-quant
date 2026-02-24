@@ -86,7 +86,7 @@ This repo discusses **Data Accessing** and **Research Modeling** as well as **ho
 🌟 Research Modeling
 
 - 🎯 [Leveraging on GPU](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/vit_tr_ray_on_gpu)
-- 🎯 [Leveraging on Trainium1](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/llama3.1_8B_finetune_ray_on_trn1)
+- 🎯 [Leveraging on Trainium1](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/llama_posttr_ray_on_trn1)
 
 🌟 Low Latency
 - 🎯 [How to achieve low latency on AWS(under review)](https://github.com/symeta/low-latency/)
