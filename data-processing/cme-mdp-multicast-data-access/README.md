@@ -5,7 +5,7 @@ Because the production environment involves access and communication with the CM
 
 ## Architecture Diagram
 
-<img width="3804" height="1746" alt="00 production" src="https://github.com/user-attachments/assets/b1d87100-f1f5-4bad-9e10-7884418a7899" />
+<img width="3804" height="1746" alt="00 production" src="https://github.com/user-attachments/assets/35848883-48c6-4173-a784-0f7d82571c24" />
 
 ## Environment Preparation
 ### VPC Planning
