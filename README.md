@@ -37,7 +37,7 @@ This repo consolidates best practices from cloud-native quantitative trading ins
 
 <img width="3735" height="2112" alt="2" src="https://github.com/user-attachments/assets/bc7d5370-f45c-4de0-8b02-b86d1ce1e51d" />
 
-**Part 1: Data Accessing & Pre-processing**
+**Workload 1: Data Accessing & Pre-processing**
 
 The foundation of the system handles data acquisition and preparation:
 
@@ -46,7 +46,7 @@ The foundation of the system handles data acquisition and preparation:
 
 This phase ensures high-quality, consistent data flows into the research environment.
 
-**Part 2: Research**
+**Workload 2: Research**
 
 The core analytical phase where quantitative strategies are developed and validated:
 
@@ -61,7 +61,13 @@ The core analytical phase where quantitative strategies are developed and valida
 
 - **Back-testing**: Validates strategies through historical simulation, evaluating performance metrics (Sharpe ratio, drawdown, turnover) and testing model robustness.
 
-**Part 3: Model Serving & Execution**
+**🔗For detailed analysis of Quant Trading's Research Workload**
+
+- [Inside the Black Box: A Quant Trading Research Architecture Analysis](https://medium.com/@symeta/inside-the-black-box-a-qhf-research-architecture-analysis-750d07914b08)
+- [Technical Anaylsis of Quant Trading Research Workload](https://medium.com/@symeta/technical-anaylsis-of-quant-trading-research-workload-0ea59dbde4ed)
+- [Quant Alpha Modeling Strategy Review](https://medium.com/@symeta/quant-alpha-modeling-strategy-review-d625beb2dede)
+
+**Workload 3: Model Serving & Execution**
 
 The production phase that operationalizes research models into live trading:
 
@@ -70,12 +76,6 @@ The production phase that operationalizes research models into live trading:
 - **OMS, EMS (Order Management System & Execution Management System)**: The OMS manages order lifecycle, compliance checks, and position tracking, while the EMS handles actual order execution, smart order routing, and algorithmic execution strategies.
 
 - **Custody, Clearing & Settlement**: Manages post-trade processing, asset custody, trade clearing, final settlement, and reconciliation with broker-dealers and exchanges.
-
-**🔗For detailed analysis of Quant Trading's Research Workload**
-
-- [Inside the Black Box: A Quant Trading Research Architecture Analysis](https://medium.com/@symeta/inside-the-black-box-a-qhf-research-architecture-analysis-750d07914b08)
-- [Technical Anaylsis of Quant Trading Research Workload](https://medium.com/@symeta/technical-anaylsis-of-quant-trading-research-workload-0ea59dbde4ed)
-- [Quant Alpha Modeling Strategy Review](https://medium.com/@symeta/quant-alpha-modeling-strategy-review-d625beb2dede)
 
 ## 📚Repo Contents
 This repo discusses **Data Accessing** and **Research Modeling** as well as **how to achieve low latency on AWS**
