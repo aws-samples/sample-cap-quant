@@ -91,9 +91,7 @@ This repo discusses **Data Accessing** and **Research Modeling** as well as **ho
 - 🎯 [Leveraging on Trainium1](https://github.com/aws-samples/sample-cap-quant/tree/main/quant-research/llama_posttr_ray_on_trn1)
 
 🌟 Low Latency
-- 🎯[Core Strategy]()
-- [How to achieve low latency on AWS(under review)](https://github.com/symeta/low-latency/)
-
+- 🎯[Core Strategy](https://github.com/aws-samples/sample-cap-quant/blob/main/low-latency/README.md)
 
 # 🔐Security
 
