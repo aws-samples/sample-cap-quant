@@ -29,13 +29,14 @@
 
     - First, confirm where the matching engine endpoints are located
     - Using Binance as an example, list the matching engine endpoints actually in use
-      >💡The endpoint listed at the top is the most frequently used
+
       | Endpoint | Protocol | Purpose |
       |---|---|---|                                                          
       | api.binance.com | REST / WSS | **Main** |
       | fapi.binance.com | REST / WSS | **Futures** |
       | dapi.binance.com | REST / WSS | Delivery |
-      | stream.binance.com | WSS | Streaming |                    
+      | stream.binance.com | WSS | Streaming |
+      >>💡The endpoint listed at the top is the most frequently used                 
 
 - Leveraging Lookup Tools:
 
