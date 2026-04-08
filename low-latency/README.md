@@ -36,7 +36,7 @@
       | fapi.binance.com | REST / WSS | **Futures** |
       | dapi.binance.com | REST / WSS | Delivery |
       | stream.binance.com | WSS | Streaming |
-      >>💡The endpoint listed at the top is the most frequently used                 
+      >💡The endpoint listed at the top is the most frequently used                 
 
 - Leveraging Lookup Tools:
 
