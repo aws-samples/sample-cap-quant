@@ -7,7 +7,8 @@ This repo consolidates best practices from cloud-native quantitative trading ins
 
 ## 🏃‍♀️Quant Trading Context
 
-<img width="1156" height="746" alt="Screenshot 2026-04-22 at 14 24 42" src="https://github.com/user-attachments/assets/953807db-b73e-4743-aaad-27e2b6a5803a" />
+<img width="1317" height="764" alt="Screenshot 2026-04-22 at 14 28 29" src="https://github.com/user-attachments/assets/c04a1387-a711-4e86-912c-e291c2b57b2a" />
+
 
 **Key Components:**
 - **Quant Trading** serves as the primary actor initiating trading activities using algorithmic and quantitative strategies.
