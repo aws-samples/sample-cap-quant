@@ -35,7 +35,7 @@ This repo consolidates best practices from cloud-native quantitative trading ins
 
 ## 🏗️Quant Trading Workload Overview
 
-<img width="1276" height="704" alt="Screenshot 2026-04-22 at 14 26 47" src="https://github.com/user-attachments/assets/ac8a9c3a-845b-4c60-ba1f-795abcabf7d9" />
+<img width="1317" height="764" alt="Screenshot 2026-04-22 at 14 28 29" src="https://github.com/user-attachments/assets/c04a1387-a711-4e86-912c-e291c2b57b2a" />
 
 
 **Workload 1: Data Accessing & Pre-processing**
