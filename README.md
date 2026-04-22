@@ -7,8 +7,6 @@ This repo consolidates best practices from cloud-native quantitative trading ins
 
 ## 🏃‍♀️Quant Trading Context
 
-<img width="3735" height="2112" alt="1" src="https://github.com/user-attachments/assets/c26b239c-c649-4a44-9d8c-f851758dd8b9" />
-
 <img width="1156" height="746" alt="Screenshot 2026-04-22 at 14 24 42" src="https://github.com/user-attachments/assets/953807db-b73e-4743-aaad-27e2b6a5803a" />
 
 **Key Components:**
