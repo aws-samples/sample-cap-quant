@@ -1,4 +1,4 @@
-# TPP — Token Proxy Platform
+<img width="1200" height="900" alt="architecture-diagram-transparent" src="https://github.com/user-attachments/assets/77017df1-fd6a-40ff-95bf-ddab63ad3665" /># TPP — Token Proxy Platform
 
 统一接入多个 LLM token 渠道(Anthropic 官网 / OpenAI 官网 / 聚合商 / AWS Bedrock 等云厂商)的代理平台,
 提供 per-user 每日 USD quota、渠道×模型 metrics、调用 trace,以及基于质量打分的智能渠道流量调度。
@@ -18,8 +18,7 @@
 详细设计见 [docs/architecture.md](docs/architecture.md)。
 
 ## 架构图
-<img width="1189" height="914" alt="Screenshot 2026-08-24 at 20 02 36" src="https://github.com/user-attachments/assets/ca1fd2f9-25e9-4c96-9d41-41c785838a36" />
-
+<img width="2400" height="1800" alt="architecture-diagram-transparent" src="https://github.com/user-attachments/assets/8383525d-acf6-4ab2-9140-6885a87e9ee6" />
 
 ## 仓库结构
 
