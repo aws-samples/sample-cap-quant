@@ -251,10 +251,3 @@ aws rds stop-db-instance --db-instance-identifier tpp-dev --region us-west-2
 - Claude Code 直连 Bedrock 的基线配置备份:`~/.claude/settings.json.bedrock-backup`
   与 `docs/claude-code-config-baseline.md`,回滚见"Claude Code 接入 TPP"章节。
 
-## 当前环境登记(2026-08-24)
-
-- 渠道注册表:4 模型组 × 2 region = **8 渠道**(fable-5 / opus-5 / sonnet-5 / haiku-4-5,均为 Bedrock usw2+use1);
-- 已建用户:`dev-laptop`($100/天,本机 Claude Code 在用);
-- 本机 Claude Code:**已走 TPP**(2026-08-24 切换);
-- 本机隧道守护:launchd `com.tpp.litellm-proxy` → 四条隧道;
-- 仓库未 git commit;dev 环境常驻成本约 $400–450/月(省钱开关见上文)。
