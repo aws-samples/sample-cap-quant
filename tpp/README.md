@@ -77,7 +77,7 @@ apps/                           # state 2:集群内应用(变更频率高,helm_r
          scorer_weight / scorer_last_success_timestamp 指标
 ```
 
-## 快速开始(本地验证,Milestone 0)
+## 部署
 
 ```bash
 cd local
@@ -85,11 +85,6 @@ cp .env.example .env          # 填入至少一个渠道的 API key
 docker compose up -d          # LiteLLM + Postgres + Redis + Prometheus + Grafana
 docker compose --profile trace up -d   # 可选:附带 Langfuse(含 ClickHouse/MinIO)
 ```
-
-- LiteLLM Proxy / Admin UI: http://localhost:4000 (UI 在 /ui,master key 见 .env)
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (admin/admin)
-- Langfuse(trace profile): http://localhost:3001
 
 冒烟测试:
 
