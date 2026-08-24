@@ -3,7 +3,9 @@
 LiteLLM + Langfuse + 自建 kube-prometheus-stack + RDS/ElastiCache,
 EKS 部署,Terraform 管基础设施 + Helm 管应用。
 
-## 1. [架构图](./architecture-diagram.html)
+## 1. 架构图
+<img width="2400" height="1800" alt="architecture-diagram-transparent" src="https://github.com/user-attachments/assets/d94c6271-5d9b-4f8a-b895-d1d3ce9610d3" />
+
 
 ## 2. Terraform 划分
 
