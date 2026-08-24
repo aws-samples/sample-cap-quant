@@ -1,0 +1,137 @@
+# TPP 本地验证环境(Milestone 0)
+# 基础栈:  docker compose up -d
+# 含 trace: docker compose --profile trace up -d
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    ports:
+      - "4000:4000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://tpp:tpp@postgres:5432/litellm
+      STORE_MODEL_IN_DB: "True"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    volumes:
+      - ./config/litellm-config.yaml:/app/config.yaml:ro
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tpp
+      POSTGRES_PASSWORD: tpp
+      POSTGRES_DB: litellm
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./config/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tpp -d litellm"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafanadata:/var/lib/grafana
+
+  # ---------- trace profile:Langfuse v3 及其依赖 ----------
+  langfuse-web:
+    image: langfuse/langfuse:3
+    profiles: ["trace"]
+    ports:
+      - "3001:3000"
+    env_file: .env
+    environment: &langfuse-env
+      DATABASE_URL: postgresql://tpp:tpp@postgres:5432/langfuse
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      REDIS_CONNECTION_STRING: redis://redis:6379
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      NEXTAUTH_URL: http://localhost:3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_started
+      minio:
+        condition: service_started
+      redis:
+        condition: service_started
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    profiles: ["trace"]
+    env_file: .env
+    environment: *langfuse-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_started
+      minio:
+        condition: service_started
+      redis:
+        condition: service_started
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    profiles: ["trace"]
+    environment:
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+    volumes:
+      - clickhousedata:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  minio:
+    image: minio/minio:latest
+    profiles: ["trace"]
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: miniosecret
+    entrypoint: >
+      sh -c 'mkdir -p /data/langfuse && exec minio server /data'
+    volumes:
+      - miniodata:/data
+
+volumes:
+  pgdata:
+  promdata:
+  grafanadata:
+  clickhousedata:
+  miniodata:

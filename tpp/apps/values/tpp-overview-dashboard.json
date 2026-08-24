@@ -1,0 +1,92 @@
+{
+  "title": "TPP Overview",
+  "uid": "tpp-overview",
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat", "title": "Requests (24h)", "id": 1,
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "sum(increase(litellm_deployment_total_requests_total[24h]))", "instant": true }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+    },
+    {
+      "type": "stat", "title": "Spend (24h, USD)", "id": 2,
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [{ "expr": "sum(increase(litellm_spend_metric_total[24h]))", "instant": true }],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4 } }
+    },
+    {
+      "type": "stat", "title": "Errors (24h)", "id": 3,
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [{ "expr": "sum(increase(litellm_deployment_failure_responses_total[24h])) or vector(0)", "instant": true }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 50 } ] } } }
+    },
+    {
+      "type": "stat", "title": "Scorer 距上次成功打分", "id": 4,
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [{ "expr": "time() - max(scorer_last_success_timestamp)", "instant": true }],
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 180 }, { "color": "red", "value": 300 } ] } } }
+    },
+
+    {
+      "type": "timeseries", "title": "渠道权重(Scorer 分配)", "id": 5,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [{ "expr": "scorer_weight", "legendFormat": "{{model_group}} | {{model_id}}" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "min": 0, "custom": { "lineWidth": 2, "fillOpacity": 0 } } }
+    },
+    {
+      "type": "timeseries", "title": "渠道质量分(EWMA)", "id": 6,
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [{ "expr": "scorer_quality_score", "legendFormat": "{{model_group}} | {{model_id}}" }],
+      "fieldConfig": { "defaults": { "unit": "none", "max": 1, "min": 0, "custom": { "lineWidth": 2, "fillOpacity": 0 } } }
+    },
+
+    {
+      "type": "timeseries", "title": "E2E Latency p90(渠道×模型)", "id": 7,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [{ "expr": "histogram_quantile(0.90, sum by (le, requested_model, model_id) (rate(litellm_request_total_latency_metric_bucket[5m])))", "legendFormat": "{{requested_model}} | {{model_id}}" }],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 0 } } }
+    },
+    {
+      "type": "timeseries", "title": "Error Rate(渠道)", "id": 8,
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [{ "expr": "sum by (model_id) (rate(litellm_deployment_failure_responses_total[5m])) / sum by (model_id) (rate(litellm_deployment_total_requests_total[5m]))", "legendFormat": "{{model_id}}" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "custom": { "lineWidth": 2, "fillOpacity": 0 } } }
+    },
+
+    {
+      "type": "timeseries", "title": "TTFT p90(流式请求)", "id": 9,
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 20 },
+      "targets": [{ "expr": "histogram_quantile(0.90, sum by (le, model_id) (rate(litellm_llm_api_time_to_first_token_metric_bucket[5m])))", "legendFormat": "{{model_id}}" }],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 0 } } }
+    },
+    {
+      "type": "timeseries", "title": "TPOT p90(每输出 token 延迟)", "id": 10,
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 20 },
+      "targets": [{ "expr": "histogram_quantile(0.90, sum by (le, model_id) (rate(litellm_deployment_latency_per_output_token_bucket[5m])))", "legendFormat": "{{model_id}}" }],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 0 } } }
+    },
+    {
+      "type": "timeseries", "title": "Spend by Model(每小时 USD)", "id": 11,
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 20 },
+      "targets": [{ "expr": "sum by (model) (increase(litellm_spend_metric_total[1h]))", "legendFormat": "{{model}}" }],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "custom": { "lineWidth": 2, "fillOpacity": 10 } } }
+    },
+
+    {
+      "type": "timeseries", "title": "用户剩余预算(USD)", "id": 12,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "targets": [{ "expr": "litellm_remaining_user_budget_metric", "legendFormat": "{{user}}" }],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "custom": { "lineWidth": 2, "fillOpacity": 0 } } }
+    },
+    {
+      "type": "timeseries", "title": "请求量(渠道,QPS)", "id": 13,
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "targets": [{ "expr": "sum by (model_id) (rate(litellm_deployment_total_requests_total[5m]))", "legendFormat": "{{model_id}}" }],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 10 } } }
+    }
+  ],
+  "schemaVersion": 39
+}

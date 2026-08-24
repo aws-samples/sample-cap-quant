@@ -1,0 +1,42 @@
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    # 关键:置 false 才会抓取 Helm values 之外声明的 ServiceMonitor/PodMonitor
+    # (M3 的 litellm、M5 的 scorer 都靠这个)
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        memory: 2Gi
+
+grafana:
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 10Gi
+  # dev 先用 port-forward 访问;要暴露 Ingress 时再开(需要域名/证书决策)
+  service:
+    type: ClusterIP
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi

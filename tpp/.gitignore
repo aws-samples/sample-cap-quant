@@ -1,0 +1,16 @@
+.env
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+tfplan
+*.tfplan
+*.egg-info/
+.claude/settings.local.json
+*.tfvars.secret
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+.DS_Store

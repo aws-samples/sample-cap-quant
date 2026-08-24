@@ -1,0 +1,59 @@
+langfuse:
+  nextauth:
+    # dev 暂用 port-forward 访问;暴露 Ingress 后改为正式 URL
+    url: http://localhost:3010
+    secret:
+      value: "" # 留空:首装自动生成并持久化在 <release>-app secret
+  salt:
+    value: ""
+  encryptionKey:
+    value: ""
+
+  serviceAccount:
+    create: true
+    name: langfuse # 与 infra IRSA subject langfuse/langfuse 一致
+    annotations:
+      eks.amazonaws.com/role-arn: ${langfuse_role_arn}
+
+  # headless init:首次启动自动建组织/项目/API keys(值来自 tpp/langfuse secret)
+  additionalEnvFrom:
+    - secretRef:
+        name: langfuse-init
+
+postgresql:
+  deploy: false
+  host: ${rds_address}
+  auth:
+    username: tpp
+    database: langfuse
+    existingSecret: langfuse-postgres
+    secretKeys:
+      userPasswordKey: password
+
+redis:
+  deploy: false
+  host: ${redis_endpoint}
+  port: 6379
+  auth:
+    enabled: false # dev ElastiCache 未开 AUTH;prod 开 TLS+AUTH 后调整
+
+clickhouse:
+  deploy: false # 不用 chart 的 alpha operator,自管单节点 StatefulSet(langfuse.tf)
+  host: clickhouse
+  auth:
+    username: default
+    existingSecret: langfuse-clickhouse
+    existingSecretKey: password
+  migration:
+    autoMigrate: true
+    ssl: false
+  # 单节点 ClickHouse:关闭集群模式(否则迁移用 ON CLUSTER/ReplicatedMergeTree 需要 Keeper)
+  cluster:
+    enabled: false
+
+s3:
+  deploy: false
+  bucket: ${bucket}
+  region: ${region}
+  forcePathStyle: false
+  # accessKeyId/secretAccessKey 留空 => SDK 凭据链走 IRSA

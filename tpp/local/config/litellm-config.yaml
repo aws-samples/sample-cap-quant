@@ -1,0 +1,61 @@
+# LiteLLM Proxy 配置(本地验证版;上云后由 apps/litellm.tf 的 Helm values 提供同构配置)
+#
+# 核心概念:同一个 model_name 下的多个条目 = 同一模型组的多个渠道(deployment),
+# LiteLLM 按 weight 比例分流,weight 由 Scorer 每分钟动态调整。
+
+model_list:
+  # ---- 模型组 claude-opus-5:Anthropic 直连 + Bedrock 双渠道 ----
+  - model_name: claude-opus-5
+    litellm_params:
+      model: anthropic/claude-opus-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      weight: 50
+    model_info:
+      channel: anthropic-direct
+  - model_name: claude-opus-5
+    litellm_params:
+      model: bedrock/anthropic.claude-opus-5
+      aws_region_name: us-west-2
+      # 本地验证可用 AWS_BEARER_TOKEN_BEDROCK 或本机 AWS profile;
+      # EKS 上走 IRSA,此处不配任何静态凭据
+      weight: 50
+    model_info:
+      channel: aws-bedrock
+
+  # ---- 模型组 gpt-5:OpenAI 直连(模型名按实际订阅调整)----
+  - model_name: gpt-5
+    litellm_params:
+      model: openai/gpt-5
+      api_key: os.environ/OPENAI_API_KEY
+      weight: 100
+    model_info:
+      channel: openai-direct
+
+  # ---- 聚合商渠道示例(OpenRouter,需要时取消注释)----
+  # - model_name: claude-opus-5
+  #   litellm_params:
+  #     model: openrouter/anthropic/claude-opus-5
+  #     api_key: os.environ/OPENROUTER_API_KEY
+  #     weight: 0        # 初始为 0,由 Scorer 从探索保底流量开始爬坡
+  #   model_info:
+  #     channel: openrouter
+
+litellm_settings:
+  # M0 验证项:确认 OSS 版 prometheus callback 可用;不可用则换自建 exporter callback
+  success_callback: ["prometheus"]
+  failure_callback: ["prometheus"]
+  # 启用 trace profile 后追加:
+  # success_callback: ["prometheus", "langfuse"]
+  # failure_callback: ["prometheus", "langfuse"]
+
+router_settings:
+  routing_strategy: simple-shuffle   # 按 weight 加权随机,配合 Scorer 动态调权
+  redis_host: os.environ/REDIS_HOST
+  redis_port: os.environ/REDIS_PORT
+  allowed_fails: 3                   # LiteLLM 自身熔断:窗口内失败 3 次进入 cooldown
+  cooldown_time: 60                  # 秒;与 Scorer 的熔断互为双保险
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: true

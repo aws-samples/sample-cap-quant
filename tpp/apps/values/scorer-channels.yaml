@@ -1,0 +1,68 @@
+# TPP 渠道注册表:Scorer 启动时经 /model/new 同步进 LiteLLM DB(幂等,按 model_info.id)。
+# 渠道定义放这里而非 LiteLLM 静态 config —— 静态 config 模型无法通过 Management API 动态调权。
+# model_info.id 是稳定渠道 ID,同时出现在 Prometheus 指标的 model_id label 中。
+
+channels:
+  - model_name: claude-sonnet-5
+    litellm_params:
+      model: bedrock/us.anthropic.claude-sonnet-5
+      aws_region_name: us-west-2
+      weight: 50
+    model_info:
+      id: claude-sonnet-5--bedrock-usw2
+
+  - model_name: claude-sonnet-5
+    litellm_params:
+      model: bedrock/us.anthropic.claude-sonnet-5
+      aws_region_name: us-east-1
+      weight: 50
+    model_info:
+      id: claude-sonnet-5--bedrock-use1
+
+  - model_name: claude-opus-5
+    litellm_params:
+      model: bedrock/us.anthropic.claude-opus-5
+      aws_region_name: us-west-2
+      weight: 50
+    model_info:
+      id: claude-opus-5--bedrock-usw2
+
+  - model_name: claude-opus-5
+    litellm_params:
+      model: bedrock/us.anthropic.claude-opus-5
+      aws_region_name: us-east-1
+      weight: 50
+    model_info:
+      id: claude-opus-5--bedrock-use1
+
+  - model_name: claude-fable-5
+    litellm_params:
+      model: bedrock/us.anthropic.claude-fable-5
+      aws_region_name: us-west-2
+      weight: 50
+    model_info:
+      id: claude-fable-5--bedrock-usw2
+
+  - model_name: claude-fable-5
+    litellm_params:
+      model: bedrock/us.anthropic.claude-fable-5
+      aws_region_name: us-east-1
+      weight: 50
+    model_info:
+      id: claude-fable-5--bedrock-use1
+
+  - model_name: claude-haiku-4-5
+    litellm_params:
+      model: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
+      aws_region_name: us-west-2
+      weight: 50
+    model_info:
+      id: claude-haiku-4-5--bedrock-usw2
+
+  - model_name: claude-haiku-4-5
+    litellm_params:
+      model: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
+      aws_region_name: us-east-1
+      weight: 50
+    model_info:
+      id: claude-haiku-4-5--bedrock-use1
