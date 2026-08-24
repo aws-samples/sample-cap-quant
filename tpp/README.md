@@ -17,6 +17,10 @@
 
 详细设计见 [docs/architecture.md](docs/architecture.md)。
 
+## 架构图
+<img width="1189" height="914" alt="Screenshot 2026-08-24 at 20 02 36" src="https://github.com/user-attachments/assets/ca1fd2f9-25e9-4c96-9d41-41c785838a36" />
+
+
 ## 仓库结构
 
 ```
