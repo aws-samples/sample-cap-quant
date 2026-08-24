@@ -1,8 +1,8 @@
 # TPP — Token Proxy Platform
 
-统一接入多个 LLM token 渠道(Anthropic 官网 / OpenAI 官网 / 聚合商 / AWS Bedrock 等云厂商)的代理平台,
-提供 per-user 每日 USD quota、渠道×模型 metrics、调用 trace,以及基于质量打分的智能渠道流量调度。
-部署目标:AWS EKS,Terraform + Helm 管理。
+- 统一接入多个 LLM token 渠道(Anthropic 官网 / OpenAI 官网 / 聚合商 / AWS Bedrock 等云厂商)的代理平台
+- 提供 per-user 每日 USD quota、渠道×模型 metrics、调用 trace,以及基于质量打分的智能渠道流量调度
+- 部署目标:AWS EKS,Terraform + Helm 管理。
 
 ## 架构组件
 
