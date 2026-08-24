@@ -93,6 +93,10 @@ This repo discusses **Data Accessing** and **Research Modeling** as well as **ho
 🌟 Low Latency
 - 🎯[Core Strategy](https://github.com/aws-samples/sample-cap-quant/blob/main/low-latency/README.md)
 
+🌟 GenAI
+- [Token Proxy Platform](https://github.com/aws-samples/sample-cap-quant/tree/main/tpp)
+- [aws billing mcp (TBC)]()
+
 # 🔐Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
