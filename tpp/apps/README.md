@@ -1,4 +1,4 @@
-# apps — 集群内应用层(Milestone 2-5)
+# apps — 集群内应用层
 
 State 2:通过 Terraform helm provider 部署集群内应用,依赖 infra state 的 output
 (cluster endpoint、RDS endpoint、IRSA role ARN 等,经 terraform_remote_state 读取)。
