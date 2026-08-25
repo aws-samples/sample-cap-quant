@@ -1,4 +1,4 @@
-# infra — Terraform 基础设施(Milestone 1)
+# infra — Terraform 基础设施
 
 State 1:VPC / EKS / RDS / ElastiCache / S3 / IRSA。模块职责见 docs/architecture.md §2。
 
