@@ -1,4 +1,4 @@
-# scorer — 智能权重调度服务(Milestone 5)
+# scorer
 
 每 60s:查 Prometheus(渠道×模型的 E2E p90 / 错误分类)→ 打分(EWMA 平滑)→
 经 LiteLLM Management API 调整 deployment weight。算法全文见 docs/architecture.md §3。
