@@ -95,7 +95,7 @@ This repo discusses **Data Accessing** and **Research Modeling** as well as **ho
 
 🌟 GenAI
 - 🎯[Token Proxy Platform](https://github.com/aws-samples/sample-cap-quant/tree/main/tpp)
-- 🎯[aws billing mcp (TBC)]()
+- 🎯[aws billing mcp](https://github.com/aws-samples/sample-cap-quant/tree/main/aws-billing-mcp)
 
 # 🔐Security
 
