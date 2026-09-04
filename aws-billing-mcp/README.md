@@ -1,6 +1,6 @@
 # aws-billing-mcp
 
-MCP server（stdio）——通过本机 AWS CLI 访问当前 AWS 账号的 Billing and Cost Management 数据，供 Quick Desktop 等 MCP 客户端做消费用量分析。TypeScript 编写，编译产物在 `dist/`。
+MCP server——通过本机 AWS CLI 访问当前 AWS 账号的 Billing and Cost Management 数据，供 Quick Desktop 等 MCP 客户端做消费用量分析。TypeScript 编写，编译产物在 `dist/`。
 
 ## 前置条件
 
