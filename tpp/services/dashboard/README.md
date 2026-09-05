@@ -32,9 +32,9 @@ PORT=3020 dashboard
 
 ```bash
 aws ecr get-login-password --region us-west-2 | \
-  docker login --username AWS --password-stdin <account>.dkr.ecr.us-west-2.amazonaws.com
+  docker login --username AWS --password-stdin <aws account>.dkr.ecr.us-west-2.amazonaws.com
 docker buildx build --platform linux/amd64 \
-  -t <account>.dkr.ecr.us-west-2.amazonaws.com/tpp/dashboard:0.1.0 --push .
+  -t <aws account>.dkr.ecr.us-west-2.amazonaws.com/tpp/dashboard:0.1.0 --push .
 ```
 
 部署见 `apps/tpp-dashboard.tf`(改版本号要同步 `var.dashboard_image_tag`)。

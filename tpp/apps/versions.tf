@@ -21,7 +21,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket       = "tpp-tfstate-135709585800"
+    bucket       = "tpp-tfstate-<aws account>"
     key          = "apps/dev/terraform.tfstate"
     region       = "us-west-2"
     use_lockfile = true

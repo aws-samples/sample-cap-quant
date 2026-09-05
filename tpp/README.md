@@ -96,13 +96,18 @@ curl http://localhost:4000/v1/chat/completions \
 两个 state 共用一个 S3 bucket;Terraform ≥ 1.10 用 S3 原生锁(`use_lockfile`),无需 DynamoDB:
 
 ```bash
-aws s3api create-bucket --bucket tpp-tfstate-<account-id> --region us-west-2 \
+aws s3api create-bucket --bucket tpp-tfstate-<aws account> --region us-west-2 \
   --create-bucket-configuration LocationConstraint=us-west-2
-aws s3api put-bucket-versioning --bucket tpp-tfstate-<account-id> \
+aws s3api put-bucket-versioning --bucket tpp-tfstate-<aws account> \
   --versioning-configuration Status=Enabled
 ```
 
-然后把 `infra/envs/dev/versions.tf` 与 `apps/versions.tf` 中 backend 的 bucket 名改成自己的。
+然后把 `infra/envs/dev/versions.tf`、`apps/versions.tf`、`apps/providers.tf` 中 backend 的 bucket 名
+`tpp-tfstate-<aws account>` 里的 `<aws account>` 换成自己的账号 ID;不想改文件也可以在 init 时覆盖:
+
+```bash
+terraform init -backend-config="bucket=tpp-tfstate-<aws account>"
+```
 
 #### 2. State 1 — 基础设施(infra/)
 
@@ -147,18 +152,18 @@ apps apply 已创建 ECR repo `tpp/scorer` 与 `tpp/dashboard`,但两个自建�
 
 ```bash
 aws ecr get-login-password --region us-west-2 | \
-  docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-west-2.amazonaws.com
+  docker login --username AWS --password-stdin <aws account>.dkr.ecr.us-west-2.amazonaws.com
 
 # Scorer
 cd services/scorer
 docker buildx build --platform linux/amd64 \
-  -t <account-id>.dkr.ecr.us-west-2.amazonaws.com/tpp/scorer:0.1.0 --push .
+  -t <aws account>.dkr.ecr.us-west-2.amazonaws.com/tpp/scorer:0.1.0 --push .
 kubectl rollout restart deploy/scorer -n scorer
 
 # TPP Dashboard
 cd ../dashboard
 docker buildx build --platform linux/amd64 \
-  -t <account-id>.dkr.ecr.us-west-2.amazonaws.com/tpp/dashboard:0.1.2 --push .
+  -t <aws account>.dkr.ecr.us-west-2.amazonaws.com/tpp/dashboard:0.1.2 --push .
 kubectl rollout restart deploy/dashboard -n dashboard
 ```
 

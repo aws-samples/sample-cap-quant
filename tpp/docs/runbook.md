@@ -23,6 +23,7 @@
   - [运行规则](#运行规则)
 - [告警响应](#告警响应)
 - [已知事项 / 陷阱](#已知事项--陷阱)
+- [当前环境登记](#当前环境登记)
 
 ## 访问入口(dev 尚未暴露 Ingress)
 **已配隧道守护的机器(launchd 服务 `com.tpp.litellm-proxy` 运行 `tpp-tunnels.sh`)直接开浏览器,
@@ -336,7 +337,7 @@ env { name = "ALPHA"  value = "0.5" }
   改动需重建镜像:
   ```bash
   cd services/scorer && docker buildx build --platform linux/amd64 \
-    -t <aws account number>.dkr.ecr.us-west-2.amazonaws.com/tpp/scorer:0.1.0 --push .
+    -t <aws account>.dkr.ecr.us-west-2.amazonaws.com/tpp/scorer:0.1.0 --push .
   kubectl rollout restart deploy/scorer -n scorer
   ```
 - 调参后观察 Grafana "渠道权重" 面板 15–30 分钟,曲线来回震荡说明 `ALPHA`/`GAMMA` 过激;
@@ -520,3 +521,10 @@ weight(d) = ─────────────────
 - Claude Code 直连 Bedrock 的基线配置备份:`~/.claude/settings.json.bedrock-backup`
   与 `docs/claude-code-config-baseline.md`,回滚见"Claude Code 接入 TPP"章节。
 
+## 当前环境登记
+
+- 渠道注册表:4 个 Claude 模型组 × 2 region + `gpt-5.6-terra`(Bedrock Mantle,usw2)= **9 渠道**;
+- 已建用户:`dev-laptop`($100/天)、`dev-laptop-codex`($100/天,本机 `TPP_API_KEY`,Codex 与 `claude-tpp` 共用);
+- 本机 Claude Code / Codex:**默认 Bedrock 直连,按需切 TPP**(`claude-tpp` / `codex --profile tpp`);
+- 本机隧道守护:launchd `com.tpp.litellm-proxy` → 五条隧道;
+- 仓库未 git commit;dev 环境常驻成本约 $400–450/月(省钱开关见上文)。
