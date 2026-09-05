@@ -19,8 +19,6 @@
 
 ![TPP 架构图](docs/architecture-diagram.png)
 
-矢量版 [`docs/architecture-diagram.svg`](docs/architecture-diagram.svg);可编辑源与导出工具栏见
-[`docs/architecture-diagram.html`](docs/architecture-diagram.html),由 `docs/architecture-diagram.gen.py` 生成。
 
 ## 仓库结构
 
