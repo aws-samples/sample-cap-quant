@@ -1,287 +1,288 @@
-# TPP 500 用户规模架构调整方案
+# TPP Architecture Adjustment Plan for 500 Users
 
-现有架构（`docs/architecture.md`）按 dev 规格部署，舒适承载约 50 名重度用户。
-接入 500 人需要**三处换实现**（ClickHouse、Redis 拓扑、接入层身份）、
-**一处靠 AWS 商务解决**（Bedrock 配额），其余为扩容与补件。
+The current architecture (`docs/architecture.md`) is deployed at dev spec and comfortably supports about 50 heavy users.
+Onboarding 500 people requires **three implementation swaps** (ClickHouse, Redis topology, ingress-layer identity),
+**one item resolved via AWS business channels** (Bedrock quota), and the rest is scaling up and filling gaps.
 
-> 本文所有容量数字均为基于当前 Terraform/values 配置的量级推算，**非压测结果**。
-> Phase 0 的压测完成后应回填真实值。
+> All capacity numbers in this document are order-of-magnitude estimates based on the current Terraform/values configuration, **not load-test results**.
+> Real values should be backfilled after the Phase 0 load test is complete.
 
-## 1. 设计目标
+## 1. Design Targets
 
-500 席位的负载取决于人群构成，取两个模型：
+The load from 500 seats depends on the user mix; we take two models:
 
 ```text
-混合人群（更接近真实内部平台）
-  重度 15% =  75 人 × 800 req/天 × 20M tok/天
-  中度 50% = 250 人 × 200 req/天 ×  5M tok/天
-  轻度 35% = 175 人 ×  40 req/天 ×  1M tok/天
-  → 117k req/天，2.9B tok/天，峰值 ~12 RPS，均值 ~6M TPM
+Mixed population (closer to a real internal platform)
+  Heavy 15% =  75 users × 800 req/day × 20M tok/day
+  Medium 50% = 250 users × 200 req/day ×  5M tok/day
+  Light 35% = 175 users ×  40 req/day ×  1M tok/day
+  → 117k req/day, 2.9B tok/day, peak ~12 RPS, average ~6M TPM
 
-全重度（上界）
-  500 人 × 800 req/天 × 20M tok/天
-  → 400k req/天，10B tok/天，峰值 ~42 RPS，均值 ~21M TPM
+All-heavy (upper bound)
+  500 users × 800 req/day × 20M tok/day
+  → 400k req/day, 10B tok/day, peak ~42 RPS, average ~21M TPM
 ```
 
-数据面的真实压力是并发流数量，不是 RPS：
+The real pressure on the data plane is the number of concurrent streams, not RPS:
 
 ```text
 in_flight = peak_rps × avg_stream_seconds
           = 42 × 35s ≈ 1470
 ```
 
-**设计指标（按上界，混合人群则有 3× 余量）：**
+**Design targets (at the upper bound; the mixed population leaves 3× headroom):**
 
-| 指标 | 目标值 |
+| Metric | Target |
 |---|---|
-| 持续 / 峰值 RPS | 40 / 60 |
-| 并发流 | 2000 |
-| 请求量 | 400k/天 |
-| 峰值 TPM | 60M |
+| Sustained / peak RPS | 40 / 60 |
+| Concurrent streams | 2000 |
+| Request volume | 400k/day |
+| Peak TPM | 60M |
 
-## 2. 改动总览
+## 2. Change Overview
 
-| 层 | 现状 | 500 人目标 | 改动性质 |
+| Layer | Current state | Target for 500 users | Nature of change |
 |---|---|---|---|
-| 配额层 | 2 region × 单账户 | N 账户 × 3 region 分片 | **商务 + 新增** |
-| 接入层 | ClusterIP + kubectl 隧道 | ALB + OIDC + 自助发 key | **新建** |
-| 数据面 | LiteLLM 2 副本单进程 | HPA 4→20 + PgBouncer | 扩容 + 补件 |
-| 账本 | db.t4g.medium 单实例双库 | Aurora PG + 库分离 + 保留策略 | 换规格 + 拆分 |
-| 缓存/队列 | cache.t4g.micro 一套共用 | 拆两套，均 HA + TLS | **拆分重建** |
-| 链路存储 | ClickHouse 单 pod 50Gi | 集群化 + 采样 + TTL | **换实现** |
-| 指标 | Prometheus 2Gi 全 label | 降基数 + 独立节点 | 配置 + 扩容 |
-| 调权 | Scorer 单副本 | 保持单副本，加配额感知 | 小改 |
-| 节点 | 3×m7i.large 无自动扩 | 3 个 node group + Karpenter | 重构 |
+| Quota layer | 2 regions × single account | N accounts × 3-region sharding | **Business + new** |
+| Ingress layer | ClusterIP + kubectl tunnel | ALB + OIDC + self-service key issuance | **New build** |
+| Data plane | LiteLLM 2 replicas, single process | HPA 4→20 + PgBouncer | Scaling out + gap filling |
+| Ledger | db.t4g.medium single instance, two databases | Aurora PG + database separation + retention policy | Spec change + split |
+| Cache/queue | One shared cache.t4g.micro | Split into two, both HA + TLS | **Split and rebuild** |
+| Trace storage | ClickHouse single pod 50Gi | Clustering + sampling + TTL | **Implementation swap** |
+| Metrics | Prometheus 2Gi, all labels | Cardinality reduction + dedicated node | Config + scaling up |
+| Weight tuning | Scorer single replica | Keep single replica, add quota awareness | Minor change |
+| Nodes | 3×m7i.large, no autoscaling | 3 node groups + Karpenter | Restructure |
 
-## 3. Bedrock 配额分片
+## 3. Bedrock Quota Sharding
 
-**唯一工程解决不了的一环，lead time 数周，必须最先启动。**
+**The only piece engineering cannot solve; lead time is weeks, so it must start first.**
 
-关键机制：`us.anthropic.*` 前缀本身就是跨区 inference profile，推理会在
-us-east-1 / us-east-2 / us-west-2 之间分散，**但配额记在调用方 region 的账户桶上**。
+Key mechanism: the `us.anthropic.*` prefix is itself a cross-region inference profile — inference spreads across
+us-east-1 / us-east-2 / us-west-2, **but quota is charged to the account bucket of the calling region**.
 
 ```text
-配额桶数 = 账户数 × 调用 region 数
+quota_buckets = num_accounts × num_calling_regions
 ```
 
-- 现状（`apps/values/scorer-channels.yaml`）：2 个调用 region → 2 个桶
-- 加 us-east-2 → 3 个桶
-- 60M TPM 峰值：单账户单 region 拿到 20M TPM 就需要与 AWS 客户团队协商，
-  因此基本必然需要**跨账户分片**（M 账户 × 3 region = 3M 个桶，配额彼此独立）
-- 可选：Provisioned Throughput 覆盖基线负载，突发走 on-demand
+- Current state (`apps/values/scorer-channels.yaml`): 2 calling regions → 2 buckets
+- Add us-east-2 → 3 buckets
+- 60M TPM peak: getting 20M TPM for a single account in a single region already requires negotiating with the AWS account team,
+  so **cross-account sharding** is essentially inevitable (M accounts × 3 regions = 3M buckets with mutually independent quotas)
+- Optional: Provisioned Throughput to cover baseline load, with bursts on on-demand
 
-实现要点：
+Implementation points:
 
-| 项 | 变更 |
+| Item | Change |
 |---|---|
-| 渠道注册表 | 从 9 条扩到 `账户数 × 3 region × 模型数` 量级 |
-| IAM | LiteLLM IRSA 增加 `sts:AssumeRole`，每渠道挂跨账户 role |
-| 排空枯竭桶 | 复用 Scorer 现有动态调权机制（见 §10） |
+| Channel registry | Grow from 9 entries to the order of `num_accounts × 3 regions × num_models` |
+| IAM | Add `sts:AssumeRole` to the LiteLLM IRSA; attach a cross-account role per channel |
+| Draining exhausted buckets | Reuse the Scorer's existing dynamic weight-tuning mechanism (see §10) |
 
-## 4. 数据面（LiteLLM）
+## 4. Data Plane (LiteLLM)
 
-- **保持 1 uvicorn worker / pod，靠加 pod 扩容**，不要用 `--num_workers`：
-  多 worker 复制 Python 内存，且 HPA 粒度变粗
-- 规格：`cpu req 1 / limit 2`，`mem req 1Gi / limit 3Gi`
-- 单 pod 安全承载 ~150–200 条并发流 → `2000 / 175 ≈ 12` pod 峰值，**HPA 4 → 20**
-- **HPA 不要用 CPU 指标**：流式转发是 I/O 密集，CPU 滞后于真实压力。
-  用 **KEDA + Prometheus scaler**，按 `litellm_proxy_total_requests` 速率或在途请求数扩容
-  （kube-prometheus-stack 已在，KEDA 是最小增量）
-- 补 PodDisruptionBudget + `topologySpreadConstraints` 跨 3 AZ
+- **Keep 1 uvicorn worker per pod and scale out by adding pods**; do not use `--num_workers`:
+  multiple workers duplicate Python memory, and HPA granularity gets coarser
+- Specs: `cpu req 1 / limit 2`, `mem req 1Gi / limit 3Gi`
+- A single pod safely carries ~150–200 concurrent streams → `2000 / 175 ≈ 12` pods at peak, **HPA 4 → 20**
+- **Do not use CPU metrics for HPA**: streaming forwarding is I/O-bound and CPU lags real pressure.
+  Use **KEDA + Prometheus scaler**, scaling on the `litellm_proxy_total_requests` rate or in-flight request count
+  (kube-prometheus-stack is already in place; KEDA is the minimal increment)
+- Add PodDisruptionBudget + `topologySpreadConstraints` across 3 AZs
 
-## 5. 账本层（RDS）
+## 5. Ledger Layer (RDS)
 
-**PgBouncer 是扩副本的前置条件。** Prisma 每个 pod 开独立连接池，
-20 pod × 默认池大小 ≈ 200–340 连接，而 db.t4g.medium 最大连接数仅 ~340
-—— 不上连接池，LiteLLM 一扩副本就打满 RDS 连接数。
+**PgBouncer is a prerequisite for scaling out replicas.** Prisma opens an independent connection pool per pod;
+20 pods × default pool size ≈ 200–340 connections, while db.t4g.medium's max connections is only ~340
+— without a connection pooler, scaling LiteLLM replicas immediately saturates RDS connections.
 
-| 项 | 变更 |
+| Item | Change |
 |---|---|
-| 连接池 | PgBouncer（transaction 模式）或 RDS Proxy；`DATABASE_URL` 加 `pgbouncer=true` |
-| 库分离 | litellm 账本与 langfuse 元数据拆成两个实例（现挤在同一 t4g.medium） |
-| 账本实例 | Aurora PostgreSQL，writer `db.r7g.large` + 1 reader，Multi-AZ |
-| 高可用 | `infra/envs/dev/main.tf:36-40` 的 `multi_az` / `deletion_protection` 翻为 true |
-| 保留策略 | `maximum_spend_logs_retention_period` 设 30–90d |
-| 长期账单 | 日聚合 ETL 到 S3 + Athena |
+| Connection pool | PgBouncer (transaction mode) or RDS Proxy; add `pgbouncer=true` to `DATABASE_URL` |
+| Database separation | Split the litellm ledger and langfuse metadata into two instances (currently crammed into the same t4g.medium) |
+| Ledger instance | Aurora PostgreSQL, writer `db.r7g.large` + 1 reader, Multi-AZ |
+| High availability | Flip `multi_az` / `deletion_protection` in `infra/envs/dev/main.tf:36-40` to true |
+| Retention policy | Set `maximum_spend_logs_retention_period` to 30–90d |
+| Long-term billing | Daily aggregation ETL to S3 + Athena |
 
-选 Aurora 的理由：每请求写一行 SpendLog，同时批量更新 key/user/team 的 spend 行
-—— 同一 key 的高并发请求会在同一行上争锁。Aurora 提供 reader 卸载、秒级故障转移、存储自动扩。
+Rationale for Aurora: every request writes one SpendLog row and batch-updates the spend rows of key/user/team
+— highly concurrent requests on the same key contend for locks on the same row. Aurora provides reader offloading, second-level failover, and automatic storage scaling.
 
-SpendLogs 在 400k 请求/天下是无界增长表，保留策略为必须项而非优化项。
+At 400k requests/day, SpendLogs is an unbounded-growth table; a retention policy is a requirement, not an optimization.
 
-## 6. 缓存/队列（Redis）
+## 6. Cache/Queue (Redis)
 
-现状 `cache.t4g.micro`（0.5 GiB）同时装 LiteLLM router 状态与 Langfuse 摄取队列。
-**危险点：队列被 evict 是静默丢链路数据，不报错。** 必须拆两套。
+The current `cache.t4g.micro` (0.5 GiB) holds both LiteLLM router state and the Langfuse ingestion queue.
+**Danger point: queue eviction silently loses trace data without erroring.** It must be split into two.
 
-### A. Router / 限流 Redis
+### A. Router / Rate Limiting Redis
 
-`cache.m7g.large`，主从 + 自动故障转移。
+`cache.m7g.large`, primary/replica + automatic failover.
 
-这套承担 per-key 的 rpm/tpm 限流，**在请求路径上是强依赖** ——
-挂了就是全站限流失效或全站 5xx，HA 不可省。
+This one carries per-key rpm/tpm rate limiting and is a **hard dependency on the request path** —
+if it goes down, either rate limiting fails site-wide or the whole site returns 5xx; HA cannot be skipped.
 
-### B. Langfuse 摄取队列 Redis
+### B. Langfuse Ingestion Queue Redis
 
-按容忍的 worker 滞后定容：
+Sized by the tolerated worker lag:
 
 ```text
 queue_bytes = peak_rps × event_kb × tolerated_lag_seconds
             = 40 × 120KB × 300s ≈ 1.4 GB
 ```
 
-取 `cache.r7g.large`（13 GiB）留足余量。
+Take `cache.r7g.large` (13 GiB) to leave ample headroom.
 
-两套均需开 **TLS + AUTH**
-（`apps/values/langfuse-values.yaml.tftpl` 现为 `auth.enabled: false`，注释已标注 dev 取舍）。
+Both need **TLS + AUTH** enabled
+(`apps/values/langfuse-values.yaml.tftpl` currently has `auth.enabled: false`; the comment notes the dev trade-off).
 
-## 7. 链路存储（ClickHouse）
+## 7. Trace Storage (ClickHouse)
 
-单 pod / 单副本 / 50Gi / 无 TTL，在 500 人下无论怎么扩卷都撑不住，
-且 pod 挂了链路观测直接停摆。
+Single pod / single replica / 50Gi / no TTL cannot hold up under 500 users no matter how much the volume is expanded,
+and if the pod dies, trace observability halts outright.
 
-### 7.1 采样先做 —— 比扩容有效约 5 倍
+### 7.1 Sampling First — About 5× More Effective Than Scaling Up
 
 ```text
-全量 payload：400k req/天 → ~12 GB/天（压缩后）
-metadata 100% + payload 20% 采样 → 3–4 GB/天 → 90 天约 320 GB
+Full payload: 400k req/day → ~12 GB/day (compressed)
+metadata 100% + payload 20% sampling → 3–4 GB/day → ~320 GB over 90 days
 ```
 
-做质量分析不需要 100% 捕获 50k-token 的完整 prompt。
+Quality analysis does not need 100% capture of full 50k-token prompts.
 
-### 7.2 集群化
+### 7.2 Clustering
 
-| 方案 | 说明 |
+| Option | Notes |
 |---|---|
-| Altinity ClickHouse Operator | 3 分片 × 2 副本 + ClickHouse Keeper；**`apps/values/langfuse-values.yaml.tftpl` 的 `cluster.enabled` 必须翻为 true**，否则 Langfuse 迁移不会用 ReplicatedMergeTree |
-| ClickHouse Cloud | 运维最省，但数据离开自有账户，需评估合规 |
+| Altinity ClickHouse Operator | 3 shards × 2 replicas + ClickHouse Keeper; **`cluster.enabled` in `apps/values/langfuse-values.yaml.tftpl` must be flipped to true**, otherwise Langfuse migrations will not use ReplicatedMergeTree |
+| ClickHouse Cloud | Least operational burden, but data leaves the self-owned account; compliance needs assessment |
 
-### 7.3 其他
+### 7.3 Others
 
-- ClickHouse TTL（90d）+ S3 冷分层（`storage_policy` 挂 S3 disk）；
-  Langfuse blob 已落 S3，该部分设计无需改动
-- Langfuse web 3 副本；worker 4–6 副本 + **KEDA 按 Redis 队列深度扩容**
-  （现 values 未设 replicas，走 chart 默认）
+- ClickHouse TTL (90d) + S3 cold tiering (attach an S3 disk via `storage_policy`);
+  Langfuse blobs already land in S3, so that part of the design needs no change
+- Langfuse web 3 replicas; worker 4–6 replicas + **KEDA scaling on Redis queue depth**
+  (the current values do not set replicas and use chart defaults)
 
-## 8. 指标层（Prometheus）
+## 8. Metrics Layer (Prometheus)
 
-**500 用户对 Prometheus 是一次基数攻击。** LiteLLM 指标带
-`hashed_api_key` / `api_key_alias` / `end_user` 等 per-user label，
-`500 key × 9+ 渠道 × 十几个指标族` → 百万级 series，2Gi 必死。
+**500 users amounts to a cardinality attack on Prometheus.** LiteLLM metrics carry per-user labels such as
+`hashed_api_key` / `api_key_alias` / `end_user`;
+`500 keys × 9+ channels × a dozen metric families` → millions of series; 2Gi is certain death.
 
-处方：在 `apps/litellm.tf:270` 的 ServiceMonitor 加 `metricRelabelConfigs`，
-**labeldrop 掉 per-key / per-user label，只保留 `model_id`、`requested_model`、
-`exception_class`、`le`** —— 这四个正是 `services/scorer/scorer/prom.py`
-与 tpp-dashboard 唯一依赖的 label。per-user 归属应在 RDS 账本和 Langfuse 中查，不进时序库。
+Prescription: add `metricRelabelConfigs` to the ServiceMonitor at `apps/litellm.tf:270`,
+**labeldrop the per-key / per-user labels and keep only `model_id`, `requested_model`,
+`exception_class`, `le`** — these four are exactly the only labels `services/scorer/scorer/prom.py`
+and tpp-dashboard depend on. Per-user attribution should be looked up in the RDS ledger and Langfuse, not stored in the time-series database.
 
-降基数后：Prometheus 独占节点，8Gi，200Gi 卷，保留 30d。
-**保留期不能低于 7d** —— dashboard 的统计窗口白名单含 `7d`。
+After cardinality reduction: Prometheus on a dedicated node, 8Gi, 200Gi volume, 30d retention.
+**Retention must not go below 7d** — the dashboard's statistics window whitelist includes `7d`.
 
-## 9. 接入层与身份
+## 9. Ingress Layer and Identity
 
-500 人规模下最被低估的工作量。现状是 ClusterIP + kubectl 隧道 +
-运维在 dashboard 上手工改配额，这条路走不通。
+The most underestimated workload at 500-user scale. The current state is ClusterIP + kubectl tunnel +
+operators manually editing quotas on the dashboard; that path does not scale.
 
-| 项 | 说明 |
+| Item | Notes |
 |---|---|
-| 边缘 | ALB + ACM + Route53 + WAF（`apps/platform.tf:17` 的 LB controller 已装好） |
-| 身份 | OIDC（Okta/Entra）→ key broker 调 LiteLLM `/key/generate`，把 IdP group 映射为 team + `max_budget` + `budget_duration` + `rpm_limit`/`tpm_limit` |
-| 自助化 | 复用 tpp-dashboard 已有的 `/user/update` 写回能力，从"运维手改"扩成"用户自助 + 团队管理员审批"，无需重写 |
-| per-key 限流 | **硬需求**：不设则单个用户跑批处理即可吃光全公司 Bedrock 配额；依赖 router Redis，因此绕回 §6.A 的 HA 要求 |
-| dashboard 自身认证 | 现无认证，安全模型建立在"不暴露 Ingress"（`apps/tpp-dashboard.tf:4`）；上 ALB 后该前提失效，必须补 OIDC |
+| Edge | ALB + ACM + Route53 + WAF (the LB controller at `apps/platform.tf:17` is already installed) |
+| Identity | OIDC (Okta/Entra) → a key broker calls LiteLLM `/key/generate`, mapping IdP groups to team + `max_budget` + `budget_duration` + `rpm_limit`/`tpm_limit` |
+| Self-service | Reuse tpp-dashboard's existing `/user/update` write-back capability, expanding from "operators edit by hand" to "user self-service + team admin approval"; no rewrite needed |
+| Per-key rate limiting | **Hard requirement**: without it, a single user running batch jobs can consume the entire company's Bedrock quota; it depends on the router Redis, which loops back to the HA requirement in §6.A |
+| Dashboard's own authentication | Currently unauthenticated; the security model rests on "no exposed Ingress" (`apps/tpp-dashboard.tf:4`); once behind ALB that premise fails and OIDC must be added |
 
-## 10. 调权层（Scorer）
+## 10. Weight Tuning Layer (Scorer)
 
-单副本、不在请求路径、挂了只是权重冻结 —— 该设计在 500 人下依然成立，
-**必须保持单副本**（多副本会并发写权重冲突）。两点需改：
+Single replica, not on the request path, and an outage only freezes weights — this design still holds at 500 users,
+and it **must remain a single replica** (multiple replicas would conflict on concurrent weight writes). Two changes are needed:
 
-1. **`w_floor = 0.05` 的代价**：配额打满的渠道仍保底 5% 流量，
-   40 RPS 下即稳定 2 RPS 的 429。建议增加"配额枯竭"状态，
-   `RateLimitError` 占比持续偏高时将该渠道 floor 压到 0.005 或临时置 0。
-2. **区分节流与故障**：`RateLimitError` severity 1.5 且不在 `SEVERE_CLASSES`，
-   因此节流永不熔断、只调权 —— 这在 2 渠道时正确，
-   但在 N 账户 × 3 region 的多桶拓扑下，需要能明确表达"该桶今日到顶"与"该渠道损坏"的差别。
+1. **The cost of `w_floor = 0.05`**: a channel whose quota is exhausted still keeps a 5% traffic floor,
+   which at 40 RPS means a steady 2 RPS of 429s. Recommend adding a "quota exhausted" state that
+   presses the channel's floor down to 0.005 or temporarily to 0 when the `RateLimitError` share stays persistently high.
+2. **Distinguish throttling from failure**: `RateLimitError` has severity 1.5 and is not in `SEVERE_CLASSES`,
+   so throttling never trips the circuit breaker and only adjusts weight — correct with 2 channels,
+   but under the N accounts × 3 regions multi-bucket topology, the system needs to clearly express the difference between
+   "this bucket is maxed out for today" and "this channel is broken".
 
-## 11. 节点拓扑
+## 11. Node Topology
 
-拆 3 个 node group，并且**必须加 Karpenter 或 cluster-autoscaler**
-—— 现在完全没有节点自动扩容，`node_max_size = 5` 只是死上限。
+Split into 3 node groups, and **Karpenter or cluster-autoscaler must be added**
+— there is currently no node autoscaling at all; `node_max_size = 5` is just a hard ceiling.
 
-| node group | 实例 | 用途 |
+| Node group | Instances | Purpose |
 |---|---|---|
-| data-plane | m7i.xlarge × 3–8，3 AZ，on-demand | LiteLLM + Scorer，延迟敏感 |
+| data-plane | m7i.xlarge × 3–8, 3 AZs, on-demand | LiteLLM + Scorer, latency-sensitive |
 | observability | m7i.2xlarge × 2 | Prometheus / Grafana / Langfuse web+worker |
-| clickhouse | r7i.2xlarge × 3，taint 独占 | ClickHouse（内存密集） |
+| clickhouse | r7i.2xlarge × 3, taint-dedicated | ClickHouse (memory-intensive) |
 
-另：`single_nat_gateway = true`（`infra/envs/dev/main.tf:17`）需改为每 AZ 一个，
-否则单 AZ NAT 故障将导致全站出网中断。
+Also: `single_nat_gateway = true` (`infra/envs/dev/main.tf:17`) needs to change to one per AZ,
+otherwise a single-AZ NAT failure takes down egress for the entire site.
 
-## 12. 落地顺序
+## 12. Rollout Order
 
-顺序由依赖关系决定，而非重要性。
+The order is determined by dependencies, not importance.
 
-### Phase 0 — 立刻启动（lead time 最长）
+### Phase 0 — Start Immediately (Longest Lead Time)
 
-- Bedrock 配额提升申请 + 跨账户分片方案敲定
-- 用真实流量压测拿基线：LiteLLM p99、RDS `CPUCreditBalance`、
-  Redis `used_memory`、ClickHouse 磁盘增速
-- 压测完成后回填本文所有推算值
+- Bedrock quota increase request + finalize the cross-account sharding plan
+- Load-test with real traffic to get baselines: LiteLLM p99, RDS `CPUCreditBalance`,
+  Redis `used_memory`, ClickHouse disk growth rate
+- Backfill all estimates in this document after the load test completes
 
-### Phase 1 — 解除扩容硬阻塞（顺序不可反）
-
-```text
-PgBouncer → Redis 拆两套 → Prometheus 降基数 → Karpenter → LiteLLM HPA
-```
-
-两条硬依赖：
-
-- PgBouncer 必须在 HPA 之前，否则扩副本即打满 RDS 连接数
-- Prometheus 降基数必须在用户数上量之前，否则 Prometheus 挂掉会让
-  Scorer 与 dashboard 同时失明
-
-### Phase 2 — 可观测性重构
+### Phase 1 — Remove Hard Blockers to Scaling Out (Order Cannot Be Reversed)
 
 ```text
-Langfuse 采样 → ClickHouse 集群化 + TTL + S3 分层 → Langfuse worker KEDA 扩容
+PgBouncer → split Redis into two → Prometheus cardinality reduction → Karpenter → LiteLLM HPA
 ```
 
-先做采样：成本最低、收益最大。
+Two hard dependencies:
 
-### Phase 3 — 接入治理
+- PgBouncer must come before HPA, otherwise scaling out replicas immediately saturates RDS connections
+- Prometheus cardinality reduction must land before user volume ramps up, otherwise a Prometheus outage would blind
+  the Scorer and the dashboard simultaneously
+
+### Phase 2 — Observability Restructure
 
 ```text
-ALB + ACM + WAF → OIDC → 自助发 key broker → per-key 限流 → dashboard 认证
+Langfuse sampling → ClickHouse clustering + TTL + S3 tiering → Langfuse worker KEDA scaling
 ```
 
-## 13. 成本量级与核心判断
+Do sampling first: lowest cost, biggest payoff.
 
-平台侧月成本粗估（不含 token）：
+### Phase 3 — Ingress Governance
 
-| 项 | 估算 |
+```text
+ALB + ACM + WAF → OIDC → self-service key broker → per-key rate limiting → dashboard authentication
+```
+
+## 13. Cost Magnitude and Core Judgment
+
+Rough monthly cost estimate on the platform side (excluding tokens):
+
+| Item | Estimate |
 |---|---|
-| Aurora 双实例 + langfuse RDS | ~$700 |
-| 两套 Redis 含副本 | ~$600 |
-| EKS 节点 | ~$3,000–4,500 |
-| 存储 / NAT / ALB / S3 | ~$500 |
-| **合计** | **~$5–7k/月** |
+| Aurora two instances + langfuse RDS | ~$700 |
+| Two Redis sets incl. replicas | ~$600 |
+| EKS nodes | ~$3,000–4,500 |
+| Storage / NAT / ALB / S3 | ~$500 |
+| **Total** | **~$5–7k/month** |
 
-而 2.9B tokens/天 的 Bedrock 费用，即便按重度缓存折扣后的混合单价估算，
-也在 **$40k–170k/月** 量级。
+Meanwhile, the Bedrock cost of 2.9B tokens/day, even estimated at a blended unit price after heavy cache discounts,
+is on the order of **$40k–170k/month**.
 
-> **本方案最重要的结论：平台基础设施成本相对 token 成本是零头（1–2 个数量级差距）。**
-> 不要为省平台的钱牺牲 HA —— ClickHouse 单点、Redis 共用、RDS 单 AZ 省下的几百美元，
-> 一次故障造成的 500 人停工与计费数据丢失就远超了。
+> **The most important conclusion of this plan: platform infrastructure cost is a rounding error relative to token cost (1–2 orders of magnitude apart).**
+> Do not sacrifice HA to save platform money — the few hundred dollars saved by a single-point ClickHouse, shared Redis, or single-AZ RDS
+> is far outweighed by one outage that idles 500 people and loses billing data.
 >
-> 真正值得投入工程的省钱方向是**提高 prompt cache 命中率**和
-> **把请求路由到更便宜的模型**，那才是动辄数万美元的杠杆。
+> The cost-saving directions truly worth engineering investment are **raising the prompt cache hit rate** and
+> **routing requests to cheaper models** — those are the levers worth tens of thousands of dollars.
 
-## 14. 待决事项
+## 14. Open Items
 
-| 事项 | 需要的决策 |
+| Item | Decision needed |
 |---|---|
-| Bedrock 跨账户分片 | 账户数量、账户归属与计费主体 |
-| ClickHouse 托管 vs 自管 | 数据出账户是否触及合规红线 |
-| OIDC provider | Okta / Entra / 其他 |
-| 域名与证书 | 对外域名、ACM 证书归属 |
-| SpendLogs 保留期 | 30d / 90d，及长期账单是否需要 Athena 查询 |
-| Langfuse 采样率 | payload 采样 20% 是否满足质量分析需求 |
+| Bedrock cross-account sharding | Number of accounts, account ownership, and billing entity |
+| ClickHouse managed vs self-hosted | Whether data leaving the account crosses a compliance red line |
+| OIDC provider | Okta / Entra / other |
+| Domain and certificates | External domain, ACM certificate ownership |
+| SpendLogs retention | 30d / 90d, and whether long-term billing needs Athena queries |
+| Langfuse sampling rate | Whether 20% payload sampling satisfies quality analysis needs |

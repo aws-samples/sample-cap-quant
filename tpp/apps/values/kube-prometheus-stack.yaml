@@ -1,8 +1,8 @@
 prometheus:
   prometheusSpec:
     retention: 15d
-    # 关键:置 false 才会抓取 Helm values 之外声明的 ServiceMonitor/PodMonitor
-    # (M3 的 litellm、M5 的 scorer 都靠这个)
+    # Key: must be false to scrape ServiceMonitors/PodMonitors declared outside Helm values
+    # (litellm in M3 and scorer in M5 both rely on this)
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
@@ -26,7 +26,7 @@ grafana:
     enabled: true
     storageClassName: gp3
     size: 10Gi
-  # dev 先用 port-forward 访问;要暴露 Ingress 时再开(需要域名/证书决策)
+  # dev uses port-forward access for now; enable when exposing an Ingress (requires domain/certificate decisions)
   service:
     type: ClusterIP
 

@@ -15,7 +15,7 @@ variable "oidc_provider_arn" {
 }
 
 variable "oidc_provider" {
-  description = "OIDC issuer,不含 https:// 前缀"
+  description = "OIDC issuer, without the https:// prefix"
   type        = string
 }
 

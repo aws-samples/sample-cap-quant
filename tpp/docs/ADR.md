@@ -1,123 +1,126 @@
-# TPP 架构设计记录(ADR,Architecture Design Record)
+# TPP Architecture Design Records (ADR)
 
-本文汇总 TPP(Token Proxy Platform)已经做出的关键架构决策。每条记录回答三个问题:
-**当时面对什么问题、选了什么方案、付出了什么代价**。已有独立文档的决策只做摘要并给出链接,
-尚无文档的决策(隧道看门狗、双模式接入、prompt cache 取舍)在这里首次系统整理。
+This document collects the key architecture decisions already made for TPP (Token Proxy Platform). Each record answers three questions:
+**what problem we faced at the time, which option we chose, and what price we paid**. Decisions that already have dedicated documents are only summarized here with links;
+decisions that had no document yet (tunnel watchdog, dual-mode access, prompt cache trade-off) are systematically written up here for the first time.
 
-文档分工:[`README.md`](../README.md) 负责架构组件、仓库结构与部署步骤;
-[`docs/runbook.md`](runbook.md) 负责日常操作、RDS 凭证轮转恢复链路、Scorer 打分算法与运行规则、告警响应;
-本文只记录"为什么这样设计"。所有描述以当前仓库中的代码与配置为准;
-与 runbook 描述不一致处,以本文标注的代码行为为准。
+Division of labor between documents: [`README.md`](../README.md) covers architecture components, repository layout, and deployment steps;
+[`docs/runbook.md`](runbook.md) covers day-to-day operations, the RDS credential rotation recovery chain, the Scorer scoring algorithm and runtime rules, and alert response;
+this document only records "why it was designed this way". All descriptions follow the code and configuration currently in the repository;
+where the runbook disagrees, the code behavior noted here takes precedence.
 
-| 编号 | 领域 | 主题 |
+| ID | Area | Topic |
 |---|---|---|
-| [ADR-001](#adr-001-security-rds-凭证轮转后的自动重连) | Security | RDS 凭证轮转后的自动重连 |
-| [ADR-002](#adr-002-resiliency-本地隧道的健康探测看门狗) | Resiliency | 本地隧道的健康探测看门狗 |
-| [ADR-003](#adr-003-resiliency-客户端在-tpp-与直连模型之间切换) | Resiliency | 客户端在 TPP 与直连模型之间切换 |
-| [ADR-004](#adr-004-ops-新机器安装隧道守护) | Ops | 新机器安装隧道守护 |
-| [ADR-005](#adr-005-ops-渠道权重的打分机制) | Ops | 渠道权重的打分机制 |
-| [ADR-006](#adr-006-ops-scorer-运行规则) | Ops | Scorer 运行规则(小样本、熔断、恢复、写回、降级) |
-| [ADR-007](#adr-007-ops-自建统一入口-dashboard) | Ops | 自建统一入口 Dashboard |
-| [ADR-008](#adr-008-scaling-500-用户规模的架构调整) | Scaling | 500 用户规模的架构调整 |
-| [ADR-009](#adr-009-trade-off-稳定性优先导致-prompt-cache-命中率下降) | Trade-off | 稳定性优先导致 prompt cache 命中率下降 |
+| [ADR-001](#adr-001-security-automatic-reconnection-after-rds-credential-rotation) | Security | Automatic reconnection after RDS credential rotation |
+| [ADR-002](#adr-002-resiliency-health-probe-watchdog-for-local-tunnels) | Resiliency | Health-probe watchdog for local tunnels |
+| [ADR-003](#adr-003-resiliency-client-switching-between-tpp-and-direct-model-access) | Resiliency | Client switching between TPP and direct model access |
+| [ADR-004](#adr-004-ops-installing-the-tunnel-daemon-on-a-new-machine) | Ops | Installing the tunnel daemon on a new machine |
+| [ADR-005](#adr-005-ops-channel-weight-scoring-mechanism) | Ops | Channel weight scoring mechanism |
+| [ADR-006](#adr-006-ops-scorer-runtime-rules) | Ops | Scorer runtime rules (small samples, circuit breaking, recovery, write-back, degradation) |
+| [ADR-007](#adr-007-ops-in-house-unified-portal-dashboard) | Ops | In-house unified portal Dashboard |
+| [ADR-008](#adr-008-scaling-architecture-changes-for-500-users) | Scaling | Architecture changes for 500 users |
+| [ADR-009](#adr-009-trade-off-stability-first-design-lowers-prompt-cache-hit-rate) | Trade-off | Stability-first design lowers prompt cache hit rate |
 
 ---
 
-## ADR-001 [Security] RDS 凭证轮转后的自动重连
+## ADR-001 [Security] Automatic Reconnection After RDS Credential Rotation
 
-**状态**:已实施。恢复链路、Secret 名称与排障要点见 [`docs/runbook.md`](runbook.md#rds-凭证轮转与自动恢复)
-"RDS 凭证轮转与自动恢复"章节;详细变更清单见 [`docs/rds-rotation-recovery-changes.md`](rds-rotation-recovery-changes.md)。
+**Status**: implemented. For the recovery chain, Secret names, and troubleshooting notes see the
+"RDS Credential Rotation and Automatic Recovery" section of [`docs/runbook.md`](runbook.md#rds-credential-rotation-and-automatic-recovery);
+the detailed change list is in [`docs/rds-rotation-recovery-changes.md`](rds-rotation-recovery-changes.md).
 
-### 背景
+### Background
 
-RDS 以 `manage_master_user_password=true` 托管 PostgreSQL 主密码,AWS 每 **7 天**自动轮转。
-LiteLLM 与 Langfuse 都在启动时从环境变量读取数据库连接串,进程存活期间不会重新读取。
-External Secrets Operator(ESO)即使把新密码同步进了 Kubernetes Secret,已运行的 Pod 仍持有旧密码,
-表现为轮转后 LiteLLM 启动失败或 Langfuse Prisma 连接被拒,需要人工 `kubectl rollout restart`。
+RDS manages the PostgreSQL master password with `manage_master_user_password=true`, and AWS rotates it automatically every **7 days**.
+LiteLLM and Langfuse both read the database connection string from environment variables at startup and never re-read it while the process is alive.
+Even after External Secrets Operator (ESO) syncs the new password into the Kubernetes Secret, already-running Pods still hold the old password.
+The symptom: after rotation, LiteLLM fails to start or Langfuse Prisma connections are refused, requiring a manual `kubectl rollout restart`.
 
-### 决策
+### Decision
 
-不改应用代码、不做进程内重连,而是**让密码变化触发滚动重启**:
+Do not change application code and do not attempt in-process reconnection; instead **let a password change trigger a rolling restart**:
 
 ```text
-RDS / Secrets Manager 密码轮转
-  → ESO 以 5m refreshInterval 轮询,最多 5 分钟内刷新 litellm-env / langfuse-postgres
-  → Stakater Reloader 发现 Secret data 变化
-  → LiteLLM、Langfuse Web、Langfuse Worker 滚动重启
-  → 新 Pod 使用新密码启动
+RDS / Secrets Manager password rotation
+  → ESO polls with a 5m refreshInterval; litellm-env / langfuse-postgres refresh within at most 5 minutes
+  → Stakater Reloader detects the Secret data change
+  → LiteLLM, Langfuse Web, and Langfuse Worker roll-restart
+  → New Pods start with the new password
 ```
 
-"5 分钟"是 ESO 的主动探测周期,也是凭证发现的最长延迟;它不是轮转周期,轮转周期仍是 7 天。
+"5 minutes" is ESO's active polling period and the maximum credential-discovery delay; it is not the rotation period, which remains 7 days.
 
-### 实现要点
+### Implementation notes
 
-- `litellm-env` 与 `langfuse-postgres` 两个 ExternalSecret 的 `refreshInterval` 从 `1h` 缩到 `5m`
-  (`apps/litellm.tf`、`apps/langfuse.tf`)。
-- `apps/platform.tf` 新增 Reloader Helm release(chart `2.2.16`,namespace `kube-system`),
-  全局监听 Secret / ConfigMap,只重启带 `reloader.stakater.com/auto: "true"` 注解的工作负载。
-- Reloader 触发重启的方式是往容器注入一个 checksum 环境变量。LiteLLM Deployment 用 Terraform 原生资源管理,
-  因此预留了首个 env `STAKATER_LITELLM_ENV_SECRET` 并在 `lifecycle.ignore_changes` 中忽略其值,
-  否则下一次 `terraform apply` 会抹掉 Reloader 的改动并回滚重启。
-- Langfuse 走 Prisma,密码含 `@ : / % # ?` 等 URI 保留字符时会报 `P1013 invalid port number`。
-  因此在 ExternalSecret 模板里用 `urlquery` 编码密码,直接生成完整的 `database_url`,
-  以 `DATABASE_URL` / `DIRECT_URL` 注入,而不是把裸密码交给 chart 拼接。
+- The `refreshInterval` of the `litellm-env` and `langfuse-postgres` ExternalSecrets was reduced from `1h` to `5m`
+  (`apps/litellm.tf`, `apps/langfuse.tf`).
+- `apps/platform.tf` adds a Reloader Helm release (chart `2.2.16`, namespace `kube-system`) that watches
+  Secrets / ConfigMaps globally but only restarts workloads annotated with `reloader.stakater.com/auto: "true"`.
+- Reloader triggers restarts by injecting a checksum environment variable into the container. The LiteLLM Deployment is managed
+  with native Terraform resources, so the first env `STAKATER_LITELLM_ENV_SECRET` is reserved and its value is ignored via
+  `lifecycle.ignore_changes`; otherwise the next `terraform apply` would wipe Reloader's change and roll everything back.
+- Langfuse uses Prisma; when the password contains URI-reserved characters such as `@ : / % # ?` it fails with `P1013 invalid port number`.
+  The ExternalSecret template therefore encodes the password with `urlquery`, generates the complete `database_url` directly,
+  and injects it as `DATABASE_URL` / `DIRECT_URL` rather than handing the raw password to the chart for string concatenation.
 
-### 备选方案
+### Alternatives
 
-| 方案 | 未采用原因 |
+| Option | Why not adopted |
 |---|---|
-| 关闭托管轮转,使用静态密码 | 放弃了托管轮转带来的安全收益,凭证进入 tfstate |
-| 应用内检测连接失败后重读 Secret | LiteLLM / Langfuse 均为第三方镜像,改造成本高且升级即失效 |
-| CronJob 每 7 天定时 rollout | 与 AWS 轮转时刻无法精确对齐,窗口内仍会出错 |
+| Disable managed rotation, use a static password | Gives up the security benefit of managed rotation; credentials end up in tfstate |
+| Detect connection failure in-app and re-read the Secret | LiteLLM / Langfuse are both third-party images; the change is costly and breaks on every upgrade |
+| CronJob rollout every 7 days | Cannot align precisely with AWS's rotation moment; errors still occur inside the window |
 
-### 后果与权衡
+### Consequences and trade-offs
 
-- 每 7 天三个工作负载各滚动重启一次。LiteLLM 有 2 副本且 readiness 探针到位,
-  重启期间新请求不受影响,但**正在滚动的那个 Pod 上的流式请求会中断**,客户端需重试。
-- 凭证发现最长延迟 5 分钟。窗口内 LiteLLM 若因其他原因重启,会用旧密码启动失败,由 startupProbe 兜住等待下一轮同步。
-- ESO 对 Secrets Manager 的调用频率提高 12 倍,dev 规模下成本可忽略。
-- 同一 Secret 内任何字段变化(如 master key 轮转)也会触发重启,这是期望行为。
-- `dashboard-env` 仍为 `1h` 刷新,它只含 master key,不含 RDS 密码,不在本决策范围内。
+- Every 7 days each of the three workloads roll-restarts once. LiteLLM has 2 replicas with readiness probes in place,
+  so new requests are unaffected during the restart, but **streaming requests on the Pod being rolled are interrupted** and clients must retry.
+- Maximum credential-discovery delay is 5 minutes. If LiteLLM restarts for any other reason inside that window, it starts with the old
+  password and fails; the startupProbe holds it until the next sync round.
+- ESO's call rate to Secrets Manager increases 12x; at dev scale the cost is negligible.
+- Any field change in the same Secret (e.g. master key rotation) also triggers a restart; this is the desired behavior.
+- `dashboard-env` still refreshes at `1h`; it only contains the master key, not the RDS password, and is out of scope for this decision.
 
 ---
 
-## ADR-002 [Resiliency] 本地隧道的健康探测看门狗
+## ADR-002 [Resiliency] Health-Probe Watchdog for Local Tunnels
 
-**状态**:已实施。代码见 [`scripts/tpp-tunnels.sh`](../scripts/tpp-tunnels.sh)。本条为首次成文。
+**Status**: implemented. Code in [`scripts/tpp-tunnels.sh`](../scripts/tpp-tunnels.sh). First written up here.
 
-### 背景
+### Background
 
-dev 环境不暴露 Ingress,本机通过 `kubectl port-forward` 隧道访问 LiteLLM(14000)、Grafana(3000)、
-Langfuse(3010)、Prometheus(9090)、TPP Dashboard(3020)。
-隧道脚本原先的恢复模型是"kubectl 进程退出就重新拉起"。实际运行中发现一种失效模式:
-**笔记本切换网络或睡眠唤醒后,kubectl 与 API server 的连接已断,但进程不退出,本地端口仍在监听,
-所有转发请求超时**。这种"僵死"对"进程退出才重连"完全不可见,`claude-tpp` 等客户端持续报连接超时,
-需要人工 kill 进程。
+The dev environment exposes no Ingress; the local machine reaches LiteLLM (14000), Grafana (3000),
+Langfuse (3010), Prometheus (9090), and TPP Dashboard (3020) through `kubectl port-forward` tunnels.
+The tunnel script's original recovery model was "re-launch when the kubectl process exits". In practice a failure mode showed up:
+**after the laptop switches networks or wakes from sleep, kubectl's connection to the API server is dead, but the process does not exit;
+the local port keeps listening and every forwarded request times out**. This "zombie" state is completely invisible to
+"reconnect on process exit"; clients such as `claude-tpp` keep reporting connection timeouts and the process must be killed manually.
 
-### 决策
+### Decision
 
-在每条隧道的守护循环里加一个**基于本地 HTTP 探测的看门狗**,把"隧道是否可用"的判断从进程存活
-改为端到端可达:
+Add a **watchdog based on local HTTP probing** to each tunnel's supervision loop, changing the definition of
+"tunnel usable" from process liveness to end-to-end reachability:
 
 ```text
-forward <名字> <namespace> <service> <本地:远端> <健康探测 URL>
-  ┌─ 后台启动 kubectl port-forward,记录 pid
-  │  循环(pid 存活期间):
+forward <name> <namespace> <service> <local:remote> <health probe URL>
+  ┌─ start kubectl port-forward in the background, record pid
+  │  loop (while pid is alive):
   │    sleep 15
-  │    curl -sf -m 5 <健康探测 URL>
-  │      成功 → fails = 0
-  │      失败 → fails += 1;fails ≥ 3 → kill pid,跳出
-  │  wait pid;sleep 3
-  └─ 回到顶部重新拉起
+  │    curl -sf -m 5 <health probe URL>
+  │      success → fails = 0
+  │      failure → fails += 1; fails ≥ 3 → kill pid, break
+  │  wait pid; sleep 3
+  └─ back to the top, re-launch
 ```
 
-### 实现要点
+### Implementation notes
 
-- **探测周期 15 秒,连续 3 次失败判定僵死**,每次 curl 超时 5 秒。
-  最坏检测时间 ≈ 3 × (15 + 5) = 60 秒,典型约 45 秒,与 runbook 中"约 45 秒内自动重启"一致。
-- 探测目标是各服务自己的轻量健康端点,不经过认证,不产生业务副作用:
+- **Probe every 15 seconds; 3 consecutive failures mean zombie**, each curl timing out at 5 seconds.
+  Worst-case detection time ≈ 3 × (15 + 5) = 60 seconds, typically about 45 seconds, matching the runbook's
+  "auto-restarts within about 45 seconds".
+- Probe targets are each service's own lightweight health endpoint: no authentication, no business side effects:
 
-  | 隧道 | 探测 URL |
+  | Tunnel | Probe URL |
   |---|---|
   | LiteLLM | `/health/liveliness` |
   | Grafana | `/api/health` |
@@ -125,483 +128,540 @@ forward <名字> <namespace> <service> <本地:远端> <健康探测 URL>
   | Prometheus | `/-/healthy` |
   | Dashboard | `/healthz` |
 
-- kubectl 改为后台启动并用进程替换 `> >(sed ...)` 加日志前缀,而不是原先的管道 `kubectl | sed`。
-  管道方式下 `$!` 拿到的是 sed 的 pid,无法定位并 kill kubectl,这是看门狗能成立的前提。
-- 探测失败只 kill kubectl,不退出脚本;外层 `while true` 负责 3 秒后重连,复用了原有的断线重连路径。
-- 脚本启动时 `pkill` 同类 port-forward 进程实现"单一属主",避免手动隧道与守护隧道互抢端口。
-- 五条隧道各自独立看门狗,互不影响;一条僵死不会重启其他四条。
-- launchd(`KeepAlive`)负责脚本整体崩溃后的重启,`ThrottleInterval 10` 防止崩溃风暴。
-  看门狗与 launchd 是两层:launchd 保脚本活着,看门狗保隧道通着。
+- kubectl is now started in the background with process substitution `> >(sed ...)` for log prefixing, instead of the original
+  pipeline `kubectl | sed`. With the pipeline, `$!` returns sed's pid, making it impossible to locate and kill kubectl;
+  fixing this is a precondition for the watchdog to work at all.
+- A probe failure only kills kubectl and never exits the script; the outer `while true` reconnects after 3 seconds,
+  reusing the existing reconnect path.
+- On startup the script `pkill`s port-forward processes of the same kind to enforce a "single owner",
+  preventing manual tunnels and daemon tunnels from fighting over ports.
+- Each of the five tunnels has its own independent watchdog; one zombie tunnel does not restart the other four.
+- launchd (`KeepAlive`) handles restarting after the script itself crashes, with `ThrottleInterval 10` preventing crash storms.
+  The watchdog and launchd are two layers: launchd keeps the script alive, the watchdog keeps the tunnels open.
 
-### 备选方案
+### Alternatives
 
-| 方案 | 未采用原因 |
+| Option | Why not adopted |
 |---|---|
-| 依赖 kubectl 自身超时参数 | `port-forward` 没有针对已建立连接的心跳/超时选项 |
-| 每 N 分钟无条件重启全部隧道 | 会中断正在进行的流式请求,且僵死窗口仍可达 N 分钟 |
-| 用 SSM / VPN / Ingress 替代 port-forward | 是 500 人规模的正确方向(见 ADR-008 §9),但 dev 单人阶段成本不匹配 |
+| Rely on kubectl's own timeout options | `port-forward` has no heartbeat/timeout option for established connections |
+| Unconditionally restart all tunnels every N minutes | Interrupts in-flight streaming requests, and the zombie window can still reach N minutes |
+| Replace port-forward with SSM / VPN / Ingress | The right direction at 500-user scale (see ADR-008 §9), but the cost does not fit the single-person dev stage |
 
-### 后果与权衡
+### Consequences and trade-offs
 
-- **误杀是被接受的**:探测打的是服务健康端点,后端 Pod 滚动重启(例如 ADR-001 每 7 天的重启)期间
-  探测会失败,隧道会被杀并重连。这实际上是有益的:`port-forward` 到 Service 时绑定的是启动时选中的
-  某一个 Pod,该 Pod 消失后隧道本就不可用,重连才能绑到新 Pod。
-- 后端真的宕机时,隧道会进入"每 ~1 分钟杀一次、3 秒后重连"的循环,`/tmp/tpp-proxy.log` 会持续增长。
-  dev 阶段可接受;若长期运行需要加日志轮转或指数退避。
-- 每条隧道每 15 秒一次本地 HTTP 请求,五条隧道合计约 20 请求/分钟,对服务端可忽略。
-- 脚本存在两份副本(仓库与 `~/.local/bin/`,原因见 ADR-004),**改动仓库脚本后必须同步复制**,
-  否则 launchd 跑的还是旧逻辑。当前两份已核对一致。
+- **False kills are accepted**: probes hit the service health endpoints, so during backend Pod rolling restarts
+  (e.g. ADR-001's restarts every 7 days) probes fail and the tunnel gets killed and reconnected. This is actually beneficial:
+  a `port-forward` to a Service binds to the specific Pod selected at startup; once that Pod is gone the tunnel is dead anyway,
+  and only a reconnect binds it to a new Pod.
+- When the backend is genuinely down, the tunnel enters a "kill every ~1 minute, reconnect after 3 seconds" loop and
+  `/tmp/tpp-proxy.log` keeps growing. Acceptable at dev stage; long-term operation would need log rotation or exponential backoff.
+- Each tunnel makes one local HTTP request every 15 seconds; the five tunnels together are about 20 requests/minute,
+  negligible for the servers.
+- The script exists in two copies (the repo and `~/.local/bin/`; see ADR-004 for why). **After changing the repo script you must
+  copy it over**, or launchd keeps running the old logic. The two copies are currently verified identical.
 
 ---
 
-## ADR-003 [Resiliency] 客户端在 TPP 与直连模型之间切换
+## ADR-003 [Resiliency] Client Switching Between TPP and Direct Model Access
 
-**状态**:已实施。操作步骤见 [`docs/runbook.md`](runbook.md) 的
-"Claude Code 接入 TPP"与"Codex CLI 接入 TPP"章节,基线配置见
-[`docs/claude-code-config-baseline.md`](claude-code-config-baseline.md)。本条为首次成文。
+**Status**: implemented. Steps in the "Connecting Claude Code to TPP" and "Connecting Codex CLI to TPP"
+sections of [`docs/runbook.md`](runbook.md); baseline configuration in
+[`docs/claude-code-config-baseline.md`](claude-code-config-baseline.md). First written up here.
 
-### 背景
+### Background
 
-TPP 本身是被开发和排障的对象。如果 Claude Code / Codex 这类 AI 编程助手**只能**经 TPP 访问模型,
-那么 TPP 一旦出问题(隧道僵死、LiteLLM 滚动重启、RDS 轮转失败、渠道熔断、配额耗尽),
-排障所依赖的 AI 助手也同时失效,形成"用坏掉的东西修坏掉的东西"的死锁。
-另一方面,日常又希望流量走 TPP,以便验证配额、trace、打分链路。
+TPP is itself the thing being developed and debugged. If AI coding assistants like Claude Code / Codex can **only** reach models
+through TPP, then whenever TPP breaks (zombie tunnel, LiteLLM rolling restart, RDS rotation failure, channel circuit breaking,
+quota exhaustion), the AI assistant needed for troubleshooting fails along with it, creating the deadlock of
+"fixing the broken thing with the broken thing". On the other hand, day-to-day traffic should go through TPP
+to exercise the quota, trace, and scoring paths.
 
-### 决策
+### Decision
 
-客户端保持**两条互不干扰的接入路径,默认直连,按需切 TPP**:
+Clients keep **two non-interfering access paths: direct by default, switch to TPP on demand**:
 
-| | 直连 Bedrock(默认) | 经 TPP |
+| | Direct Bedrock (default) | Via TPP |
 |---|---|---|
-| 依赖 | 本机 AWS IAM 凭据、Bedrock 服务 | 上面全部 + 隧道 + LiteLLM + RDS + Redis + TPP user key |
-| Claude Code | `claude`,读 `~/.claude/settings.json` | `claude-tpp` = `claude --settings ~/.claude/tpp.settings.json` |
-| Codex CLI | `codex`,读 `~/.codex/config.toml` 顶层 | `codex --profile tpp`,profile 在 `~/.codex/tpp.config.toml` |
-| 模型名 | Bedrock inference profile id(`us.anthropic.*`) | TPP 模型组名(`claude-fable-5` 等) |
-| 回滚方式 | 不带参数运行即是 | 不带 `--settings` / `--profile` 运行即回落 |
+| Dependencies | Local AWS IAM credentials, Bedrock service | All of the above + tunnel + LiteLLM + RDS + Redis + TPP user key |
+| Claude Code | `claude`, reads `~/.claude/settings.json` | `claude-tpp` = `claude --settings ~/.claude/tpp.settings.json` |
+| Codex CLI | `codex`, reads top level of `~/.codex/config.toml` | `codex --profile tpp`, profile in `~/.codex/tpp.config.toml` |
+| Model names | Bedrock inference profile id (`us.anthropic.*`) | TPP model group names (`claude-fable-5` etc.) |
+| Rollback | Running with no flags is the rollback | Run without `--settings` / `--profile` to fall back |
 
-三条设计原则:
+Three design principles:
 
-1. **基线文件永不被 TPP 配置污染**。TPP 配置只存在于覆盖层文件(Claude Code 的 `--settings`
-   叠加、Codex 的独立 profile 文件),"回滚"不需要编辑任何文件,只需换一个命令。
-2. **两条路径打到同一批模型**。TPP 渠道注册表里全部是 Bedrock 渠道,与直连使用同一账户、
-   同一批 inference profile,因此切换不改变模型能力,只改变是否经过代理。
-3. **基线有离线备份**。`~/.claude/settings.json.bedrock-backup`、`docs/claude-code-config-baseline.md`
-   与仓库 `.codex-backup/` 三处备份,即使覆盖层误合入基线也能一条 `cp` 恢复。
+1. **Baseline files are never polluted by TPP configuration.** TPP configuration lives only in overlay files
+   (Claude Code's `--settings` overlay, Codex's separate profile file); "rollback" requires editing no files,
+   just running a different command.
+2. **Both paths hit the same set of models.** The TPP channel registry contains only Bedrock channels, using the same account
+   and the same inference profiles as direct access, so switching changes only whether traffic goes through the proxy,
+   not model capability.
+3. **The baseline has offline backups.** Three backups: `~/.claude/settings.json.bedrock-backup`,
+   `docs/claude-code-config-baseline.md`, and the repo's `.codex-backup/`; even if the overlay is accidentally merged into
+   the baseline, a single `cp` restores it.
 
-### 实现要点
+### Implementation notes
 
-- Claude Code 没有 profile 概念,靠 `--settings <file>` 覆盖层实现:`env` 按键合并并覆盖 shell 环境变量,
-  优先级最高。覆盖层里必须写 `"CLAUDE_CODE_USE_BEDROCK": "0"`(按数值解析,`"false"` 不保证生效),
-  并同时改 `ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN`、两个模型名与顶层 `model`。
-- Codex ≥ 0.134 的 profile 是独立文件、用顶层键;provider 定义写在主配置的 `[model_providers.tpp]`,
-  `wire_api` 必须是 `"responses"`(`"chat"` 已废弃且会导致整个 config.toml 解析失败,连直连也一起挂)。
-- TPP 侧为 Codex 单独注册 `gpt-5.6-terra` 模型组(Bedrock Mantle,`bedrock_mantle/` 路由透传 Responses API 与 reasoning),
-  IRSA 需额外授予 `bedrock-mantle:CreateInference`。
-- 验证是否真的走了 TPP:Claude Code 用 `-p ... --output-format json` 看 `modelUsage` 键是否为 TPP 模型组名;
-  或看 LiteLLM `/user/info` 的 spend 增长(落账延迟约 5~15 秒)、Langfuse 新 trace。
+- Claude Code has no profile concept; the `--settings <file>` overlay does the job: `env` merges per key and overrides shell
+  environment variables with the highest priority. The overlay must set `"CLAUDE_CODE_USE_BEDROCK": "0"` (parsed numerically;
+  `"false"` is not guaranteed to work) and simultaneously change `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`,
+  both model names, and the top-level `model`.
+- In Codex ≥ 0.134 a profile is a separate file using top-level keys; the provider definition lives in the main config's
+  `[model_providers.tpp]`, and `wire_api` must be `"responses"` (`"chat"` is deprecated and makes the whole config.toml
+  fail to parse, taking direct access down with it).
+- On the TPP side a dedicated `gpt-5.6-terra` model group is registered for Codex (Bedrock Mantle; the `bedrock_mantle/` route
+  passes through the Responses API and reasoning), and IRSA additionally needs `bedrock-mantle:CreateInference`.
+- To verify traffic really goes through TPP: with Claude Code use `-p ... --output-format json` and check whether the
+  `modelUsage` key shows a TPP model group name; or watch spend growth on LiteLLM `/user/info` (posting delay about 5-15 seconds)
+  and new Langfuse traces.
 
-### 后果与权衡
+### Consequences and trade-offs
 
-- **直连流量游离于 TPP 之外**:不计入 per-user quota,没有 trace,不参与打分,也不受 TPP 的
-  双 region 分流。这是有意为之的代价,换取排障期间助手可用。
-- 两套凭证并存(IAM user 凭据 + TPP user key),泄露面变大;TPP key 文件需 `chmod 600`。
-- 模型名在两条路径下不同,涉及模型名的脚本或提示词需按路径调整。
-- 直连固定 `us-west-2` 单 region,TPP 在 usw2 / use1 之间按权重分流,两者的 prompt cache 表现不同,见 ADR-009。
-- 用户习惯成本:需要记住两个命令,以及"TPP 出问题时先切直连再排查"这个动作。
+- **Direct traffic lives outside TPP**: it does not count against per-user quota, produces no traces, does not participate in scoring,
+  and is not subject to TPP's dual-region traffic split. This is a deliberate price paid so the assistant stays available
+  during troubleshooting.
+- Two credential sets coexist (IAM user credentials + TPP user key), enlarging the leak surface; the TPP key file needs `chmod 600`.
+- Model names differ between the two paths; scripts or prompts that reference model names must be adjusted per path.
+- Direct access is pinned to the single region `us-west-2`, while TPP splits between usw2 / use1 by weight;
+  prompt cache behavior differs between the two — see ADR-009.
+- User habit cost: two commands to remember, plus the reflex "when TPP misbehaves, switch to direct first, then debug".
 
 ---
 
-## ADR-004 [Ops] 新机器安装隧道守护
+## ADR-004 [Ops] Installing the Tunnel Daemon on a New Machine
 
-**状态**:已实施。完整命令见 [`docs/runbook.md`](runbook.md) 的"新机器安装隧道守护(一次性)"章节。
+**Status**: implemented. Full commands in the "Installing the tunnel daemon on a new machine (one-time)" section of [`docs/runbook.md`](runbook.md).
 
-### 背景
+### Background
 
-隧道脚本(ADR-002)需要在开发机上常驻、登录自启、崩溃自拉起,并且对使用者透明:
-打开浏览器就能访问 Grafana / Langfuse,运行 `claude-tpp` 就能连上 LiteLLM,不需要先手动开终端跑命令。
+The tunnel script (ADR-002) must stay resident on the dev machine, start at login, restart after crashes, and be transparent to the user:
+open a browser and Grafana / Langfuse just work; run `claude-tpp` and LiteLLM is reachable — without first opening a terminal to run a command.
 
-### 决策
+### Decision
 
-用 **macOS launchd 用户级 LaunchAgent**(`com.tpp.litellm-proxy`)常驻运行 `tpp-tunnels.sh`,
-脚本副本放在 `~/.local/bin/`,而不是直接指向仓库路径。
+Run `tpp-tunnels.sh` permanently via a **macOS launchd user-level LaunchAgent** (`com.tpp.litellm-proxy`),
+with a copy of the script in `~/.local/bin/` rather than pointing directly at the repo path.
 
-### 实现要点
+### Implementation notes
 
-- **脚本必须复制到 `~/.local/bin/`**:macOS TCC(Transparency, Consent, and Control)禁止 launchd
-  执行 `~/Documents` 下的文件,直接指向仓库路径会报 `Operation not permitted`。
-  这也是"改仓库脚本后要同步 `cp` 过去并重启服务"这条运维纪律的来源。
-- plist 关键项:`RunAtLoad`(登录自启)、`KeepAlive`(退出即重启)、`ThrottleInterval 10`(重启间隔下限)、
-  显式 `PATH`(launchd 不读 shell rc,需要能找到 `/opt/homebrew/bin` 下的 kubectl / aws)、
-  `AWS_PROFILE=default`(kubeconfig 的 exec 凭据插件需要)。
-- stdout / stderr 统一到 `/tmp/tpp-proxy.log`,配合脚本内的 `[名字]` 前缀区分五条隧道。
-- plist 不展开 `$HOME`,`ProgramArguments` 里必须写绝对路径。
-- 安装后用五条 `curl` 打各自的健康端点验证,与看门狗使用同一组 URL。
-- 前置条件:aws cli(含 IAM 凭据)、kubectl、已执行 `aws eks update-kubeconfig --name tpp-dev --region us-west-2`。
-  脚本启动时会检查当前 kubecontext 是否为 `tpp-dev`,否则直接退出并提示。
+- **The script must be copied to `~/.local/bin/`**: macOS TCC (Transparency, Consent, and Control) forbids launchd
+  from executing files under `~/Documents`; pointing directly at the repo path fails with `Operation not permitted`.
+  This is where the operational rule "after changing the repo script, `cp` it over and restart the service" comes from.
+- Key plist entries: `RunAtLoad` (start at login), `KeepAlive` (restart on exit), `ThrottleInterval 10` (minimum restart interval),
+  an explicit `PATH` (launchd does not read shell rc files and must be able to find kubectl / aws under `/opt/homebrew/bin`),
+  and `AWS_PROFILE=default` (needed by the kubeconfig's exec credential plugin).
+- stdout / stderr both go to `/tmp/tpp-proxy.log`, with the script's `[name]` prefixes distinguishing the five tunnels.
+- The plist does not expand `$HOME`; `ProgramArguments` must use absolute paths.
+- After installation, verify with five `curl`s against the respective health endpoints — the same set of URLs the watchdog uses.
+- Prerequisites: aws cli (with IAM credentials), kubectl, and `aws eks update-kubeconfig --name tpp-dev --region us-west-2` already run.
+  On startup the script checks that the current kubecontext is `tpp-dev` and otherwise exits immediately with a message.
 
-### 备选方案
+### Alternatives
 
-| 方案 | 未采用原因 |
+| Option | Why not adopted |
 |---|---|
-| 仅提供手动脚本 `tpp-connect.sh` / `tpp-tunnels.sh` | 每次开机都要手动跑,忘记就报连接失败;保留为备用路径 |
-| Homebrew services / tmux 常驻 | 仍依赖用户手动启动一次;launchd 是 macOS 的原生方案 |
-| 暴露 Ingress + 域名 | dev 阶段没有 OIDC / WAF,暴露即等于公网无认证;列入 ADR-008 §9 |
+| Provide only the manual scripts `tpp-connect.sh` / `tpp-tunnels.sh` | Must be run manually after every boot; forgetting means connection failures; kept as a fallback path |
+| Homebrew services / resident tmux | Still depends on the user starting it once manually; launchd is macOS's native mechanism |
+| Expose Ingress + domain | At dev stage there is no OIDC / WAF, so exposure equals unauthenticated public access; listed under ADR-008 §9 |
 
-### 后果与权衡
+### Consequences and trade-offs
 
-- 只覆盖 macOS;Linux / Windows 开发机需要 systemd user unit 或等价方案,目前没有。
-- 每台机器一次性手工安装,没有自动化分发。人数上量后应替换为 Ingress 方案而非批量分发 plist。
-- 脚本双副本问题(见 ADR-002 后果)是本决策的直接代价。
+- Covers macOS only; Linux / Windows dev machines would need a systemd user unit or equivalent, which does not exist yet.
+- One-time manual installation per machine, no automated distribution. Once headcount grows, this should be replaced by the
+  Ingress approach rather than mass-distributing plists.
+- The dual-copy script problem (see ADR-002 consequences) is a direct cost of this decision.
 
 ---
 
-## ADR-005 [Ops] 渠道权重的打分机制
+## ADR-005 [Ops] Channel Weight Scoring Mechanism
 
-**状态**:已实施。完整公式与符号表见 [`docs/runbook.md`](runbook.md#scorer-打分算法) "Scorer 打分算法"章节,
-参数调整方法见同文档"调整打分参数"。代码在 `services/scorer/scorer/scoring.py`(纯函数)与 `config.py`。
+**Status**: implemented. Full formulas and symbol table in the "Scorer Scoring Algorithm" section of
+[`docs/runbook.md`](runbook.md#scorer-scoring-algorithm); parameter tuning in the same document's
+"Tuning Scoring Parameters". Code in `services/scorer/scorer/scoring.py` (pure functions) and `config.py`.
 
-### 背景
+### Background
 
-同一模型组(如 `claude-fable-5`)在 LiteLLM 里有多个渠道(usw2 / use1 两个 Bedrock region)。
-LiteLLM 自带的路由策略只有静态权重或简单的延迟/用量策略,缺乏"综合错误与延迟、平滑、可解释"的
-质量评估,也没有跨副本一致的全局视角。需要一个独立组件按观测到的质量动态调整各渠道流量占比。
+A single model group (e.g. `claude-fable-5`) has multiple channels in LiteLLM (two Bedrock regions, usw2 / use1).
+LiteLLM's built-in routing strategies are only static weights or simple latency/usage strategies; they lack a quality assessment
+that combines errors and latency, is smoothed, and is explainable — and they have no globally consistent view across replicas.
+An independent component is needed to adjust each channel's traffic share dynamically based on observed quality.
 
-### 决策
+### Decision
 
-自建 **Scorer**:每 60 秒查询 Prometheus 过去 5 分钟窗口,对同一模型组内的渠道互相打分,
-把归一化权重经 LiteLLM Management API `PATCH /model/{id}/update` 写回。
-**Scorer 不在请求路径上**,LiteLLM 在请求时只读自身 DB 里的 weight 做加权随机(`simple-shuffle`)。
+Build an in-house **Scorer**: every 60 seconds it queries Prometheus over the trailing 5-minute window,
+scores the channels within each model group against one another, and writes the normalized weights back through the
+LiteLLM Management API `PATCH /model/{id}/update`.
+**The Scorer is not on the request path**; at request time LiteLLM only reads the weights in its own DB and does
+weighted random selection (`simple-shuffle`).
 
-### 算法摘要
+### Algorithm summary
 
-评分对象是 deployment,即(渠道, 模型)二元组,只在同一模型组内比较。
+The scoring unit is a deployment, i.e. a (channel, model) pair; comparison happens only within the same model group.
 
 ```text
-err_rate(d)   = Σ_cat sev(cat) × err(d, cat) / max(req(d), 1)       加权错误率
+err_rate(d)   = Σ_cat sev(cat) × err(d, cat) / max(req(d), 1)       weighted error rate
 
-score_lat(d)  = clamp(lat_best / lat_p90(d), 0, 1)                   组内最快者得 1
-score_err(d)  = exp(−K_ERR × err_rate(d))                            K_ERR = 8,err_rate = 8.6% 时降至 0.5
+score_lat(d)  = clamp(lat_best / lat_p90(d), 0, 1)                   fastest in the group gets 1
+score_err(d)  = exp(−K_ERR × err_rate(d))                            K_ERR = 8; drops to 0.5 at err_rate = 8.6%
 
-q_raw(d)      = W_LAT × score_lat(d) + W_ERR × score_err(d)          W_LAT = 0.35,W_ERR = 0.65
-q(d, t)       = ALPHA × q_raw(d) + (1 − ALPHA) × q(d, t−1)           ALPHA = 0.3,时间常数约 3 分钟
+q_raw(d)      = W_LAT × score_lat(d) + W_ERR × score_err(d)          W_LAT = 0.35, W_ERR = 0.65
+q(d, t)       = ALPHA × q_raw(d) + (1 − ALPHA) × q(d, t−1)           ALPHA = 0.3, time constant about 3 minutes
 
-weight(d)     = q(d)^GAMMA / Σ_j q(j)^GAMMA                          GAMMA = 2,放大组内分差
-weight(d)     ← max(weight(d), W_FLOOR),再归一化                     W_FLOOR = 0.05,探索保底
+weight(d)     = q(d)^GAMMA / Σ_j q(j)^GAMMA                          GAMMA = 2, amplifies in-group differences
+weight(d)     ← max(weight(d), W_FLOOR), then renormalize            W_FLOOR = 0.05, exploration floor
 ```
 
-错误严重性系数 `sev(cat)`:Timeout / 连接错误 / 5xx 类为 3.0,429 限流为 1.5,其余 4xx 为 0.5。
+Error severity coefficients `sev(cat)`: Timeout / connection errors / 5xx-class are 3.0, 429 rate limiting is 1.5, other 4xx are 0.5.
 
-### 关键取舍及理由
+### Key trade-offs and rationale
 
-| 取舍 | 选择 | 理由 |
+| Trade-off | Choice | Rationale |
 |---|---|---|
-| 错误 vs 延迟的权重 | 错误 0.65 > 延迟 0.35 | 一次失败对用户的伤害远大于慢几百毫秒;延迟分只在组内相对比较,避免绝对阈值 |
-| 延迟分位 | E2E p90 | p50 掩盖尾部,p99 在小样本下噪声太大 |
-| 错误分函数 | 指数衰减而非线性 | 让低错误率区间敏感、高错误率区间迅速趋零,同时保证 (0, 1] 不出负数 |
-| 错误分类加权 | 按 `exception_class` 分三档 | 4xx 多为调用方问题,不应惩罚渠道;429 是配额信号,介于两者之间 |
-| 平滑方式 | EWMA,状态存 Redis | 抑制单轮抖动;Redis 持久化让 Scorer 重启不丢历史、不回到冷启动 |
-| 权重放大 | `GAMMA = 2` | 线性归一化下 0.9 vs 0.6 的渠道只有 60/40 分流,平方后约 69/31,更快把流量从劣质渠道挪走 |
-| 探索保底 | 5% 下限 | 没有流量就没有样本,分数永远不更新;5% 是"保留观测能力"与"少浪费流量"的折中 |
-| 部署形态 | 单副本 Deployment,非 CronJob | 多副本会并发写权重冲突;Deployment 便于导出自身指标 |
-| 渠道定义位置 | `scorer-channels.yaml` 注册表,LiteLLM 静态 `model_list` 留空 | 静态 config 里的模型无法被 Management API 调权,必须走 `store_model_in_db` |
+| Errors vs latency weighting | Errors 0.65 > latency 0.35 | One failure hurts a user far more than a few hundred extra milliseconds; latency scores are only compared relatively within the group, avoiding absolute thresholds |
+| Latency percentile | E2E p90 | p50 hides the tail; p99 is too noisy at small sample sizes |
+| Error score function | Exponential decay rather than linear | Sensitive in the low-error-rate range, drops toward zero quickly at high error rates, and stays within (0, 1] with no negative values |
+| Error category weighting | Three tiers by `exception_class` | 4xx is mostly a caller problem and should not penalize the channel; 429 is a quota signal, somewhere in between |
+| Smoothing | EWMA, state in Redis | Suppresses single-round jitter; Redis persistence means a Scorer restart loses no history and avoids cold starts |
+| Weight amplification | `GAMMA = 2` | Under linear normalization, channels at 0.9 vs 0.6 split only 60/40; squared it is about 69/31, moving traffic off bad channels faster |
+| Exploration floor | 5% minimum | No traffic means no samples and scores never update; 5% is the compromise between "keep observability" and "waste little traffic" |
+| Deployment form | Single-replica Deployment, not a CronJob | Multiple replicas would write conflicting weights concurrently; a Deployment also makes exporting its own metrics easy |
+| Where channels are defined | `scorer-channels.yaml` registry; LiteLLM static `model_list` left empty | Models in static config cannot be re-weighted via the Management API; they must go through `store_model_in_db` |
 
-### 后果与权衡
+### Consequences and trade-offs
 
-- 权重是**整数 0–100**写回,小于 0.5% 的差异会被四舍五入抹平。
-- 组内只有一条渠道时(如 `gpt-5.6-terra`),打分仍运行但权重恒为 100,只起观测作用。
-- 所有参数都是环境变量,改参数需 `terraform apply` 触发 Pod 重启;严重性映射在代码里,改动需重建镜像。
-- 打分依赖 Prometheus 的 `model_id` label,任何降基数改造(ADR-008 §8)必须保留该 label。
+- Weights are written back as **integers 0-100**; differences below 0.5% are rounded away.
+- When a group has only one channel (e.g. `gpt-5.6-terra`), scoring still runs but the weight is always 100; it is observation only.
+- All parameters are environment variables; changing one requires `terraform apply` to trigger a Pod restart.
+  The severity mapping lives in code; changing it requires rebuilding the image.
+- Scoring depends on Prometheus's `model_id` label; any cardinality-reduction work (ADR-008 §8) must preserve that label.
 
 ---
 
-## ADR-006 [Ops] Scorer 运行规则
+## ADR-006 [Ops] Scorer Runtime Rules
 
-**状态**:已实施,存在一处已知缺口(见"恢复")。代码在 `services/scorer/scorer/main.py`。
-[`docs/runbook.md`](runbook.md#scorer-打分算法) "Scorer 打分算法"末尾的"运行规则"表是本条的简版,本条按代码逐条展开。
+**Status**: implemented, with one known gap (see "Recovery"). Code in `services/scorer/scorer/main.py`.
+The "runtime rules" table at the end of the "Scorer Scoring Algorithm" section of
+[`docs/runbook.md`](runbook.md#scorer-scoring-algorithm) is the short version of this record;
+this record expands each rule according to the code.
 
-### 决策总览
+### Decision overview
 
-Scorer 的运行规则围绕一个原则:**宁可不动,不可乱动**。任何不确定(样本不足、依赖不可用)
-都导向"沿用上一轮结果",只有证据充分时才改权重。
+The Scorer's runtime rules revolve around one principle: **better to do nothing than to do the wrong thing**.
+Any uncertainty (insufficient samples, unavailable dependencies) leads to "keep last round's result";
+weights change only when the evidence is solid.
 
-### 6.1 小样本保护
+### 6.1 Small-sample protection
 
-- 条件:窗口内该渠道 `req(d) < MIN_SAMPLES`(默认 10),或 Prometheus 里根本没有该渠道的序列。
-- 行为:不计算新分,沿用 Redis 里的旧分;从未打过分的新渠道用 `DEFAULT_Q = 0.5` 冷启动。
-- 理由:10 个请求里 1 个超时就是 10% 加权错误率的 3 倍,足以把分数砍掉一半;小样本下的分数是噪声。
-- 副作用:无流量的模型组永远保持 0.5 / 0.5,权重 50 / 50,这是设计行为不是故障。
-- 注意:**小样本时熔断状态机也不评估**,这是 6.3 缺口的根源。
+- Condition: within the window, the channel has `req(d) < MIN_SAMPLES` (default 10), or Prometheus has no series for the channel at all.
+- Behavior: no new score is computed; the old score in Redis is kept; a never-scored new channel cold-starts at `DEFAULT_Q = 0.5`.
+- Rationale: 1 timeout out of 10 requests is a 10% weighted error rate times 3 (severity), enough to halve the score;
+  small-sample scores are noise.
+- Side effect: a model group with no traffic stays at 0.5 / 0.5 with weights 50 / 50 forever — designed behavior, not a fault.
+- Note: **with small samples the circuit-breaker state machine is not evaluated either**, which is the root cause of the gap in 6.3.
 
-### 6.2 熔断
+### 6.2 Circuit breaking
 
-- 触发条件(两者同时满足):
-  1. `err_rate(d) > CIRCUIT_ERR_THRESHOLD`(默认 0.5);
-  2. **严重错误占主导**:Timeout / 连接错误 / 5xx 类错误的**计数**占全部错误计数的 ≥ 50%。
-- 行为:置 `scorer:circuit:<id> = 1`,该渠道权重直接置 0,**优先于探索保底**;
-  同组其余渠道重新归一化。全组都熔断时均分权重,避免流量无处可去,此时靠 LiteLLM 自身 cooldown 兜底。
-- 理由:
-  - 第二个条件把"渠道坏了"与"渠道被限流"区分开。429(`RateLimitError`)严重性 1.5,不在 severe 集合,
-    因此**限流永不触发熔断,只会通过分数降低权重**。在双 region 拓扑下这是对的:限流的渠道仍能服务一部分请求。
-    多账户多 region 分片后需要重新审视,见 ADR-008 §10。
-  - 权重 0 而非保底 5%,因为 severe 错误主导意味着渠道大概率完全不可用,5% 流量只是 5% 的失败。
-- 与 LiteLLM 自身熔断的关系:LiteLLM `allowed_fails: 3` / `cooldown_time: 60` 是**请求路径上、每个 proxy
-  副本独立、秒级**的第一层;Scorer 熔断是**全局一致、分钟级、基于 5 分钟窗口统计**的第二层。
-  前者快但视野窄,后者慢但不会因某个副本的偶发失败误判。两层互为双保险。
+- Trigger conditions (both must hold):
+  1. `err_rate(d) > CIRCUIT_ERR_THRESHOLD` (default 0.5);
+  2. **Severe errors dominate**: the **counts** of Timeout / connection errors / 5xx-class errors make up ≥ 50% of all error counts.
+- Behavior: set `scorer:circuit:<id> = 1`; the channel's weight is set straight to 0, **taking precedence over the exploration floor**;
+  the remaining channels in the group are renormalized. If the whole group is broken, weights are split evenly so traffic has
+  somewhere to go, relying on LiteLLM's own cooldown as the fallback.
+- Rationale:
+  - The second condition separates "channel broken" from "channel rate limited". 429 (`RateLimitError`) has severity 1.5 and is not
+    in the severe set, so **rate limiting never trips the breaker; it only lowers the weight through the score**. In a dual-region
+    topology this is correct: a rate-limited channel can still serve part of the requests.
+    Revisit after multi-account multi-region sharding, see ADR-008 §10.
+  - Weight 0 rather than the 5% floor, because severe-error dominance means the channel is most likely completely unusable;
+    5% traffic would just be 5% failures.
+- Relationship with LiteLLM's own circuit breaking: LiteLLM's `allowed_fails: 3` / `cooldown_time: 60` is the first layer —
+  **on the request path, independent per proxy replica, second-level granularity**; Scorer circuit breaking is the second layer —
+  **globally consistent, minute-level, based on 5-minute window statistics**. The former is fast but narrow-sighted;
+  the latter is slow but will not misjudge on one replica's sporadic failures. The two layers back each other up.
 
-### 6.3 恢复
+### 6.3 Recovery
 
-- 设计意图(runbook 运行规则表):连续 `CIRCUIT_RECOVERY_ROUNDS = 3` 轮 `err_rate(d) < CIRCUIT_RECOVERY_ERR = 0.1`
-  后关闭熔断,恢复到保底权重再靠分数爬坡。
-- 代码行为:好轮次计数存 Redis `scorer:circuit_good:<id>`,任一轮不达标即清零;计数达到 3 关闭熔断。
-- **已知缺口**:恢复判断只在 `req(d) ≥ MIN_SAMPLES` 的分支里执行。而熔断后权重为 0,
-  LiteLLM `simple-shuffle` 对 weight 0 的 deployment 不分配流量,该渠道在 5 分钟窗口滑过之后
-  样本数归零,状态机不再被评估,**熔断永远不会自动关闭**。
-  目前能让它恢复的实际途径只有:同组其他渠道全部进入 LiteLLM cooldown 导致流量落到它身上;
-  或人工用 master key 改权重 / 清 Redis 键。`TPPChannelCircuitOpen` 告警"通常无需动作(自动恢复)"的说法
-  以此为前提,目前并不成立。runbook 的运行规则表已同步标注该缺口。
-- 建议修复方向(未实施):熔断渠道保留极小探测权重(如 1%),或熔断后按时间进入"半开"状态、
-  用 LiteLLM `/health` 主动探测代替流量样本。
+- Design intent (runbook rules table): after `CIRCUIT_RECOVERY_ROUNDS = 3` consecutive rounds with
+  `err_rate(d) < CIRCUIT_RECOVERY_ERR = 0.1`, close the breaker, restore the channel to the floor weight,
+  and let the score climb back up.
+- Code behavior: the good-round counter lives in Redis `scorer:circuit_good:<id>`; any round that misses the bar resets it to zero;
+  when the counter reaches 3 the breaker closes.
+- **Known gap**: the recovery check runs only in the `req(d) ≥ MIN_SAMPLES` branch. But after the breaker opens the weight is 0,
+  LiteLLM `simple-shuffle` assigns no traffic to a weight-0 deployment, the sample count drops to zero once the 5-minute window
+  slides past, the state machine is never evaluated again, and **the breaker never closes automatically**.
+  Today the only real ways it can recover are: all other channels in the group entering LiteLLM cooldown so traffic falls onto it;
+  or a human changing the weight with the master key / clearing the Redis keys. The `TPPChannelCircuitOpen` alert's claim of
+  "usually no action needed (recovers automatically)" is premised on this and does not currently hold.
+  The runbook's rules table has been annotated with this gap.
+- Suggested fix directions (not implemented): keep a tiny probe weight (e.g. 1%) on broken channels; or move to a time-based
+  "half-open" state after tripping and use LiteLLM `/health` active probing instead of traffic samples.
 
-### 6.4 写回(迟滞防抖)
+### 6.4 Write-back (hysteresis debouncing)
 
-- 每轮从 LiteLLM `/model/info` 读当前 weight 并按组归一化,与本轮计算结果比较;
-  组内任一渠道权重变化超过 `HYSTERESIS = 0.02`(2 个百分点)才调用 `PATCH /model/{id}/update`。
-- 理由:权重写入 LiteLLM DB 后各 proxy 副本要重新加载路由表,频繁写既有开销也让 Grafana 权重曲线全是毛刺。
-- `PATCH` 只改 `litellm_params.weight`,不动渠道其余参数。
-- 副作用:`ALPHA` 调大(反应更快)时应同步调大 `HYSTERESIS`,否则震荡直接透传到写回。
+- Each round reads the current weights from LiteLLM `/model/info`, normalizes them per group, and compares them with this round's
+  result; `PATCH /model/{id}/update` is called only if any channel's weight in the group changed by more than
+  `HYSTERESIS = 0.02` (2 percentage points).
+- Rationale: after weights are written to the LiteLLM DB, every proxy replica must reload its routing table;
+  frequent writes both cost overhead and turn the Grafana weight curves into pure spikes.
+- `PATCH` only changes `litellm_params.weight`, leaving the channel's other parameters untouched.
+- Side effect: if `ALPHA` is raised (faster reaction), `HYSTERESIS` should be raised in step,
+  or the oscillation passes straight through to the write-back.
 
-### 6.5 降级
+### 6.5 Degradation
 
-- 一轮中任何异常(Prometheus 不可达、LiteLLM API 401 / 超时、Redis 不可用)→ 整轮跳过,
-  权重冻结在 LiteLLM 里的上一轮值,记 `scorer_cycles_total{result="error"}`,`scorer_last_success_timestamp` 停止推进。
-- 5 分钟未成功即触发 `TPPScorerStale` 告警;告警文案明确"权重冻结不影响请求链路"。
-- 理由:Scorer 不在请求路径上,它挂了只是失去"智能",不失去"服务";因此宁可停手,不做半截更新。
-- 常见根因:master key 轮转后 ExternalSecret 未刷新导致 401;Prometheus 因基数过高 OOM。
+- Any exception during a round (Prometheus unreachable, LiteLLM API 401 / timeout, Redis unavailable) → the whole round is skipped;
+  weights stay frozen at LiteLLM's previous values; `scorer_cycles_total{result="error"}` is recorded and
+  `scorer_last_success_timestamp` stops advancing.
+- 5 minutes without a success triggers the `TPPScorerStale` alert; the alert text states explicitly that
+  "frozen weights do not affect the request path".
+- Rationale: the Scorer is off the request path; if it dies you only lose "intelligence", not "service" —
+  so it prefers to stop rather than make half-finished updates.
+- Common root causes: 401 because the ExternalSecret has not refreshed after master key rotation;
+  Prometheus OOM due to cardinality blow-up.
 
-### 6.6 状态持久化与启动
+### 6.6 State persistence and startup
 
-- EWMA 分数、熔断状态、恢复计数全部在 Redis(`scorer:score:<id>` / `scorer:circuit:<id>` / `scorer:circuit_good:<id>`),
-  Scorer 重启无损,参数调整后的滚动重启不会导致权重回到 50 / 50。
-- 启动时 `ensure_channels` 把注册表同步进 LiteLLM DB,**幂等判断只按 `model_info.id` 是否存在**,
-  不会覆盖已注册渠道的 `litellm_params`。改已有渠道的 `model` 字段需人工 PATCH(runbook 有记录)。
-- 与 Redis 的关系是"软"依赖:Redis 不可用时本轮报错、权重冻结,不会崩溃退出。
+- EWMA scores, breaker state, and recovery counters all live in Redis
+  (`scorer:score:<id>` / `scorer:circuit:<id>` / `scorer:circuit_good:<id>`), so a Scorer restart is lossless;
+  a rolling restart after a parameter change does not send weights back to 50 / 50.
+- On startup `ensure_channels` syncs the registry into the LiteLLM DB; **idempotency is judged solely by whether
+  `model_info.id` exists**, so it never overwrites the `litellm_params` of already-registered channels.
+  Changing an existing channel's `model` field requires a manual PATCH (documented in the runbook).
+- The Redis dependency is "soft": if Redis is unavailable, the round errors out and weights freeze; there is no crash exit.
 
-### 6.7 暂停与人工干预
+### 6.7 Pausing and manual intervention
 
-- `kubectl scale deploy/scorer --replicas=0` 即冻结权重,请求不受影响;人工 PATCH 权重前必须先暂停,
-  否则下一轮(≤ 60 秒)会被覆盖。
+- `kubectl scale deploy/scorer --replicas=0` freezes the weights with no impact on requests. Always pause before manually
+  PATCHing weights, or the next round (≤ 60 seconds) will overwrite them.
 
 ---
 
-## ADR-007 [Ops] 自建统一入口 Dashboard
+## ADR-007 [Ops] In-House Unified Portal Dashboard
 
-**状态**:已实施。架构与数据流见 [`docs/architecture.md` §5](architecture.md),
-使用与排障见 [`docs/runbook.md`](runbook.md#tpp-dashboard统一入口) "TPP Dashboard(统一入口)"章节,
-源码在 `services/dashboard/`,部署在 `apps/tpp-dashboard.tf`。
+**Status**: implemented. Architecture and data flow in [`docs/architecture.md` §5](architecture.md),
+usage and troubleshooting in the "TPP Dashboard (Unified Portal)" section of
+[`docs/runbook.md`](runbook.md#tpp-dashboard-unified-portal),
+source in `services/dashboard/`, deployment in `apps/tpp-dashboard.tf`.
 
-### 背景
+### Background
 
-平台已有四个界面,各自只覆盖一个切面:
+The platform already has four UIs, each covering only one facet:
 
-| 界面 | 擅长 | 缺什么 |
+| UI | Good at | Missing |
 |---|---|---|
-| LiteLLM UI | 建用户、发 key、改预算 | 没有渠道健康与性能,表格式操作界面不适合巡检 |
-| Grafana TPP Overview | 时序趋势、告警 | 不能改配置;每人配额 / 消费的表格视图靠 Prometheus label 拼,不可靠 |
-| Langfuse | 单次调用 trace | 没有渠道 / 配额维度 |
-| Prometheus | 即席查询 | 无可读性 |
+| LiteLLM UI | Creating users, issuing keys, changing budgets | No channel health or performance; a form-style admin UI unsuited to inspection rounds |
+| Grafana TPP Overview | Time-series trends, alerts | Cannot change configuration; per-user quota/spend tables cobbled together from Prometheus labels, unreliable |
+| Langfuse | Per-call traces | No channel / quota dimension |
+| Prometheus | Ad-hoc queries | No readability |
 
-运维日常最高频的三个问题:"谁快把今天的额度用完了"、"哪条渠道不健康、Scorer 现在怎么分流"、
-"用户抱怨慢,是哪条渠道的 TTFT 退化了",没有一个界面能一屏回答,更不能顺手改配额。
+The three most frequent daily ops questions — "who is about to burn through today's quota", "which channel is unhealthy and how is the
+Scorer splitting traffic right now", "a user complains it's slow; which channel's TTFT regressed" — cannot be answered on one screen
+by any of them, let alone with an inline quota edit.
 
-### 决策
+### Decision
 
-自建一个**只聚合、不存储**的统一入口 Dashboard:单容器 = FastAPI 聚合后端 + 静态单页前端,
-数据源只有 Prometheus 与 LiteLLM Management API,并作为其他四个界面的跳转起点。
+Build an in-house unified portal Dashboard that **only aggregates and stores nothing**: a single container = FastAPI aggregation
+backend + static single-page frontend, with Prometheus and the LiteLLM Management API as the only data sources,
+serving as the jump-off point to the other four UIs.
 
-三条设计原则:
+Three design principles:
 
-1. **不引入新的事实来源**。所有数字都能在 Prometheus 或 LiteLLM DB 里找到同样的值,
-   Dashboard 只做查询、汇总与派生(缓存命中率、TPS、错误率),没有自己的数据库。
-2. **渠道口径与 Scorer 完全一致**。渠道行以 `scorer-channels.yaml` 注册表为准渲染,
-   与 Scorer 共用同一份 ConfigMap;渠道粒度靠 `model_id` label,与 Scorer 打分用的是同一个键。
-3. **写操作最小化且语义固定**。唯一的写是改用户日配额:写入时钉住 `budget_duration=1d`,
-   且先校验用户存在,避免 LiteLLM `/user/update` 对不存在的用户隐式建用户。建用户、发 key 仍留在 LiteLLM UI / API。
+1. **No new source of truth.** Every number can be found identically in Prometheus or the LiteLLM DB;
+   the Dashboard only queries, aggregates, and derives (cache hit rate, TPS, error rate) and has no database of its own.
+2. **Channel semantics identical to the Scorer's.** Channel rows are rendered from the `scorer-channels.yaml` registry,
+   sharing the same ConfigMap with the Scorer; channel granularity relies on the `model_id` label — the same key the Scorer scores by.
+3. **Writes minimized and fixed in semantics.** The only write is changing a user's daily quota: the write pins
+   `budget_duration=1d` and first verifies the user exists, avoiding LiteLLM `/user/update`'s implicit creation of nonexistent users.
+   User creation and key issuance stay in the LiteLLM UI / API.
 
-### 实现要点
+### Implementation notes
 
-- **两种时间口径并存**:消费与 tokens 固定近 24h(费用是日粒度问题),性能与错误跟随页面窗口
-  (15m / 1h / 6h / 24h / 7d,白名单同时约束下拉选项与 PromQL range)。
-  这避免了"切到 15m 看错误、消费也跟着变成 15m"的误读。
-- **健康徽章**综合两个来源:Scorer 的 `scorer_circuit_open`(全局、分钟级)与 LiteLLM 的
-  `litellm_deployment_state`(每副本、秒级),多副本取最差。两层熔断的关系见 ADR-006 §6.2。
-- **派生指标**:缓存命中率 = 缓存读 / (普通输入 + 缓存读 + 缓存写),是 ADR-009 代价的直接观测口;
-  TPS = 1 / TPOT 分位数,p99 TPS 表示最慢 1% 请求的解码吞吐。
-- **凭证边界**:master key 由 ExternalSecret `dashboard-env` 注入容器,浏览器只与 Dashboard 后端通信,
-  永远拿不到 master key。
-- **安全模型与 Prometheus 对齐**:自身无认证,不暴露 Ingress,只经 kubectl 隧道(本地 3020)访问,
-  由隧道守护(ADR-002 / ADR-004)保活。
-- 单副本、`50m` CPU / `128Mi` 内存,前端每 30 秒轮询一次 `/api/overview`,对 Prometheus 约 30 条即席查询 / 半分钟。
-- 与 Scorer 同样是自建镜像(`tpp/dashboard`),手动构建推送,tag 由 Terraform 变量管理。
+- **Two time frames coexist**: spend and tokens are fixed at the trailing 24h (cost is a daily-granularity question),
+  while performance and errors follow the page window (15m / 1h / 6h / 24h / 7d; the whitelist constrains both the dropdown
+  options and the PromQL range). This avoids the misreading of "switch to 15m for errors and spend becomes 15m too".
+- **The health badge** combines two sources: the Scorer's `scorer_circuit_open` (global, minute-level) and LiteLLM's
+  `litellm_deployment_state` (per replica, second-level), taking the worst across replicas.
+  For the relationship between the two circuit-breaker layers see ADR-006 §6.2.
+- **Derived metrics**: cache hit rate = cache reads / (plain input + cache reads + cache writes), the direct observation point
+  for ADR-009's cost; TPS = 1 / TPOT percentile, where p99 TPS is the decode throughput of the slowest 1% of requests.
+- **Credential boundary**: the master key is injected into the container by the ExternalSecret `dashboard-env`;
+  the browser talks only to the Dashboard backend and never sees the master key.
+- **Security model aligned with Prometheus**: no auth of its own, no Ingress exposure, reachable only through the kubectl tunnel
+  (local 3020), kept alive by the tunnel daemon (ADR-002 / ADR-004).
+- Single replica, `50m` CPU / `128Mi` memory; the frontend polls `/api/overview` every 30 seconds,
+  roughly 30 ad-hoc Prometheus queries per half minute.
+- Like the Scorer it is a self-built image (`tpp/dashboard`), built and pushed manually, with the tag managed by a Terraform variable.
 
-### 备选方案
+### Alternatives
 
-| 方案 | 未采用原因 |
+| Option | Why not adopted |
 |---|---|
-| 只用 Grafana,加更多面板 | Grafana 不能写回配额;用户级消费表依赖 `hashed_api_key` 等 per-user label,正是 ADR-008 §8 要 labeldrop 掉的高基数 label |
-| 扩展 LiteLLM UI | 第三方前端,不可定制;没有 Scorer 与直方图分位数的概念 |
-| Grafana + 独立"配额编辑器"小工具 | 两处入口,巡检与操作割裂,与本决策要解决的问题相同 |
-| 引入通用 BI / 内部工具平台(Retool 类) | dev 阶段引入新平台与新凭证面,收益不成比例 |
+| Grafana only, with more panels | Grafana cannot write quotas back; the per-user spend table depends on high-cardinality per-user labels like `hashed_api_key` — exactly what ADR-008 §8 wants to labeldrop |
+| Extend the LiteLLM UI | Third-party frontend, not customizable; no concept of the Scorer or histogram percentiles |
+| Grafana + a separate "quota editor" tool | Two entry points; inspection and action split apart — the very problem this decision is meant to solve |
+| Adopt a general BI / internal-tools platform (Retool-like) | Introducing a new platform and credential surface at dev stage; benefit out of proportion |
 
-### 后果与权衡
+### Consequences and trade-offs
 
-- **又一个要维护的自建组件**:构建镜像、版本号、对 Prometheus 指标名与 LiteLLM API 形状的依赖。
-  LiteLLM 升级改了指标名或 `/user/list` 响应结构,Dashboard 会先于其他组件出错。
-- **master key 暴露面扩大**:Dashboard 是持有 master key 的第三个组件(另两个是 Scorer、ServiceMonitor)。
-  它能改配额,因此"无认证"这一前提比 Prometheus 更敏感;上 ALB 前必须先补 OIDC(ADR-008 §9),
-  且 3020 端口不得转发到局域网。
-- master key 轮转后 `dashboard-env` 要等最长 1h 刷新,期间用户表 401;与 ADR-001 的 5m 口径不一致,
-  是有意的:该 Secret 不含 RDS 密码,轮转频率低。
-- Prometheus 降基数(ADR-008 §8)必须保留 `model_id` / `exception_class` / `le` 三个 label,
-  这是 Dashboard 与 Scorer 共同的硬依赖。
-- `/user/list` 单页 100 人,500 人规模需要分页或改为按团队视图;这与 ADR-008 §9 的自助化方向一致,
-  届时 Dashboard 的写回能力应扩展为"用户自助 + 团队管理员审批",而非重写。
+- **Yet another self-built component to maintain**: image builds, version numbers, and dependence on Prometheus metric names
+  and LiteLLM API shapes. If a LiteLLM upgrade renames metrics or changes the `/user/list` response structure,
+  the Dashboard breaks before any other component.
+- **Larger master key exposure surface**: the Dashboard is the third component holding the master key
+  (the other two being the Scorer and the ServiceMonitor). It can change quotas, so the "no auth" premise is more sensitive
+  than for Prometheus; OIDC must be added before putting it behind an ALB (ADR-008 §9),
+  and port 3020 must never be forwarded onto a LAN.
+- After master key rotation, `dashboard-env` can take up to 1h to refresh, during which the user table returns 401.
+  The divergence from ADR-001's 5m is intentional: this Secret contains no RDS password and rotates rarely.
+- Prometheus cardinality reduction (ADR-008 §8) must preserve the `model_id` / `exception_class` / `le` labels —
+  a hard dependency shared by the Dashboard and the Scorer.
+- `/user/list` returns 100 users per page; 500-user scale needs pagination or a per-team view. This aligns with ADR-008 §9's
+  self-service direction; at that point the Dashboard's write capability should grow into
+  "user self-service + team-admin approval" rather than being rewritten.
 
 ---
 
-## ADR-008 [Scaling] 500 用户规模的架构调整
+## ADR-008 [Scaling] Architecture Changes for 500 Users
 
-**状态**:方案阶段,未实施。完整方案、容量推算与落地顺序见 [`docs/scaling-500-users.md`](scaling-500-users.md)。
-所有容量数字均为基于当前配置的量级推算,非压测结果。
+**Status**: proposal stage, not implemented. Full plan, capacity estimates, and rollout order in
+[`docs/scaling-500-users.md`](scaling-500-users.md).
+All capacity numbers are order-of-magnitude estimates based on the current configuration, not load-test results.
 
-### 背景
+### Background
 
-现有架构按 dev 规格部署,舒适承载约 50 名重度用户。500 席位按全重度上界推算为
-峰值约 42 RPS、约 1500 并发流、60M TPM;数据面的真实压力是并发流数量而非 RPS。
+The current architecture is deployed at dev size and comfortably carries about 50 heavy users.
+500 seats, estimated at the all-heavy upper bound, come to a peak of about 42 RPS, about 1500 concurrent streams, 60M TPM;
+the real data-plane pressure is the number of concurrent streams, not RPS.
 
-### 决策摘要
+### Decision summary
 
-| 层 | 改动 | 性质 |
+| Layer | Change | Nature |
 |---|---|---|
-| Bedrock 配额 | 多账户 × 3 region 分片,配额桶数 = 账户数 × 调用 region 数 | 商务 + 新增,lead time 数周,**最先启动** |
-| 数据面 | LiteLLM 保持单 worker / pod,靠加 pod;KEDA + Prometheus scaler 而非 CPU HPA | 扩容 |
-| 账本 | PgBouncer 前置;Aurora PG;litellm / langfuse 分库;SpendLogs 保留策略 | 换规格 + 拆分 |
-| Redis | 拆成 router / 限流一套、Langfuse 队列一套,均 HA + TLS | 拆分重建 |
-| 链路存储 | 先做 payload 采样(约 5 倍收益),再 ClickHouse 集群化 + TTL + S3 分层 | 换实现 |
-| 指标 | ServiceMonitor 降基数,只保留 `model_id` / `requested_model` / `exception_class` / `le` | 配置 + 扩容 |
-| 接入层 | ALB + OIDC + 自助发 key broker + per-key 限流;dashboard 补认证 | 新建 |
-| Scorer | 保持单副本;增加"配额枯竭"状态与节流 / 故障区分 | 小改 |
-| 节点 | 3 个 node group + Karpenter;NAT 每 AZ 一个 | 重构 |
+| Bedrock quota | Multi-account × 3-region sharding; quota buckets = accounts × calling regions | Commercial + new; weeks of lead time; **start first** |
+| Data plane | LiteLLM stays single worker / pod, scale by adding pods; KEDA + Prometheus scaler instead of CPU HPA | Scale-out |
+| Ledger | PgBouncer in front; Aurora PG; separate litellm / langfuse databases; SpendLogs retention policy | Resize + split |
+| Redis | Split into one set for router / rate limiting and one for the Langfuse queue, both HA + TLS | Split and rebuild |
+| Trace storage | Payload sampling first (about 5x benefit), then ClickHouse clustering + TTL + S3 tiering | Change of implementation |
+| Metrics | ServiceMonitor cardinality reduction; keep only `model_id` / `requested_model` / `exception_class` / `le` | Config + scale |
+| Access layer | ALB + OIDC + self-service key broker + per-key rate limiting; add auth to dashboard | New build |
+| Scorer | Stay single-replica; add a "quota exhausted" state and distinguish throttling from failure | Minor change |
+| Nodes | 3 node groups + Karpenter; one NAT per AZ | Restructure |
 
-### 落地顺序(由依赖决定)
+### Rollout order (dictated by dependencies)
 
 ```text
-Phase 0  配额申请 + 压测基线
-Phase 1  PgBouncer → Redis 拆分 → Prometheus 降基数 → Karpenter → LiteLLM HPA
-Phase 2  Langfuse 采样 → ClickHouse 集群化 → worker KEDA
-Phase 3  ALB → OIDC → key broker → per-key 限流 → dashboard 认证
+Phase 0  quota requests + load-test baseline
+Phase 1  PgBouncer → Redis split → Prometheus cardinality reduction → Karpenter → LiteLLM HPA
+Phase 2  Langfuse sampling → ClickHouse clustering → worker KEDA
+Phase 3  ALB → OIDC → key broker → per-key rate limiting → dashboard auth
 ```
 
-两条硬依赖:PgBouncer 必须先于 HPA(否则扩副本即打满 RDS 连接数);
-Prometheus 降基数必须先于用户上量(否则 Scorer 与 dashboard 同时失明)。
+Two hard dependencies: PgBouncer must come before the HPA (otherwise scaling replicas saturates RDS connections);
+Prometheus cardinality reduction must come before user growth (otherwise the Scorer and the dashboard go blind at the same time).
 
-### 核心判断
+### Core judgment
 
-平台基础设施月成本(约 $5–7k)相对 token 成本(约 $40k–170k)是零头。
-**不要为省平台的钱牺牲 HA**;真正值得投入工程的省钱方向是提高 prompt cache 命中率与把请求路由到更便宜的模型。
-这直接引出 ADR-009。
+Platform infrastructure cost (about $5-7k/month) is a rounding error next to token cost (about $40k-170k).
+**Do not sacrifice HA to save platform money**; the savings genuinely worth engineering effort are raising the
+prompt cache hit rate and routing requests to cheaper models. This leads directly to ADR-009.
 
 ---
 
-## ADR-009 [Trade-off] 稳定性优先导致 prompt cache 命中率下降
+## ADR-009 [Trade-off] Stability-First Design Lowers Prompt Cache Hit Rate
 
-**状态**:已接受当前代价,列为待优化。本条为首次成文。
+**Status**: cost accepted for now, listed for optimization. First written up here.
 
-### 背景
+### Background
 
-Anthropic 模型的 prompt caching 按"完全相同的前缀"命中,缓存条目在 Bedrock 侧、
-**以调用账户 + 调用 region + 模型为作用域**,默认约 5 分钟 TTL 且每次命中刷新。
-Claude Code / Codex 这类 agent 的工作负载是 prompt cache 的最佳场景:一个会话内每一轮都带着
-同样的系统提示、工具定义和越来越长的对话历史,前缀部分往往是几万 token,每轮只在末尾追加几百 token。
+Anthropic models' prompt caching hits on "exactly identical prefixes"; cache entries live on the Bedrock side,
+**scoped to calling account + calling region + model**, with a default TTL of about 5 minutes refreshed on every hit.
+Agent workloads like Claude Code / Codex are the best-case scenario for prompt cache: every turn of a session carries the same
+system prompt, tool definitions, and an ever-growing conversation history; the prefix is often tens of thousands of tokens,
+with only a few hundred tokens appended at the end each turn.
 
-TPP 为了稳定性做了三件事,每一件都在破坏"同一前缀反复打到同一处"这个命中前提:
+TPP did three things for stability, and each of them breaks the hit precondition
+"the same prefix repeatedly lands in the same place":
 
-1. **双 region 渠道**:每个 Claude 模型组注册 usw2 与 use1 两条渠道,任何一个 region 故障或限流都能继续服务,
-   同时得到两个独立的配额桶(ADR-008 §3)。
-2. **加权随机路由**:LiteLLM `simple-shuffle` 按 weight 对**每个请求独立**抽签,不感知会话。
-3. **动态调权与探索保底**:Scorer 持续微调权重并保证劣质渠道至少 5% 流量(ADR-005 / ADR-006)。
+1. **Dual-region channels**: each Claude model group registers both usw2 and use1 channels, so a failure or rate limiting in
+   either region keeps service alive, while also yielding two independent quota buckets (ADR-008 §3).
+2. **Weighted random routing**: LiteLLM `simple-shuffle` draws by weight **independently for every request**, unaware of sessions.
+3. **Dynamic re-weighting with an exploration floor**: the Scorer keeps nudging weights and guarantees bad channels
+   at least 5% of traffic (ADR-005 / ADR-006).
 
-### 代价量化
+### Quantifying the cost
 
-记同一会话相邻两轮请求落到同一 region 的概率为 `p_same`。在按权重独立抽签下:
+Let `p_same` be the probability that two consecutive turns of the same session land in the same region.
+Under independent weighted draws:
 
 ```text
 p_same = Σ_i weight(i)²
 ```
 
-| 权重分布 | p_same | 含义 |
+| Weight split | p_same | Meaning |
 |---|---|---|
-| 50 / 50(冷启动、无流量、两 region 质量相当) | 0.50 | 一半的轮次缓存落空 |
+| 50 / 50 (cold start, no traffic, both regions equally good) | 0.50 | Half of all turns miss the cache |
 | 80 / 20 | 0.68 | |
-| 95 / 5(保底下限) | 0.905 | 即便一侧几乎全劣,仍有约 10% 的轮次落空 |
-| 100 / 0(直连或单 region) | 1.00 | 理论上限 |
+| 95 / 5 (floor limit) | 0.905 | Even with one side nearly all-bad, about 10% of turns still miss |
+| 100 / 0 (direct or single region) | 1.00 | Theoretical ceiling |
 
-相比单 region 直连(ADR-003 的默认路径),TPP 在 dev 常态的 50 / 50 权重下,
-**会话级 prompt cache 命中率上限被砍半**。这不是概率上的小概率事件,而是每两轮就发生一次。
+Compared with single-region direct access (ADR-003's default path), at TPP's dev-normal 50 / 50 weights,
+**the session-level prompt cache hit-rate ceiling is cut in half**. This is not a rare tail event — it happens every other turn.
 
-一次落空的代价(取 Anthropic 公开定价比例,以基础输入价为 1):
+The cost of one miss (using Anthropic's public price ratios, with base input price as 1):
 
 ```text
-命中:cache_read  = 0.1  × 前缀 token
-落空:cache_write = 1.25 × 前缀 token          → 单轮该部分成本约 12.5 倍
+hit:  cache_read  = 0.1  × prefix tokens
+miss: cache_write = 1.25 × prefix tokens          → that part of the turn costs about 12.5x
 ```
 
-TTFT 方面,落空意味着整段前缀重新 prefill。对几万 token 的前缀,首字延迟从亚秒级退化到数秒级,
-用户在 agent 交互中能直接感知到"卡一下"。这是 README 架构组件表里列出的"性能"指标(TTFT / TPOT / E2E)与
-"稳定性"目标之间最直接的一处冲突。
+On the TTFT side, a miss means the whole prefix is prefilled again. For a prefix of tens of thousands of tokens,
+time-to-first-token degrades from sub-second to several seconds, and users directly feel the "stutter" in agent interaction.
+This is the most direct conflict between the "performance" metrics (TTFT / TPOT / E2E) listed in the README's architecture
+component table and the "stability" goal.
 
-另一处被稀释的效果是**缓存 TTL**:落空后在另一 region 新建的缓存要再被命中才有价值,
-若下一轮又抽回原 region,两边各写一次、各读一次,写入成本翻倍。
+Another diluted effect is the **cache TTL**: after a miss, the cache newly written in the other region only pays off if it is
+hit again; if the next turn draws the original region back, both sides each write once and each read once, doubling the write cost.
 
-### 决策
+### Decision
 
-**当前阶段接受这一代价,稳定性与配额冗余优先于命中率**,理由:
+**Accept this cost at the current stage; stability and quota redundancy take priority over hit rate**, because:
 
-- dev 阶段用户少、单次会话成本可承受(runbook 记录 fable-5 一轮完整问答约 $0.4),
-  而单 region 故障或限流造成的是"全员停工",两者不对等。
-- 双 region 是配额分片方案(ADR-008 §3)的基础,砍掉它等于放弃未来的扩容路径。
-- 命中率是可观测的:TPP Dashboard 已按渠道计算 24 小时 `cache_hit_rate`
-  (`litellm_input_cached_tokens_metric_total` / 全部输入),TTFT 分位数也已在同一页面,
-  可以持续量化代价而不是靠猜。
+- At dev stage there are few users and per-session cost is bearable (the runbook records about $0.4 for one full fable-5 Q&A turn),
+  while a single-region outage or rate limiting means "everyone stops working" — the two are not comparable.
+- Dual region is the foundation of the quota-sharding plan (ADR-008 §3); cutting it means abandoning the future scaling path.
+- The hit rate is observable: the TPP Dashboard already computes the 24-hour `cache_hit_rate` per channel
+  (`litellm_input_cached_tokens_metric_total` / all input), and TTFT percentiles are on the same page,
+  so the cost can be quantified continuously instead of guessed at.
 
-### 已识别的缓解方向(未实施,按优先级)
+### Identified mitigation directions (not implemented, by priority)
 
-| 方向 | 做法 | 收益 | 代价 |
+| Direction | Approach | Benefit | Cost |
 |---|---|---|---|
-| 会话粘性路由 | 评估 LiteLLM 的 prompt-caching 感知预检(按已缓存前缀粘到同一 deployment),或按 `user` / 会话 id 哈希选渠道 | 把 `p_same` 提到接近 1,同时保留 region 级 failover | 依赖 LiteLLM 版本能力;粘性与权重调度需协调,劣质渠道上的会话不会自动迁走 |
-| 主备而非分流 | 每组一条主渠道,另一条只作 LiteLLM `fallbacks`,Scorer 只决定谁是主 | 常态 100% 命中,故障时仍能切换 | 备渠道无常态流量,Scorer 对其失明;配额只用一个桶 |
-| 权重更陡峭 | 调大 `GAMMA`、调小 `W_FLOOR` | 无代码改动,`p_same` 随权重集中而上升 | 只在两 region 质量有差异时生效;50 / 50 时无效 |
-| 按用户 / 团队固定 region | LiteLLM tag routing,把不同人群绑到不同 region | 命中率高且配额桶仍被用满 | 失去个体层面的 failover,需要更多运维配置 |
+| Session-sticky routing | Evaluate LiteLLM's prompt-caching-aware pre-check (stick to the deployment holding the cached prefix), or hash `user` / session id to pick a channel | Pushes `p_same` close to 1 while keeping region-level failover | Depends on LiteLLM version capability; stickiness must be coordinated with weight scheduling — sessions on a bad channel will not migrate away automatically |
+| Primary/standby instead of splitting | One primary channel per group, the other only in LiteLLM `fallbacks`; the Scorer only decides which is primary | 100% hits in steady state, failover still possible | Standby gets no steady-state traffic so the Scorer is blind to it; only one quota bucket is used |
+| Steeper weights | Raise `GAMMA`, lower `W_FLOOR` | No code change; `p_same` rises as weight concentrates | Only works when the two regions differ in quality; useless at 50 / 50 |
+| Pin region per user / team | LiteLLM tag routing, binding different groups of people to different regions | High hit rate and both quota buckets stay utilized | Loses individual-level failover; requires more ops configuration |
 
-### 后果
+### Consequences
 
-- 在缓解方案落地前,TPP 路径的单位 token 成本与 TTFT 均劣于直连路径;
-  评估 TPP 的价值时应把这一项算进去,而不是只看代理层的资源成本。
-- 任何往"提高命中率"方向的改动,都要同时回答"region 故障时会话如何迁移"和
-  "Scorer 还能不能观测到备渠道",否则是在用稳定性换成本,与本条决策的前提相反。
-- 这是 ADR-008 结论"prompt cache 命中率是最大的省钱杠杆"在当前架构下的具体落点,
-  应在 500 人方案的 Phase 1 之前给出结论。
+- Until a mitigation lands, the TPP path's per-token cost and TTFT are both worse than the direct path's;
+  evaluations of TPP's value should factor this in, rather than looking only at proxy-layer resource cost.
+- Any change toward "raise the hit rate" must also answer "how do sessions migrate when a region fails" and
+  "can the Scorer still observe the standby channel"; otherwise it trades stability for cost,
+  the opposite of this decision's premise.
+- This is the concrete landing point, in the current architecture, of ADR-008's conclusion that
+  "prompt cache hit rate is the biggest cost-saving lever"; it should be settled before Phase 1 of the 500-user plan.
 
 ---
 
-## 附:决策之间的关系
+## Appendix: How the Decisions Relate
 
 ```text
-ADR-001 RDS 轮转重启 ──→ LiteLLM 每 7 天滚动 ──→ 隧道后端短暂不可用 ──→ ADR-002 看门狗误杀并重连(有益)
-ADR-002 看门狗 ──→ 脚本需常驻 ──→ ADR-004 launchd + ~/.local/bin 双副本;五条隧道之一是 ADR-007 的 Dashboard
-ADR-003 双模式接入 ──→ 排障期间不依赖 TPP;直连单 region ──→ 对照出 ADR-009 的命中率差距
-ADR-005 打分 ──→ ADR-006 运行规则;两者共同决定权重分布 ──→ 决定 ADR-009 的 p_same
-ADR-006 熔断 / ADR-009 命中率 ──→ 在 ADR-007 Dashboard 上以健康徽章 / 缓存命中率列直接可见
-ADR-008 扩容 ──→ 配额分片依赖双 region ──→ 锁定 ADR-009 不能简单退回单 region
-ADR-008 §8 降基数 ──→ 必须保留 model_id 等 label ──→ ADR-005 Scorer 与 ADR-007 Dashboard 的共同硬依赖
-ADR-008 §9 接入治理 ──→ ADR-007 Dashboard 无认证前提失效,须先补 OIDC
+ADR-001 RDS rotation restarts ──→ LiteLLM rolls every 7 days ──→ tunnel backend briefly unavailable ──→ ADR-002 watchdog false-kills and reconnects (beneficial)
+ADR-002 watchdog ──→ script must stay resident ──→ ADR-004 launchd + ~/.local/bin dual copies; one of the five tunnels is ADR-007's Dashboard
+ADR-003 dual-mode access ──→ troubleshooting does not depend on TPP; direct is single-region ──→ the contrast exposes ADR-009's hit-rate gap
+ADR-005 scoring ──→ ADR-006 runtime rules; together they determine the weight distribution ──→ which determines ADR-009's p_same
+ADR-006 circuit breaking / ADR-009 hit rate ──→ directly visible on the ADR-007 Dashboard as the health badge / cache hit-rate column
+ADR-008 scaling ──→ quota sharding depends on dual region ──→ locks ADR-009 out of simply falling back to a single region
+ADR-008 §8 cardinality reduction ──→ must keep model_id and other labels ──→ shared hard dependency of the ADR-005 Scorer and the ADR-007 Dashboard
+ADR-008 §9 access governance ──→ ADR-007 Dashboard's no-auth premise no longer holds; OIDC must come first
 ```

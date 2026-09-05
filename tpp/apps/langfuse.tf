@@ -1,5 +1,5 @@
-# ---------- Langfuse(M4:trace)----------
-# 外部依赖全部指向 AWS 托管资源(RDS/ElastiCache/S3),ClickHouse 自管单节点 StatefulSet。
+# ---------- Langfuse (M4: trace) ----------
+# All external dependencies point to AWS managed resources (RDS/ElastiCache/S3); ClickHouse is a self-managed single-node StatefulSet.
 
 resource "kubernetes_namespace_v1" "langfuse" {
   metadata {
@@ -7,7 +7,7 @@ resource "kubernetes_namespace_v1" "langfuse" {
   }
 }
 
-# ---- headless init 凭据:org/project/API keys/管理员,存 Secrets Manager ----
+# ---- headless init credentials: org/project/API keys/admin, stored in Secrets Manager ----
 resource "random_password" "langfuse_pk" {
   length  = 24
   special = false
@@ -61,7 +61,7 @@ resource "kubernetes_manifest" "langfuse_init_external_secret" {
   depends_on = [aws_secretsmanager_secret_version.langfuse]
 }
 
-# ---- RDS 密码同步(langfuse 命名空间自己的副本)----
+# ---- RDS password sync (the langfuse namespace's own copy) ----
 resource "kubernetes_manifest" "langfuse_postgres_external_secret" {
   manifest = {
     apiVersion = "external-secrets.io/v1"
@@ -97,7 +97,7 @@ resource "kubernetes_manifest" "langfuse_postgres_external_secret" {
   }
 }
 
-# ---- 建库 Job:RDS 上创建 langfuse 库(幂等)----
+# ---- Database bootstrap Job: create the langfuse database on RDS (idempotent) ----
 resource "kubernetes_job_v1" "langfuse_db_bootstrap" {
   metadata {
     name      = "langfuse-db-bootstrap"
@@ -159,7 +159,7 @@ resource "kubernetes_job_v1" "langfuse_db_bootstrap" {
   depends_on = [kubernetes_manifest.langfuse_postgres_external_secret]
 }
 
-# ---- 自管单节点 ClickHouse(trace 数据,可再生,EBS PVC)----
+# ---- Self-managed single-node ClickHouse (trace data, regenerable, EBS PVC) ----
 resource "random_password" "clickhouse" {
   length  = 32
   special = false

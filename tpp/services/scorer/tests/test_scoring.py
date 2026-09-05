@@ -40,7 +40,7 @@ def test_raw_score_slow_channel_penalized():
     fast = raw_score(_m(p90=1.0), 1.0, CFG)
     slow = raw_score(_m(p90=4.0), 1.0, CFG)
     assert slow < fast
-    # 只有延迟差时,错误分保持满分
+    # With only a latency gap, the error score stays perfect
     assert slow >= CFG.w_err - 1e-9
 
 
@@ -56,7 +56,7 @@ def test_ewma_smoothing():
 
 def test_weights_floor_prevents_starvation():
     w = weights_from_scores({"a": 1.0, "b": 0.01}, set(), CFG)
-    assert w["b"] >= CFG.w_floor * 0.9  # 归一化后允许轻微缩水
+    assert w["b"] >= CFG.w_floor * 0.9  # slight shrinkage allowed after normalization
     assert abs(sum(w.values()) - 1.0) < 1e-9
 
 
@@ -72,7 +72,7 @@ def test_weights_all_circuit_open_falls_back_to_even():
 
 
 def test_circuit_opens_on_severe_errors():
-    m = _m(reqs=10, errors={"Timeout": 3})  # ê=0.9, severe 占比 100%
+    m = _m(reqs=10, errors={"Timeout": 3})  # ê=0.9, severe share 100%
     assert circuit_should_open(m, CFG)
     ok = _m(reqs=100, errors={"BadRequestError": 3})
     assert not circuit_should_open(ok, CFG)
@@ -80,7 +80,7 @@ def test_circuit_opens_on_severe_errors():
 
 def test_gamma_amplifies_gap():
     w = weights_from_scores({"a": 0.9, "b": 0.6}, set(), CFG)
-    assert w["a"] / w["b"] > 0.9 / 0.6  # γ=2 放大比例
+    assert w["a"] / w["b"] > 0.9 / 0.6  # γ=2 amplifies the ratio
 
 
 def test_max_delta():

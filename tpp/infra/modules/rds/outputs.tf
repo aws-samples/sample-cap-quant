@@ -15,7 +15,7 @@ output "username" {
 }
 
 output "master_user_secret_arn" {
-  description = "RDS 托管主密码所在的 Secrets Manager secret,apps 层用它拼 DATABASE_URL"
+  description = "Secrets Manager secret holding the RDS managed master password; the apps layer uses it to construct DATABASE_URL"
   value       = aws_db_instance.this.master_user_secret[0].secret_arn
 }
 

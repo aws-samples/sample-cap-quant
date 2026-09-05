@@ -11,7 +11,7 @@ variable "subnet_ids" {
 }
 
 variable "allowed_security_group_ids" {
-  description = "允许访问 5432 的 SG(EKS node SG)"
+  description = "SGs allowed to access port 5432 (EKS node SG)"
   type        = list(string)
 }
 

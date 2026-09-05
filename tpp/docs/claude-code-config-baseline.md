@@ -1,14 +1,14 @@
-# Claude Code 配置基线(Bedrock 直连)
+# Claude Code Configuration Baseline (Direct Bedrock Connection)
 
-用途:`~/.claude/settings.json` 就是这份直连基线,`claude` 默认直连;走 TPP 用
-`claude-tpp`(`--settings ~/.claude/tpp.settings.json` 覆盖层,见 runbook
-"Claude Code 接入 TPP")。如 `settings.json` 被改坏,
-**把下面这份 JSON 原样覆盖回 `~/.claude/settings.json`,重启 Claude Code 会话即可**
-(本机同内容备份:`~/.claude/settings.json.bedrock-backup`)。
-`~/.zshrc` 中与渠道相关的只有 `TPP_API_KEY` 导出和 `claude-tpp` 别名;项目级
-`.claude/settings*.json` 无渠道相关配置。
+Purpose: `~/.claude/settings.json` is this direct-connection baseline; `claude` connects directly by default. To go through TPP, use
+`claude-tpp` (the `--settings ~/.claude/tpp.settings.json` overlay; see the runbook section
+"Connecting Claude Code to TPP"). If `settings.json` gets broken,
+**overwrite `~/.claude/settings.json` verbatim with the JSON below and restart the Claude Code session**
+(a local backup with the same content: `~/.claude/settings.json.bedrock-backup`).
+The only channel-related items in `~/.zshrc` are the `TPP_API_KEY` export and the `claude-tpp` alias; the project-level
+`.claude/settings*.json` files contain no channel-related configuration.
 
-## `~/.claude/settings.json` 原文
+## `~/.claude/settings.json` Verbatim
 
 ```json
 {
@@ -40,15 +40,15 @@
 }
 ```
 
-## 要点
+## Key Points
 
-- 直连模式由 `CLAUDE_CODE_USE_BEDROCK=true` 驱动,AWS 凭据来自本机 `~/.aws` 的
-  `default` profile(本机 IAM user),region `us-west-2`;
-- 主模型 `us.anthropic.claude-fable-5-1`(顶层 `model`,`/model` 可改;`ANTHROPIC_MODEL`
-  仍为 fable-5 作兜底),后台快速模型 `us.anthropic.claude-haiku-4-5-20251001-v1:0`
-  (原 `claude-3-7-sonnet-20250219-v1:0` 已在 Bedrock 下线,已更换);
-- `permissions` / `effortLevel` / `tui` 与渠道无关,切换 TPP 时保持不动;
-- 切 TPP **不改这份文件**,用覆盖层 `~/.claude/tpp.settings.json`:
-  `CLAUDE_CODE_USE_BEDROCK="0"`(必须是 `"0"`,按数值解析)、
-  `ANTHROPIC_BASE_URL=http://localhost:14000`、`ANTHROPIC_AUTH_TOKEN=<TPP user key>`,
-  两个模型名与顶层 `"model"` 用 TPP 注册表名(`claude-fable-5` / `claude-haiku-4-5`)。
+- Direct-connection mode is driven by `CLAUDE_CODE_USE_BEDROCK=true`; AWS credentials come from the
+  `default` profile in the local `~/.aws` (a local IAM user), region `us-west-2`;
+- Primary model `us.anthropic.claude-fable-5-1` (the top-level `model`, changeable via `/model`; `ANTHROPIC_MODEL`
+  stays at fable-5 as a fallback), background fast model `us.anthropic.claude-haiku-4-5-20251001-v1:0`
+  (the previous `claude-3-7-sonnet-20250219-v1:0` was retired on Bedrock and has been replaced);
+- `permissions` / `effortLevel` / `tui` are channel-agnostic; leave them untouched when switching to TPP;
+- Switching to TPP **does not modify this file**; use the overlay `~/.claude/tpp.settings.json`:
+  `CLAUDE_CODE_USE_BEDROCK="0"` (must be `"0"`, parsed numerically),
+  `ANTHROPIC_BASE_URL=http://localhost:14000`, `ANTHROPIC_AUTH_TOKEN=<TPP user key>`,
+  and set the two model names plus the top-level `"model"` to the TPP registry names (`claude-fable-5` / `claude-haiku-4-5`).

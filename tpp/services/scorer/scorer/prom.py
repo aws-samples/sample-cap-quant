@@ -1,12 +1,12 @@
-"""Prometheus 查询封装。指标名/label 以 LiteLLM OSS /metrics 实际输出为准。"""
+"""Prometheus query wrapper. Metric names/labels follow the actual output of LiteLLM OSS /metrics."""
 
 import httpx
 
 from .config import Config
 from .scoring import ChannelMetrics
 
-# LiteLLM 指标里区分 deployment 的 label(已按 OSS /metrics 实际输出校准:
-# 分组 = requested_model,渠道 = model_id)
+# Labels that distinguish deployments in LiteLLM metrics (calibrated against actual OSS /metrics output:
+# group = requested_model, channel = model_id)
 ID_LABEL = "model_id"
 GROUP_LABEL = "requested_model"
 EXC_LABEL = "exception_class"
@@ -26,7 +26,7 @@ class PromClient:
         return body["data"]["result"]
 
     def fetch_metrics(self, model_groups: list[str]) -> dict[str, ChannelMetrics]:
-        """返回 {channel_id: ChannelMetrics},只含窗口内有数据的渠道。"""
+        """Return {channel_id: ChannelMetrics}, containing only channels with data in the window."""
         w = self.cfg.window
         out: dict[str, ChannelMetrics] = {}
 
@@ -75,6 +75,6 @@ class PromClient:
                 cls = s["metric"].get(EXC_LABEL, "Unknown")
                 out[cid].errors_by_class[cls] = float(s["value"][1])
 
-        # 只保留我们管理的模型组
+        # Keep only the model groups we manage
         groups = set(model_groups)
         return {cid: m for cid, m in out.items() if m.model_group in groups}

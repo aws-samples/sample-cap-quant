@@ -1,4 +1,4 @@
-# ---------- 存储:gp3 StorageClass(不设默认,chart values 里显式引用) ----------
+# ---------- Storage: gp3 StorageClass (not set as default, referenced explicitly in chart values) ----------
 resource "kubernetes_storage_class_v1" "gp3" {
   metadata {
     name = "gp3"
@@ -74,7 +74,7 @@ resource "helm_release" "reloader" {
   version    = "2.2.16"
 }
 
-# 全局 SecretStore:指向 Secrets Manager,后续 litellm/langfuse 的 ExternalSecret 都用它
+# Global SecretStore: points to Secrets Manager; the litellm/langfuse ExternalSecrets below all use it
 resource "kubernetes_manifest" "cluster_secret_store" {
   manifest = {
     apiVersion = "external-secrets.io/v1"
@@ -103,7 +103,7 @@ resource "kubernetes_manifest" "cluster_secret_store" {
   depends_on = [helm_release.external_secrets]
 }
 
-# ---------- kube-prometheus-stack(Prometheus + Grafana + Alertmanager) ----------
+# ---------- kube-prometheus-stack (Prometheus + Grafana + Alertmanager) ----------
 resource "random_password" "grafana_admin" {
   length  = 20
   special = false

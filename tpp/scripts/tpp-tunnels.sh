@@ -1,24 +1,25 @@
 #!/usr/bin/env bash
-# TPP 本地隧道守护:同时保持 LiteLLM / Grafana / Langfuse 的 port-forward,断线各自自动重连,
-# 并对每条隧道做本地健康探测,发现僵死(进程在、转发不通)自动重启。
-# 由 launchd(com.tpp.litellm-proxy)常驻运行;手动运行也可(Ctrl-C 退出)。
-# 注意:改动本文件后要同步复制到 ~/.local/bin/(launchd 用的是那份副本,TCC 限制)。
+# TPP local tunnel daemon: keeps the LiteLLM / Grafana / Langfuse port-forwards up simultaneously,
+# each reconnecting on its own after a disconnect, and probes each tunnel's local health,
+# restarting any zombie (process alive, forwarding dead) automatically.
+# Runs persistently under launchd (com.tpp.litellm-proxy); manual runs also work (Ctrl-C to exit).
+# Note: after editing this file, copy it to ~/.local/bin/ as well (launchd uses that copy, due to TCC restrictions).
 #
-# 本地端口约定:
+# Local port conventions:
 #   LiteLLM    http://localhost:14000   (UI: /ui)
 #   Grafana    http://localhost:3000
-#   Langfuse   http://localhost:3010    (固定 3010,NEXTAUTH_URL 绑定)
+#   Langfuse   http://localhost:3010    (fixed at 3010, bound to NEXTAUTH_URL)
 #   Prometheus http://localhost:9090
-#   Dashboard  http://localhost:3020    (TPP 独立运营 dashboard)
+#   Dashboard  http://localhost:3020    (TPP standalone ops dashboard)
 set -u
 
 if ! kubectl config current-context 2>/dev/null | grep -q tpp-dev; then
-  echo "当前 kubecontext 不是 tpp-dev,先执行:"
+  echo "Current kubecontext is not tpp-dev; run this first:"
   echo "  aws eks update-kubeconfig --name tpp-dev --region us-west-2"
   exit 1
 fi
 
-# 接管:清掉已存在的同类 port-forward,保证单一属主
+# Take over: kill any existing port-forwards of the same kind to guarantee a single owner
 pkill -f "kubectl port-forward -n litellm" 2>/dev/null
 pkill -f "kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana" 2>/dev/null
 pkill -f "kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus" 2>/dev/null
@@ -26,12 +27,13 @@ pkill -f "kubectl port-forward -n langfuse svc/langfuse-web" 2>/dev/null
 pkill -f "kubectl port-forward -n dashboard svc/dashboard" 2>/dev/null
 sleep 1
 
-forward() { # $1=名字 $2=namespace $3=service $4=本地端口:远端端口 $5=健康探测URL
+forward() { # $1=name $2=namespace $3=service $4=local-port:remote-port $5=health-probe URL
   while true; do
     kubectl port-forward -n "$2" "svc/$3" "$4" > >(sed "s/^/[$1] /") 2>&1 &
     local pid=$!
-    # 看门狗:kubectl 与 API server 断连后可能僵死不退出(端口仍在监听但转发不通,
-    # 网络切换/睡眠唤醒后常见),仅靠"进程退出才重连"发现不了,须探测本地端口
+    # Watchdog: after losing the API server connection, kubectl may hang as a zombie without exiting
+    # (port still listening but forwarding dead; common after network switches or sleep/wake).
+    # "Reconnect only when the process exits" cannot catch this, so we must probe the local port.
     local fails=0
     while kill -0 "$pid" 2>/dev/null; do
       sleep 15
@@ -40,14 +42,14 @@ forward() { # $1=名字 $2=namespace $3=service $4=本地端口:远端端口 $5=
       else
         fails=$((fails + 1))
         if [ "$fails" -ge 3 ]; then
-          echo "[$1] 健康探测连续 ${fails} 次失败,杀掉僵死隧道..."
+          echo "[$1] health probe failed ${fails} times in a row, killing zombie tunnel..."
           kill "$pid" 2>/dev/null
           break
         fi
       fi
     done
     wait "$pid" 2>/dev/null
-    echo "[$1] 断开,3 秒后重连..."
+    echo "[$1] disconnected, reconnecting in 3 seconds..."
     sleep 3
   done
 }

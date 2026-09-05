@@ -1,6 +1,6 @@
-# ---------- M6:Grafana dashboard + 告警规则 ----------
+# ---------- M6: Grafana dashboard + alerting rules ----------
 
-# kube-prometheus-stack 的 grafana sidecar 自动加载带 grafana_dashboard label 的 ConfigMap
+# The kube-prometheus-stack grafana sidecar auto-loads ConfigMaps carrying the grafana_dashboard label
 resource "kubernetes_config_map_v1" "tpp_dashboard" {
   metadata {
     name      = "tpp-overview-dashboard"
@@ -36,8 +36,8 @@ resource "kubernetes_manifest" "tpp_alerts" {
               for    = "1m"
               labels = { severity = "warning" }
               annotations = {
-                summary     = "Scorer 超过 5 分钟没有成功打分,渠道权重已冻结"
-                description = "检查 scorer pod 日志与 Prometheus/LiteLLM 可达性。权重冻结不影响请求链路。"
+                summary     = "Scorer has not scored successfully for over 5 minutes, channel weights are frozen"
+                description = "Check scorer pod logs and Prometheus/LiteLLM reachability. Frozen weights do not affect the request path."
               }
             },
             {
@@ -46,8 +46,8 @@ resource "kubernetes_manifest" "tpp_alerts" {
               for    = "10m"
               labels = { severity = "critical" }
               annotations = {
-                summary     = "LiteLLM 整体错误率超过 10% 持续 10 分钟"
-                description = "查看 TPP Overview dashboard 的渠道 Error Rate 面板定位渠道;确认 Scorer 熔断是否生效。"
+                summary     = "LiteLLM overall error rate above 10% for 10 minutes"
+                description = "Check the channel Error Rate panel on the TPP Overview dashboard to locate the channel; confirm whether the Scorer circuit breaker has kicked in."
               }
             },
             {
@@ -56,8 +56,8 @@ resource "kubernetes_manifest" "tpp_alerts" {
               for    = "3m"
               labels = { severity = "critical" }
               annotations = {
-                summary     = "LiteLLM 所有副本不可抓取"
-                description = "kubectl get pods -n litellm;检查 RDS/Redis 连接与最近变更。"
+                summary     = "All LiteLLM replicas are unscrapeable"
+                description = "kubectl get pods -n litellm; check RDS/Redis connectivity and recent changes."
               }
             },
             {
@@ -66,8 +66,8 @@ resource "kubernetes_manifest" "tpp_alerts" {
               for    = "5m"
               labels = { severity = "warning" }
               annotations = {
-                summary     = "渠道 {{ $labels.model_id }} 被熔断超过 5 分钟"
-                description = "该渠道 severe 错误占比过高被置零流量,恢复需连续 3 轮加权错误率 < 10%。"
+                summary     = "Channel {{ $labels.model_id }} has been circuit-broken for over 5 minutes"
+                description = "This channel's severe error ratio was too high, so its traffic was set to zero; recovery requires 3 consecutive rounds with weighted error rate < 10%."
               }
             }
           ]

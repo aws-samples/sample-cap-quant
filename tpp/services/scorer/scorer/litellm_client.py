@@ -1,4 +1,4 @@
-"""LiteLLM Management API 封装:渠道注册(/model/new)与权重更新(/model/{id}/update)。"""
+"""LiteLLM Management API wrapper: channel registration (/model/new) and weight updates (/model/{id}/update)."""
 
 import logging
 
@@ -22,7 +22,7 @@ class LiteLLMClient:
         return spec["channels"]
 
     def list_models(self) -> dict[str, dict]:
-        """{model_id: model_entry},来自 /model/info。"""
+        """{model_id: model_entry}, from /model/info."""
         r = self.http.get("/model/info")
         r.raise_for_status()
         return {
@@ -32,7 +32,7 @@ class LiteLLMClient:
         }
 
     def ensure_channels(self, channels: list[dict]) -> None:
-        """把渠道注册表同步进 LiteLLM DB(幂等:按稳定 model_info.id 判存在)。"""
+        """Sync the channel registry into the LiteLLM DB (idempotent: existence keyed by stable model_info.id)."""
         existing = self.list_models()
         for ch in channels:
             cid = ch["model_info"]["id"]
@@ -53,7 +53,7 @@ class LiteLLMClient:
         return {cid: w / total for cid, w in out.items()}
 
     def update_weight(self, model_id: str, weight: int) -> None:
-        # PATCH = 部分更新,只改 weight,不动其余 litellm_params
+        # PATCH = partial update: only change weight, leave the rest of litellm_params untouched
         r = self.http.patch(
             f"/model/{model_id}/update",
             json={"litellm_params": {"weight": weight}},

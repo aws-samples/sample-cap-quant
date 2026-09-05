@@ -1,19 +1,19 @@
-# apps — 集群内应用层
+# apps — In-cluster Application Layer
 
-State 2:通过 Terraform helm provider 部署集群内应用,依赖 infra state 的 output
-(cluster endpoint、RDS endpoint、IRSA role ARN 等,经 terraform_remote_state 读取)。
+State 2: deploys in-cluster applications via the Terraform helm provider, depending on the infra state's outputs
+(cluster endpoint, RDS endpoint, IRSA role ARNs, etc., read via terraform_remote_state).
 
-**首次部署(或环境重建)需要两段 apply**——ClusterSecretStore 的 CRD 随 external-secrets
-chart 安装,plan 阶段 CRD 不存在会直接报错:
+**The first deployment (or an environment rebuild) requires two apply passes** — the ClusterSecretStore CRD is installed
+with the external-secrets chart, and the plan phase fails outright if the CRD does not exist:
 
 ```bash
 terraform apply -target=kubernetes_storage_class_v1.gp3 \
   -target=helm_release.alb_controller -target=helm_release.external_secrets \
   -target=helm_release.kube_prometheus_stack
-terraform apply   # 第二次全量,补 ClusterSecretStore 等 CRD 资源
+terraform apply   # second full pass, adding ClusterSecretStore and other CRD resources
 ```
 
-- platform.tf — aws-load-balancer-controller、external-secrets、kube-prometheus-stack
-- litellm.tf — LiteLLM Proxy(config 与 local/config/litellm-config.yaml 同构)
-- langfuse.tf — Langfuse(含 ClickHouse 子 chart;Postgres/Redis/S3 指向 AWS 托管资源)
-- scorer.tf — 自建 Scorer(chart 在 ../charts/scorer)
+- platform.tf — aws-load-balancer-controller, external-secrets, kube-prometheus-stack
+- litellm.tf — LiteLLM Proxy (config mirrors local/config/litellm-config.yaml)
+- langfuse.tf — Langfuse (with the ClickHouse subchart; Postgres/Redis/S3 point to AWS-managed resources)
+- scorer.tf — in-house Scorer (chart in ../charts/scorer)

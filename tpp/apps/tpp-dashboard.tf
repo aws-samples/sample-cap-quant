@@ -1,7 +1,7 @@
-# ---------- TPP Dashboard:独立运营视图(M7)----------
-# 单容器 = FastAPI 聚合后端(Prometheus + LiteLLM Management API)+ 静态单页前端。
-# 展示:用户配额(可改写回)/ 渠道消费·健康度·权重 / 渠道性能分位数 / 4 个 dashboard 链接。
-# 与 Prometheus 相同的安全模型:无自身认证,不暴露 Ingress,经 kubectl 隧道访问(本地 3020)。
+# ---------- TPP Dashboard: standalone operations view (M7) ----------
+# Single container = FastAPI aggregation backend (Prometheus + LiteLLM Management API) + static single-page frontend.
+# Displays: user quotas (editable, written back) / channel spend, health, weight / channel performance percentiles / links to 4 dashboards.
+# Same security model as Prometheus: no built-in auth, no Ingress exposure, accessed via kubectl tunnel (local port 3020).
 
 variable "dashboard_image_tag" {
   type    = string
@@ -23,7 +23,7 @@ resource "kubernetes_namespace_v1" "dashboard" {
   }
 }
 
-# LiteLLM master key(用户配额读写走 Management API)
+# LiteLLM master key (user quota reads/writes go through the Management API)
 resource "kubernetes_manifest" "dashboard_external_secret" {
   manifest = {
     apiVersion = "external-secrets.io/v1"
@@ -46,7 +46,7 @@ resource "kubernetes_manifest" "dashboard_external_secret" {
   }
 }
 
-# 渠道注册表与 scorer 共用同一份 values 文件,保证 dashboard 展示的渠道口径一致
+# The channel registry shares the same values file as the scorer, keeping the dashboard's channel definitions consistent
 resource "kubernetes_config_map_v1" "dashboard_channels" {
   metadata {
     name      = "dashboard-channels"
@@ -66,7 +66,7 @@ resource "kubernetes_deployment_v1" "dashboard" {
   }
 
   spec {
-    replicas = 1 # 只读视图 + 低频配额写,单副本足够
+    replicas = 1 # Read-only view + low-frequency quota writes, a single replica is enough
 
     selector {
       match_labels = { app = "dashboard" }

@@ -1,77 +1,79 @@
 # TPP Runbook
 
-环境:EKS `tpp-dev` @ us-west-2(账号 ******)。
-前置:`aws eks update-kubeconfig --name tpp-dev --region us-west-2`
+Environment: EKS `tpp-dev` @ us-west-2 (account ******).
+Prerequisite: `aws eks update-kubeconfig --name tpp-dev --region us-west-2`
 
-## 目录
+## Table of Contents
 
-- [访问入口(dev 尚未暴露 Ingress)](#访问入口dev-尚未暴露-ingress)
-- [本机(laptop)接入 TPP 调 Claude](#本机laptop接入-tpp-调-claude)
-  - [新机器安装隧道守护(一次性)](#新机器安装隧道守护一次性)
-  - [Claude Code 接入 TPP(双模式)](#claude-code-接入-tpp双模式)
-  - [Codex CLI 接入 TPP](#codex-cli-接入-tpp)
-- [日常操作](#日常操作)
-  - [TPP Dashboard(统一入口)](#tpp-dashboard统一入口)
-  - [Per-user quota(USD/天)](#per-user-quotausd天)
-  - [查看渠道质量分 / 权重](#查看渠道质量分--权重)
-  - [调整打分参数](#调整打分参数)
-- [RDS 凭证轮转与自动恢复](#rds-凭证轮转与自动恢复)
-- [Scorer 打分算法](#scorer-打分算法)
-  - [符号定义](#符号定义)
-  - [严重性系数](#严重性系数)
-  - [计算公式](#计算公式)
-  - [运行规则](#运行规则)
-- [告警响应](#告警响应)
-- [已知事项 / 陷阱](#已知事项--陷阱)
+- [Access Endpoints (dev has no Ingress exposed yet)](#access-endpoints-dev-has-no-ingress-exposed-yet)
+- [Connecting Your Laptop to TPP for Claude](#connecting-your-laptop-to-tpp-for-claude)
+  - [Installing the Tunnel Daemon on a New Machine (one-time)](#installing-the-tunnel-daemon-on-a-new-machine-one-time)
+  - [Claude Code with TPP (dual mode)](#claude-code-with-tpp-dual-mode)
+  - [Codex CLI with TPP](#codex-cli-with-tpp)
+- [Routine Operations](#routine-operations)
+  - [TPP Dashboard (unified portal)](#tpp-dashboard-unified-portal)
+  - [Per-user quota (USD/day)](#per-user-quota-usdday)
+  - [Viewing Channel Quality Scores / Weights](#viewing-channel-quality-scores--weights)
+  - [Tuning Scoring Parameters](#tuning-scoring-parameters)
+- [RDS Credential Rotation and Automatic Recovery](#rds-credential-rotation-and-automatic-recovery)
+- [Scorer Scoring Algorithm](#scorer-scoring-algorithm)
+  - [Symbol Definitions](#symbol-definitions)
+  - [Severity Coefficients](#severity-coefficients)
+  - [Formulas](#formulas)
+  - [Operating Rules](#operating-rules)
+- [Alert Response](#alert-response)
+- [Known Issues / Gotchas](#known-issues--gotchas)
+- [Current Environment Registry](#current-environment-registry)
 
-## 访问入口(dev 尚未暴露 Ingress)
-**已配隧道守护的机器(launchd 服务 `com.tpp.litellm-proxy` 运行 `tpp-tunnels.sh`)直接开浏览器,
-无需任何命令**;下表"手动命令"仅供未配守护的机器使用。
+## Access Endpoints (dev has no Ingress exposed yet)
+**On machines with the tunnel daemon configured (launchd service `com.tpp.litellm-proxy` running `tpp-tunnels.sh`), just open a browser --
+no commands needed**; the "Manual command" column below is only for machines without the daemon.
 
-| 服务 | 直接访问地址 / 凭据 | 手动命令(备用) |
+| Service | Direct URL / credentials | Manual command (fallback) |
 |---|---|---|
-| LiteLLM API + Admin UI | http://localhost:14000/ui,登录 `admin` / master key(`cd apps && terraform output -raw litellm_master_key`) | `kubectl port-forward -n litellm svc/litellm 14000:4000` |
-| Grafana(TPP Overview) | http://localhost:3000,admin / `terraform output -raw grafana_admin_password` | `kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80` |
-| Langfuse UI | http://localhost:3010,admin@tpp.local / `terraform output -raw langfuse_admin_password`;**本地端口必须 3010**(NEXTAUTH_URL 绑定) | `kubectl port-forward -n langfuse svc/langfuse-web 3010:3000` |
-| Prometheus | http://localhost:9090(无认证) | `kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090` |
-| TPP Dashboard(配额/渠道消费/性能) | http://localhost:3020(无认证;配额可在页面直接改) | `kubectl port-forward -n dashboard svc/dashboard 3020:8080` |
+| LiteLLM API + Admin UI | http://localhost:14000/ui, log in as `admin` / master key (`cd apps && terraform output -raw litellm_master_key`) | `kubectl port-forward -n litellm svc/litellm 14000:4000` |
+| Grafana (TPP Overview) | http://localhost:3000, admin / `terraform output -raw grafana_admin_password` | `kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80` |
+| Langfuse UI | http://localhost:3010, admin@tpp.local / `terraform output -raw langfuse_admin_password`; **the local port must be 3010** (bound by NEXTAUTH_URL) | `kubectl port-forward -n langfuse svc/langfuse-web 3010:3000` |
+| Prometheus | http://localhost:9090 (no auth) | `kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090` |
+| TPP Dashboard (quotas/channel spend/performance) | http://localhost:3020 (no auth; quotas can be edited directly on the page) | `kubectl port-forward -n dashboard svc/dashboard 3020:8080` |
 
-## 本机(laptop)接入 TPP 调 Claude
+## Connecting Your Laptop to TPP for Claude
 
-1. 保持代理连接,二选一:
-   - **launchd 常驻服务(推荐,零手动)**:`~/Library/LaunchAgents/com.tpp.litellm-proxy.plist`
-     运行 `tpp-tunnels.sh`,同时维持 LiteLLM(14000)/ Grafana(3000)/ Langfuse(3010)/
-     Prometheus(9090)/ TPP Dashboard(3020)五条隧道,
-     登录自启、断线各自自动拉起,每条隧道带健康探测看门狗(kubectl 僵死——进程在但转发不通——
-     约 45 秒内自动重启)(脚本副本在 `~/.local/bin/`——launchd 无法执行 Documents 下的
-     脚本,TCC 限制;改仓库脚本后需同步复制过去)。日志:`/tmp/tpp-proxy.log`。
-     管理:`launchctl bootout gui/$UID/com.tpp.litellm-proxy`(停)/
-     `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.tpp.litellm-proxy.plist`(启);
-   - 手动:`./scripts/tpp-tunnels.sh`(五条隧道)或 `./scripts/tpp-connect.sh`(仅 LiteLLM,
-     默认端口 14000),前台运行,Ctrl-C 退出。
-2. 每台机器/每个人用自己的 user + key(不要用 master key),见下文 quota 章节的 `/user/new`。
-3. 客户端配置(二选一,key 均放 `Authorization: Bearer` 或 `x-api-key`):
-   - **OpenAI 兼容**(大多数工具):base_url `http://localhost:14000/v1`,
-     env:`OPENAI_BASE_URL=http://localhost:14000/v1`、`OPENAI_API_KEY=<你的key>`
-   - **Anthropic 原生**(Anthropic SDK / Claude Code):base_url `http://localhost:14000`
-     (proxy 提供 `/v1/messages`),env:`ANTHROPIC_BASE_URL=http://localhost:14000`、
-     `ANTHROPIC_AUTH_TOKEN=<你的key>`
-4. 可用模型名 = 渠道注册表里的 model_name:`claude-fable-5`、`claude-opus-5`、`claude-sonnet-5`、
-   `claude-haiku-4-5`(与 Anthropic 官方模型 ID 同名,多数客户端零配置),以及
-   `gpt-5.6-terra`(OpenAI 模型经 Bedrock Mantle,Codex CLI 用)。
-   Claude 每个模型组 = Bedrock 双 region 渠道(usw2/use1),请求按 Scorer 权重分流;
-   `gpt-5.6-terra` 目前为 usw2 单渠道。
+1. Keep the proxy connection alive, pick one of:
+   - **launchd resident service (recommended, zero manual work)**: `~/Library/LaunchAgents/com.tpp.litellm-proxy.plist`
+     runs `tpp-tunnels.sh`, maintaining all five tunnels at once: LiteLLM (14000) / Grafana (3000) / Langfuse (3010) /
+     Prometheus (9090) / TPP Dashboard (3020).
+     It starts at login and each tunnel auto-restarts on disconnect; every tunnel has a health-probe watchdog
+     (a wedged kubectl -- process alive but forwarding dead -- is auto-restarted within
+     ~45 seconds). (The script copy lives in `~/.local/bin/` -- launchd cannot execute scripts under
+     Documents due to TCC restrictions; after changing the repo script, copy it over again.) Logs: `/tmp/tpp-proxy.log`.
+     Manage with: `launchctl bootout gui/$UID/com.tpp.litellm-proxy` (stop) /
+     `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.tpp.litellm-proxy.plist` (start);
+   - Manual: `./scripts/tpp-tunnels.sh` (all five tunnels) or `./scripts/tpp-connect.sh` (LiteLLM only,
+     default port 14000); runs in the foreground, Ctrl-C to exit.
+2. Every machine/person uses their own user + key (do not use the master key); see `/user/new` in the quota section below.
+3. Client configuration (pick one; the key goes in `Authorization: Bearer` or `x-api-key` either way):
+   - **OpenAI-compatible** (most tools): base_url `http://localhost:14000/v1`,
+     env: `OPENAI_BASE_URL=http://localhost:14000/v1`, `OPENAI_API_KEY=<your key>`
+   - **Anthropic native** (Anthropic SDK / Claude Code): base_url `http://localhost:14000`
+     (the proxy serves `/v1/messages`), env: `ANTHROPIC_BASE_URL=http://localhost:14000`,
+     `ANTHROPIC_AUTH_TOKEN=<your key>`
+4. Available model names = the model_name entries in the channel registry: `claude-fable-5`, `claude-opus-5`, `claude-sonnet-5`,
+   `claude-haiku-4-5` (same names as the official Anthropic model IDs, so most clients need zero configuration), plus
+   `gpt-5.6-terra` (an OpenAI model via Bedrock Mantle, used by Codex CLI).
+   Each Claude model group = dual-region Bedrock channels (usw2/use1), with requests split by Scorer weights;
+   `gpt-5.6-terra` is currently a single usw2 channel.
 
-### 新机器安装隧道守护(一次性)
+### Installing the Tunnel Daemon on a New Machine (one-time)
 
-前置:装好 aws cli(有 IAM 凭据)、kubectl,并执行过 `aws eks update-kubeconfig --name tpp-dev --region us-west-2`。
+Prerequisites: aws cli installed (with IAM credentials), kubectl installed, and `aws eks update-kubeconfig --name tpp-dev --region us-west-2` already run.
 
 ```bash
-# 1. 脚本放到 launchd 可执行的位置(Documents 下受 macOS TCC 限制,launchd 无法执行)
+# 1. Put the script somewhere launchd can execute (macOS TCC blocks launchd from running scripts under Documents)
 mkdir -p ~/.local/bin
 cp <repo>/scripts/tpp-tunnels.sh ~/.local/bin/ && chmod +x ~/.local/bin/tpp-tunnels.sh
 
-# 2. 创建 LaunchAgent
+# 2. Create the LaunchAgent
 cat > ~/Library/LaunchAgents/com.tpp.litellm-proxy.plist <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -93,9 +95,9 @@ cat > ~/Library/LaunchAgents/com.tpp.litellm-proxy.plist <<'EOF'
 </dict>
 </plist>
 EOF
-# 注意:把 ProgramArguments 里的路径改成绝对路径(plist 不展开 $HOME)
+# Note: change the path inside ProgramArguments to an absolute path (plists do not expand $HOME)
 
-# 3. 启动并验证
+# 3. Start and verify
 launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.tpp.litellm-proxy.plist
 sleep 8
 curl -s -o /dev/null -w "litellm %{http_code}\n"    http://localhost:14000/health/liveliness
@@ -105,23 +107,23 @@ curl -s -o /dev/null -w "prometheus %{http_code}\n" http://localhost:9090/-/heal
 curl -s -o /dev/null -w "dashboard %{http_code}\n"  http://localhost:3020/healthz
 ```
 
-### Claude Code 接入 TPP(双模式)
+### Claude Code with TPP (dual mode)
 
-与 Codex 同构:**默认 `claude` = Bedrock 直连,`claude-tpp` = 走 TPP**。Claude Code 没有
-profile 概念,靠 `--settings <file>` 覆盖层实现(优先级最高,`env` 按键合并并覆盖 shell
-环境变量,见 https://code.claude.com/docs/en/cli-reference.md)。
+Same shape as Codex: **plain `claude` = direct Bedrock, `claude-tpp` = via TPP**. Claude Code has no notion of
+profiles; this is implemented with a `--settings <file>` overlay (highest precedence; `env` is merged per key and
+overrides shell environment variables, see https://code.claude.com/docs/en/cli-reference.md).
 
-1. `~/.claude/settings.json` 保持 **Bedrock 直连基线**(全文见
-   `docs/claude-code-config-baseline.md`),`CLAUDE_CODE_USE_BEDROCK=true`、
-   `AWS_PROFILE=default`、`AWS_REGION=us-west-2`,模型名用 Bedrock inference profile id;
-2. 新建 `~/.claude/tpp.settings.json`(`chmod 600`,含 TPP key):
+1. Keep `~/.claude/settings.json` as the **direct-Bedrock baseline** (full text in
+   `docs/claude-code-config-baseline.md`): `CLAUDE_CODE_USE_BEDROCK=true`,
+   `AWS_PROFILE=default`, `AWS_REGION=us-west-2`, with model names using Bedrock inference profile ids;
+2. Create `~/.claude/tpp.settings.json` (`chmod 600`, contains the TPP key):
 
    ```json
    {
      "env": {
        "CLAUDE_CODE_USE_BEDROCK": "0",
        "ANTHROPIC_BASE_URL": "http://localhost:14000",
-       "ANTHROPIC_AUTH_TOKEN": "<TPP user key,本机复用 TPP_API_KEY 那把 dev-laptop-codex 的 key>",
+       "ANTHROPIC_AUTH_TOKEN": "<TPP user key; this machine reuses the dev-laptop-codex key from TPP_API_KEY>",
        "ANTHROPIC_MODEL": "claude-fable-5",
        "ANTHROPIC_SMALL_FAST_MODEL": "claude-haiku-4-5"
      },
@@ -129,41 +131,41 @@ profile 概念,靠 `--settings <file>` 覆盖层实现(优先级最高,`env` 按
    }
    ```
 
-3. `~/.zshrc` 加别名:`alias claude-tpp='claude --settings ~/.claude/tpp.settings.json'`。
+3. Add an alias to `~/.zshrc`: `alias claude-tpp='claude --settings ~/.claude/tpp.settings.json'`.
 
-- **使用**:`claude` 直连;`claude-tpp` 走 TPP(临时用也可直接
-  `claude --settings ~/.claude/tpp.settings.json`);要改为默认走 TPP,把覆盖层里的
-  `env`/`model` 合进 `settings.json` 并删掉 `AWS_*`;
-- **前提**:LiteLLM 隧道在跑(launchd 守护或 `./scripts/tpp-tunnels.sh`,本地 :14000);
-- **验证走了 TPP**:`claude-tpp -p "reply OK" --output-format json` 的 `modelUsage`
-  键应是 TPP 模型组名(`claude-fable-5`/`claude-haiku-4-5`)而非 `us.anthropic.*`;
-  再看 `/user/info` 的 spend 增长(LiteLLM 落账有约 5~15 s 延迟)或 Langfuse 新 trace;
-- **回滚**:不带别名运行即直连;若 `settings.json` 被改过,
+- **Usage**: `claude` goes direct; `claude-tpp` goes through TPP (for one-off use you can also run
+  `claude --settings ~/.claude/tpp.settings.json` directly). To make TPP the default, merge the overlay's
+  `env`/`model` into `settings.json` and remove the `AWS_*` entries;
+- **Prerequisite**: the LiteLLM tunnel is running (launchd daemon or `./scripts/tpp-tunnels.sh`, local :14000);
+- **Verifying traffic goes through TPP**: in `claude-tpp -p "reply OK" --output-format json`, the `modelUsage`
+  keys should be TPP model group names (`claude-fable-5`/`claude-haiku-4-5`) rather than `us.anthropic.*`;
+  then check that `/user/info` spend grows (LiteLLM accounting lags by about 5~15 s) or look for a new trace in Langfuse;
+- **Rollback**: running without the alias goes direct; if `settings.json` was modified,
   `cp ~/.claude/settings.json.bedrock-backup ~/.claude/settings.json`;
-- 本机用户 quota 为 **$100/天**(fable-5 一次完整问答约 $0.4,重度开发日 $20 不够用);
-- 功能边界:Bedrock 渠道无 Anthropic 服务端 web search(直连时同样没有,非 TPP 引入);
-  Claude Code 的 WebFetch 在本机执行,不受影响。
+- This machine's user quota is **$100/day** (a full fable-5 exchange costs about $0.4; $20 is not enough for a heavy development day);
+- Feature boundary: Bedrock channels have no Anthropic server-side web search (direct Bedrock lacks it too; this is not introduced by TPP);
+  Claude Code's WebFetch runs on the local machine and is unaffected.
 
-**已踩过的坑**:
+**Pitfalls already hit**:
 
-- 覆盖层禁用 Bedrock 必须写 `"CLAUDE_CODE_USE_BEDROCK": "0"`:该类变量按数值解析,
-  `"false"` 不保证生效;
-- 直连基线的 `ANTHROPIC_SMALL_FAST_MODEL` 曾是 `us.anthropic.claude-3-7-sonnet-20250219-v1:0`,
-  该模型已在 Bedrock 下线(ResourceNotFoundException: end of life),表现为 WebFetch 等
-  后台任务报 "issue with the selected model";已改为
-  `us.anthropic.claude-haiku-4-5-20251001-v1:0`。
+- To disable Bedrock in the overlay you must write `"CLAUDE_CODE_USE_BEDROCK": "0"`: this class of variable is
+  parsed numerically, and `"false"` is not guaranteed to take effect;
+- The direct-Bedrock baseline's `ANTHROPIC_SMALL_FAST_MODEL` used to be `us.anthropic.claude-3-7-sonnet-20250219-v1:0`,
+  which has been retired on Bedrock (ResourceNotFoundException: end of life); the symptom was WebFetch and other
+  background tasks reporting "issue with the selected model". It has been changed to
+  `us.anthropic.claude-haiku-4-5-20251001-v1:0`.
 
-### Codex CLI 接入 TPP
+### Codex CLI with TPP
 
-Codex CLI 的渠道配置在 `~/.codex/config.toml`,当前基线是 Bedrock 直连
-(`model = "openai.gpt-5.6-terra"`,`model_provider = "amazon-bedrock"`),
-完整基线备份在仓库 `.codex-backup/`。TPP 侧对应渠道为模型组 `gpt-5.6-terra`
-(Bedrock Mantle `openai.gpt-5.6-terra`,usw2 单渠道,IRSA 鉴权无需 API key)。
+Codex CLI's channel configuration lives in `~/.codex/config.toml`; the current baseline is direct Bedrock
+(`model = "openai.gpt-5.6-terra"`, `model_provider = "amazon-bedrock"`),
+with a full baseline backup in the repo's `.codex-backup/`. The corresponding TPP channel is the model group `gpt-5.6-terra`
+(Bedrock Mantle `openai.gpt-5.6-terra`, single usw2 channel, IRSA auth with no API key needed).
 
-**走 TPP**(Codex ≥ 0.134 的 profile 机制:provider 写在主配置,profile 是独立文件):
+**Going through TPP** (the profile mechanism in Codex >= 0.134: the provider lives in the main config, the profile is a separate file):
 
-1. 在 `~/.codex/config.toml` **追加** provider(不动现有顶层 `model`/`model_provider`,
-   直连配置保留作 fallback):
+1. **Append** the provider to `~/.codex/config.toml` (leave the existing top-level `model`/`model_provider` alone;
+   the direct-Bedrock configuration stays as a fallback):
 
    ```toml
    [model_providers.tpp]
@@ -173,157 +175,157 @@ Codex CLI 的渠道配置在 `~/.codex/config.toml`,当前基线是 Bedrock 直�
    wire_api = "responses"
    ```
 
-2. 新建 `~/.codex/tpp.config.toml`(profile 文件用顶层键,**不要**再写 `[profiles.tpp]` 表):
+2. Create `~/.codex/tpp.config.toml` (profile files use top-level keys; do **not** write a `[profiles.tpp]` table again):
 
    ```toml
    model = "gpt-5.6-terra"
    model_provider = "tpp"
    ```
 
-- **使用**:`export TPP_API_KEY=<TPP key>`(用自己的 user key,不要用 master key,
-  见 quota 章节 `/user/new`)后 `codex --profile tpp`;要改为默认走 TPP,把顶层
-  `model` / `model_provider` 改成 `gpt-5.6-terra` / `tpp`;
-- **前提**:LiteLLM 隧道在跑(launchd 守护或 `./scripts/tpp-tunnels.sh`,本地 :14000);
-- **本地 docker-compose 验证**:`base_url` 换成 `http://localhost:4000/v1`,
-  key 用 local 的 `LITELLM_MASTER_KEY`(模型组同名 `gpt-5.6-terra`);
-- **验证走了 TPP**:发一轮对话后查 `/user/info` 的 spend 增长,或 Langfuse 看新 trace
-  (同 Claude Code 章节);
-- **回滚到 Bedrock 直连**:不带 `--profile` 运行即回落到顶层直连配置;若顶层已改,
-  恢复基线:`cp .codex-backup/config.toml ~/.codex/config.toml`。
+- **Usage**: `export TPP_API_KEY=<TPP key>` (use your own user key, not the master key;
+  see `/user/new` in the quota section), then `codex --profile tpp`. To make TPP the default, change the top-level
+  `model` / `model_provider` to `gpt-5.6-terra` / `tpp`;
+- **Prerequisite**: the LiteLLM tunnel is running (launchd daemon or `./scripts/tpp-tunnels.sh`, local :14000);
+- **Local docker-compose verification**: change `base_url` to `http://localhost:4000/v1` and
+  use the local `LITELLM_MASTER_KEY` as the key (the model group has the same name, `gpt-5.6-terra`);
+- **Verifying traffic goes through TPP**: after one conversation round, check that `/user/info` spend grows, or look for a new trace in Langfuse
+  (same as the Claude Code section);
+- **Rolling back to direct Bedrock**: running without `--profile` falls back to the top-level direct configuration; if the top level was changed,
+  restore the baseline: `cp .codex-backup/config.toml ~/.codex/config.toml`.
 
-**已踩过的坑**(任一项出错 codex 都跑不起来):
+**Pitfalls already hit** (getting any of these wrong prevents codex from starting at all):
 
-- `wire_api` 必须是 `"responses"`:Codex ≥ 0.151 已废弃 `"chat"`,写成 `"chat"` 会导致
-  整个 `config.toml` 解析失败,连不带 `--profile` 的 Bedrock 直连也一起启动不了;
-- 主配置里残留 `[profiles.tpp]` 表时 `--profile tpp` 直接报错,必须迁到独立文件;
-- Codex 默认发 `reasoning.effort = "medium"`(界面显示的 "reasoning effort: none" 指的
-  是摘要项),所以 TPP 渠道必须是 LiteLLM 的 `bedrock_mantle/openai.gpt-5.6-terra` 路由
-  (OpenAI 兼容端点,原生透传 Responses API 与 reasoning)。写成 `bedrock/us.openai.*`
-  会走 Claude 的 converse 转换,把 `reasoning_effort` 译成 `thinking`,Mantle 以
-  `unknown_parameter: thinking` 拒绝;
-- Mantle 是独立 IAM 服务前缀:LiteLLM 的 IRSA role 除 `bedrock:Invoke*/Converse*` 外
-  还需 `bedrock-mantle:CreateInference`(`infra/modules/iam`),缺失时报 `access_denied`;
-- Scorer 的 `ensure_channels` 只按 `model_info.id` 判存在、不会覆盖已注册渠道的
-  `litellm_params`,所以改已有渠道的 `model` 字段要额外用 master key 就地 PATCH:
+- `wire_api` must be `"responses"`: Codex >= 0.151 has deprecated `"chat"`, and writing `"chat"` makes the
+  entire `config.toml` fail to parse, so even direct Bedrock without `--profile` fails to start;
+- If a `[profiles.tpp]` table remains in the main config, `--profile tpp` errors out immediately; it must be moved to the separate file;
+- Codex sends `reasoning.effort = "medium"` by default (the "reasoning effort: none" shown in the UI refers to
+  the summary setting), so the TPP channel must use LiteLLM's `bedrock_mantle/openai.gpt-5.6-terra` route
+  (OpenAI-compatible endpoint with native passthrough of the Responses API and reasoning). Writing `bedrock/us.openai.*`
+  goes through the Claude converse conversion, which translates `reasoning_effort` into `thinking`, and Mantle rejects it with
+  `unknown_parameter: thinking`;
+- Mantle is a separate IAM service prefix: in addition to `bedrock:Invoke*/Converse*`, LiteLLM's IRSA role
+  also needs `bedrock-mantle:CreateInference` (`infra/modules/iam`); without it you get `access_denied`;
+- Scorer's `ensure_channels` only checks existence by `model_info.id` and never overwrites the
+  `litellm_params` of already-registered channels, so changing an existing channel's `model` field requires an in-place PATCH with the master key:
   `curl -X PATCH :14000/model/<id>/update -d '{"litellm_params":{"model":"..."}}'`,
-  再用 `/model/info` 确认。
+  then confirm via `/model/info`.
 
-## 日常操作
+## Routine Operations
 
-**加/改渠道**:编辑 `apps/values/scorer-channels.yaml` → `cd apps && terraform apply`
-(ConfigMap 哈希变化触发 Scorer 与 Dashboard 重启,Scorer 启动时幂等注册新渠道,Dashboard 渠道表随之多出新行;
-新渠道从冷启动分 0.5 + 保底流量爬坡)。
+**Adding/changing channels**: edit `apps/values/scorer-channels.yaml` -> `cd apps && terraform apply`
+(the ConfigMap hash change triggers Scorer and Dashboard restarts; Scorer idempotently registers new channels at startup, and the Dashboard channel table gains the new rows;
+new channels ramp up from the cold-start score of 0.5 plus the traffic floor).
 
-### TPP Dashboard(统一入口)
+### TPP Dashboard (unified portal)
 
-日常巡检从 http://localhost:3020 开始,页面每 30 秒自动刷新,四个区块自上而下:
+Daily checks start at http://localhost:3020; the page auto-refreshes every 30 seconds, with four sections top to bottom:
 
-| 区块 | 看什么 | 数据来源 |
+| Section | What to look at | Data source |
 |---|---|---|
-| KPI 卡片 | 近 24h 总消费与 tokens;所选窗口内请求数、错误数、错误率;熔断渠道数 / 总渠道数;配额总额与用户数 | 下方两表的汇总 |
-| 用户配额 | 每人本期已消费、剩余、重置时间、日配额;**日配额单元格可直接编辑,回车写回**,按消费降序 | LiteLLM `/user/list`,写回 `/user/update` |
-| 渠道消费 · 健康度 · 权重 | 每条渠道近 24h 消费、输入 / 输出 tokens、缓存命中率;健康徽章;Scorer 质量分与权重 | Prometheus `litellm_*` / `scorer_*` |
-| 渠道稳定性与性能 | 每条渠道窗口内请求数;TTFT / TPOT / E2E / TPS 的 p50 / p90 / p99;错误次数、错误率、按 `exception_class` 分类 | Prometheus 直方图 |
+| KPI cards | Total spend and tokens over the last 24h; request count, error count, and error rate in the selected window; circuit-open channels / total channels; total quota and user count | Aggregated from the two tables below |
+| User quotas | Each user's spend this period, remaining budget, reset time, daily quota; **the daily-quota cell is editable in place, press Enter to write back**; sorted by spend descending | LiteLLM `/user/list`, written back via `/user/update` |
+| Channel spend / health / weights | Each channel's spend over the last 24h, input/output tokens, cache hit rate; health badge; Scorer quality score and weight | Prometheus `litellm_*` / `scorer_*` |
+| Channel stability and performance | Per-channel request count in the window; p50 / p90 / p99 of TTFT / TPOT / E2E / TPS; error count, error rate, broken down by `exception_class` | Prometheus histograms |
 
-读数说明:
+Reading the numbers:
 
-- **统计窗口**:右上角 15m / 1h / 6h / 24h / 7d 只影响性能与错误;消费与 tokens 固定看近 24h(费用按日粒度)。
-  窗口内无成功请求的渠道,分位数显示为空,不是故障。
-- **健康徽章**优先级:熔断(`scorer_circuit_open=1`)> 异常(`litellm_deployment_state=2`)> 部分异常(`=1`)> 健康。
-  同一渠道多副本取最差值。熔断的处置见[告警响应](#告警响应)的 `TPPChannelCircuitOpen`。
-- **缓存命中率** = 缓存读 / (普通输入 + 缓存读 + 缓存写),近 24h;双 region 分流会压低该值,原因与取舍见 [ADR-009](ADR.md)。
-- **TPS** 由 TPOT 分位数换算(1 / TPOT),p99 TPS 表示"最慢 1% 请求的解码吞吐",不是峰值吞吐。
-- **渠道行**以 `scorer-channels.yaml` 注册表为准,无流量的渠道也会显示,只是数值为空或 0。
-- 顶部四个按钮跳转 LiteLLM UI / Grafana / Langfuse / Prometheus,默认指向本地隧道端口;
-  部署时可用环境变量 `LINK_LITELLM` / `LINK_GRAFANA` / `LINK_LANGFUSE` / `LINK_PROMETHEUS` 覆盖。
+- **Stats window**: the 15m / 1h / 6h / 24h / 7d selector in the top right only affects performance and errors; spend and tokens always show the last 24h (costs are at daily granularity).
+  A channel with no successful requests in the window shows empty percentiles; that is not a failure.
+- **Health badge** priority: circuit open (`scorer_circuit_open=1`) > unhealthy (`litellm_deployment_state=2`) > partially unhealthy (`=1`) > healthy.
+  Multiple replicas of the same channel take the worst value. For handling circuit-open channels, see `TPPChannelCircuitOpen` under [Alert Response](#alert-response).
+- **Cache hit rate** = cache reads / (plain input + cache reads + cache writes), over the last 24h; dual-region traffic splitting depresses this value -- for the reasoning and trade-offs see [ADR-009](ADR.md).
+- **TPS** is derived from the TPOT percentiles (1 / TPOT); p99 TPS means "decode throughput of the slowest 1% of requests", not peak throughput.
+- **Channel rows** follow the `scorer-channels.yaml` registry; channels with no traffic still appear, just with empty or 0 values.
+- The four buttons at the top link to LiteLLM UI / Grafana / Langfuse / Prometheus, pointing at the local tunnel ports by default;
+  at deploy time they can be overridden with the environment variables `LINK_LITELLM` / `LINK_GRAFANA` / `LINK_LANGFUSE` / `LINK_PROMETHEUS`.
 
-排障:
+Troubleshooting:
 
-- 页面报 `overview 502`:Prometheus 不可达或查询失败,`kubectl logs -n dashboard deploy/dashboard`;
-- 用户表为空或报 `litellm /user/list: 401`:master key 已轮转而 `dashboard-env` 未刷新(ExternalSecret 为 1h),
-  `kubectl annotate externalsecret -n dashboard dashboard-env force-sync=$(date +%s) --overwrite` 后重启 Pod;
-- 改配额报 `user not found`:Dashboard 只更新已存在的用户,新用户先按下文 `/user/new` 创建;
-- 用户列表最多显示 100 人(`/user/list` 单页),超过需改后端分页。
+- Page shows `overview 502`: Prometheus is unreachable or the query failed; `kubectl logs -n dashboard deploy/dashboard`;
+- User table is empty or shows `litellm /user/list: 401`: the master key was rotated but `dashboard-env` has not refreshed (its ExternalSecret interval is 1h);
+  run `kubectl annotate externalsecret -n dashboard dashboard-env force-sync=$(date +%s) --overwrite` and restart the Pod;
+- Editing a quota reports `user not found`: the Dashboard only updates existing users; create new users first with `/user/new` as described below;
+- The user list shows at most 100 users (single `/user/list` page); beyond that the backend needs pagination.
 
-**升级 Dashboard**:改 `services/dashboard/pyproject.toml` 的 version,构建推送新 tag(命令见 README 部署 §4),
-再改 `apps/tpp-dashboard.tf` 的 `dashboard_image_tag` → `cd apps && terraform apply`。
+**Upgrading the Dashboard**: bump the version in `services/dashboard/pyproject.toml`, build and push a new tag (commands in README deployment section 4),
+then change `dashboard_image_tag` in `apps/tpp-dashboard.tf` -> `cd apps && terraform apply`.
 
-### Per-user quota(USD/天)
+### Per-user quota (USD/day)
 
-前置:`export MASTER_KEY=$(cd apps && terraform output -raw litellm_master_key)`
-(隧道守护在线即可,无需手动 port-forward)。
+Prerequisite: `export MASTER_KEY=$(cd apps && terraform output -raw litellm_master_key)`
+(having the tunnel daemon online is enough; no manual port-forward needed).
 
-**Dashboard 方式(推荐,改额度)**:http://localhost:3020 → 用户配额表 → 直接编辑"日配额"单元格。
-写回时固定 `budget_duration=1d`;只能改已存在的用户,建新用户用下面的 UI 或 API 方式。
+**Dashboard method (recommended for changing quotas)**: http://localhost:3020 -> user quota table -> edit the "daily quota" cell directly.
+Writes back with a fixed `budget_duration=1d`; it can only modify existing users -- create new users via the UI or API methods below.
 
-**UI 方式**:http://localhost:14000/ui → **Internal Users**:Create User 时填 Max Budget(USD)+
-Budget Duration(`1d` = 每日重置);列表页直接显示每人 Spend / Max Budget;点用户可 Edit 改额度。
+**UI method**: http://localhost:14000/ui -> **Internal Users**: when creating a user, fill in Max Budget (USD) +
+Budget Duration (`1d` = daily reset); the list page shows each user's Spend / Max Budget; click a user to Edit the quota.
 
-**API 方式**:
+**API method**:
 
 ```bash
-# 建用户并分配每日 quota(返回的 "key" 交给用户)
+# Create a user and assign a daily quota (hand the returned "key" to the user)
 curl -s http://localhost:14000/user/new -H "Authorization: Bearer $MASTER_KEY" \
   -H "Content-Type: application/json" \
   -d '{"user_id":"alice","max_budget":10.0,"budget_duration":"1d"}'
 
-# 查看 quota 与已消费(关注 spend / max_budget / budget_reset_at)
+# View quota and spend so far (watch spend / max_budget / budget_reset_at)
 curl -s "http://localhost:14000/user/info?user_id=alice" -H "Authorization: Bearer $MASTER_KEY"
 
-# 修改额度
+# Change the quota
 curl -s http://localhost:14000/user/update -H "Authorization: Bearer $MASTER_KEY" \
   -H "Content-Type: application/json" -d '{"user_id":"alice","max_budget":20.0}'
 
-# 列出所有用户
+# List all users
 curl -s "http://localhost:14000/user/list" -H "Authorization: Bearer $MASTER_KEY"
 ```
 
-quota 按实际 USD spend 实时扣减(LiteLLM 内置价格表折算,无需预折算 token 数),超额返回
-429 `budget_exceeded`,到期自动重置。每人当前消费 / 剩余 / 重置时间看 TPP Dashboard 用户配额表;
-全局消耗趋势看 Grafana TPP Overview 的"用户剩余预算" 与 "Spend (24h)" 面板。另有 team 级(`/team/new`,共享预算)和 key 级限额可叠加。
+Quota is deducted in real time based on actual USD spend (converted via LiteLLM's built-in price table -- no need to pre-convert token counts). Exceeding it returns
+429 `budget_exceeded`, and it resets automatically when the period expires. Each user's current spend / remaining budget / reset time is in the TPP Dashboard user quota table;
+global consumption trends are in the "User Remaining Budget (USD)" and "Spend (24h, USD)" panels of the Grafana TPP Overview. There are also team-level (`/team/new`, shared budget) and key-level limits that can be stacked.
 
-### 查看渠道质量分 / 权重
+### Viewing Channel Quality Scores / Weights
 
-四个入口:
+Four entry points:
 
-1. **TPP Dashboard(推荐,看当前值)**:http://localhost:3020 → "渠道消费 · 健康度 · 权重"表,
-   每条渠道的质量分、权重、熔断状态一行看全;
-2. **Grafana(看趋势)**:TPP Overview → "渠道质量分(EWMA)"(`scorer_quality_score`,0~1)
-   和 "渠道权重(Scorer 分配)" 两个面板对照看;
-3. **Prometheus 即席查询**:`scorer_quality_score`、`scorer_weight`、`scorer_circuit_open`
-   (label:`model_group` / `model_id`);
-4. **命令行**:
+1. **TPP Dashboard (recommended, current values)**: http://localhost:3020 -> "Channel spend / health / weights" table;
+   each channel's quality score, weight, and circuit state is visible in a single row;
+2. **Grafana (trends)**: TPP Overview -> the "Channel Quality Score (EWMA)" (`scorer_quality_score`, 0~1)
+   and "Channel Weights (Scorer-assigned)" panels, viewed side by side;
+3. **Prometheus ad-hoc queries**: `scorer_quality_score`, `scorer_weight`, `scorer_circuit_open`
+   (labels: `model_group` / `model_id`);
+4. **Command line**:
    ```bash
    kubectl port-forward -n scorer svc/scorer 9100:9100 &
    curl -s http://localhost:9100/metrics | grep -E "^scorer_(quality_score|weight|circuit)"
-   kubectl logs -n scorer deploy/scorer | grep "weights updated"   # 调权历史
+   kubectl logs -n scorer deploy/scorer | grep "weights updated"   # weight-adjustment history
    ```
 
-读数说明:分数 = 0.35×延迟分 + 0.65×错误分,EWMA 平滑(时间常数约 3 分钟);
-窗口内请求数 <10 的渠道不更新分数(小样本保护),无流量的组保持冷启动分 0.5、权重 50/50 是设计行为。
-完整公式见下文 [Scorer 打分算法](#scorer-打分算法)。
+Reading the numbers: score = 0.35 x latency score + 0.65 x error score, EWMA-smoothed (time constant about 3 minutes);
+channels with fewer than 10 requests in the window do not get score updates (small-sample protection), and groups with no traffic keeping the cold-start score of 0.5 and a 50/50 weight split is by design.
+Full formulas are below in [Scorer Scoring Algorithm](#scorer-scoring-algorithm).
 
-### 调整打分参数
+### Tuning Scoring Parameters
 
-所有参数都是环境变量(定义:`services/scorer/scorer/config.py`),
-改法:在 `apps/scorer.tf` 的 scorer container 里加 `env` 块 → `cd apps && terraform apply`。
-Pod 滚动重启后下一个周期(60s 内)生效;**EWMA 状态在 Redis,重启不丢**。
+All parameters are environment variables (defined in `services/scorer/scorer/config.py`).
+To change one: add an `env` block to the scorer container in `apps/scorer.tf` -> `cd apps && terraform apply`.
+It takes effect in the next cycle (within 60s) after the Pod rolling restart; **EWMA state lives in Redis and survives restarts**.
 
-| 环境变量 | 默认 | 作用 / 调大的效果 |
+| Environment variable | Default | Purpose / effect of increasing it |
 |---|---|---|
-| `W_LAT` / `W_ERR` | 0.35 / 0.65 | 延迟分/错误分权重(和=1);W_LAT 大 → 更看重速度 |
-| `ALPHA` | 0.3 | EWMA 平滑;大 → 反应快但易抖动 |
-| `GAMMA` | 2.0 | 分差放大;大 → 好坏渠道流量差距更悬殊 |
-| `K_ERR` | 8.0 | 错误惩罚陡度(默认 ê=8.6% 时分数掉一半) |
-| `W_FLOOR` | 0.05 | 低分渠道保底流量(探索样本 vs 浪费流量的权衡) |
-| `MIN_SAMPLES` | 10 | 窗口内最少请求数,低于则不更新分数 |
-| `HYSTERESIS` | 0.02 | 权重变化超过该值才写回 LiteLLM |
-| `INTERVAL_SECONDS` / `WINDOW` | 60 / 5m | 打分周期 / 指标观察窗口 |
-| `CIRCUIT_ERR_THRESHOLD` | 0.5 | 熔断触发的加权错误率 |
-| `CIRCUIT_RECOVERY_ROUNDS` / `CIRCUIT_RECOVERY_ERR` | 3 / 0.1 | 恢复条件:连续 N 轮错误率低于阈值 |
-| `DEFAULT_Q` | 0.5 | 新渠道冷启动分 |
+| `W_LAT` / `W_ERR` | 0.35 / 0.65 | Latency/error score weights (sum = 1); larger W_LAT -> speed matters more |
+| `ALPHA` | 0.3 | EWMA smoothing; larger -> faster reaction but more jitter |
+| `GAMMA` | 2.0 | Score-gap amplification; larger -> a wider traffic gap between good and bad channels |
+| `K_ERR` | 8.0 | Steepness of the error penalty (at the default, the score halves at an error rate of 8.6%) |
+| `W_FLOOR` | 0.05 | Traffic floor for low-scoring channels (trade-off between exploration samples and wasted traffic) |
+| `MIN_SAMPLES` | 10 | Minimum requests in the window; below this the score is not updated |
+| `HYSTERESIS` | 0.02 | Weights are written back to LiteLLM only when the change exceeds this value |
+| `INTERVAL_SECONDS` / `WINDOW` | 60 / 5m | Scoring interval / metrics observation window |
+| `CIRCUIT_ERR_THRESHOLD` | 0.5 | Weighted error rate that trips the circuit breaker |
+| `CIRCUIT_RECOVERY_ROUNDS` / `CIRCUIT_RECOVERY_ERR` | 3 / 0.1 | Recovery condition: error rate below the threshold for N consecutive rounds |
+| `DEFAULT_Q` | 0.5 | Cold-start score for new channels |
 
-示例(更看重延迟、反应更快):
+Example (weigh latency more, react faster):
 
 ```hcl
 env { name = "W_LAT"  value = "0.5" }
@@ -331,110 +333,110 @@ env { name = "W_ERR"  value = "0.5" }
 env { name = "ALPHA"  value = "0.5" }
 ```
 
-注意:
-- **错误严重性映射**(Timeout=3.0、429=1.5、其它 4xx=0.5)在代码里(`config.py` 的 `SEVERITY`),
-  改动需重建镜像:
+Notes:
+- The **error severity mapping** (Timeout=3.0, 429=1.5, other 4xx=0.5) is in code (`SEVERITY` in `config.py`);
+  changing it requires rebuilding the image:
   ```bash
   cd services/scorer && docker buildx build --platform linux/amd64 \
     -t <aws account>.dkr.ecr.us-west-2.amazonaws.com/tpp/scorer:0.1.0 --push .
   kubectl rollout restart deploy/scorer -n scorer
   ```
-- 调参后观察 Grafana "渠道权重" 面板 15–30 分钟,曲线来回震荡说明 `ALPHA`/`GAMMA` 过激;
-  `ALPHA` 调大时建议同步调大 `HYSTERESIS` 压制抖动。
+- After tuning, watch the Grafana "Channel Weights" panel for 15-30 minutes; if the curves oscillate back and forth, `ALPHA`/`GAMMA` are too aggressive.
+  When increasing `ALPHA`, also increase `HYSTERESIS` to suppress jitter.
 
-**暂停智能调度**(权重冻结在当前值,不影响请求):
+**Pausing smart routing** (weights freeze at their current values; requests are unaffected):
 ```bash
 kubectl scale deploy/scorer -n scorer --replicas=0
 ```
 
-**手动改某渠道权重**(临时干预;下轮 Scorer 会覆盖,先暂停 Scorer):
+**Manually changing a channel's weight** (temporary intervention; the next Scorer round will overwrite it, so pause Scorer first):
 ```bash
 curl -X PATCH http://localhost:14000/model/<channel-id>/update \
   -H "Authorization: Bearer $MASTER_KEY" -H "Content-Type: application/json" \
   -d '{"litellm_params": {"weight": 0}}'
 ```
 
-**省钱开关(下班停 dev 环境)**:
+**Cost-saving switch (stop the dev environment after hours)**:
 ```bash
-# 停:节点缩 0 + 停 RDS(ElastiCache/EKS 控制面无法停,~$85/月底座)
+# Stop: scale nodes to 0 + stop RDS (ElastiCache and the EKS control plane cannot be stopped; ~$85/month floor)
 aws eks update-nodegroup-config --cluster-name tpp-dev --nodegroup-name <ng> \
   --scaling-config minSize=0,maxSize=5,desiredSize=0 --region us-west-2
 aws rds stop-db-instance --db-instance-identifier tpp-dev --region us-west-2
-# 起:反向操作(RDS 自动停最多 7 天后会自启)
+# Start: reverse the above (a stopped RDS auto-starts after at most 7 days)
 ```
 
-## RDS 凭证轮转与自动恢复
+## RDS Credential Rotation and Automatic Recovery
 
-RDS 通过 `manage_master_user_password=true` 托管 PostgreSQL 主密码;AWS 每 **7 天**轮转一次。
-**7 天是密码轮转周期,不是平台恢复时间。**
+RDS manages the PostgreSQL master password via `manage_master_user_password=true`; AWS rotates it every **7 days**.
+**7 days is the password rotation period, not the platform recovery time.**
 
 ```text
-RDS/Secrets Manager 密码轮转
-        ↓(最多 5 分钟)
-External Secrets 刷新 litellm-env / langfuse-postgres
-        ↓(Secret data 变化)
-Stakater Reloader 检测变化
-        ↓(RollingUpdate)
-LiteLLM、Langfuse Web、Langfuse Worker 使用新密码启动
+RDS/Secrets Manager password rotation
+        ↓ (up to 5 minutes)
+External Secrets refreshes litellm-env / langfuse-postgres
+        ↓ (Secret data changes)
+Stakater Reloader detects the change
+        ↓ (RollingUpdate)
+LiteLLM, Langfuse Web, and Langfuse Worker start with the new password
 ```
 
-| 项 | 实现 |
+| Item | Implementation |
 |---|---|
-| 密码来源 | RDS 托管的 Secrets Manager secret |
-| 同步频率 | `litellm-env`、`langfuse-postgres` 的 ESO `refreshInterval` 均为 **5m** |
-| 自动重启 | `reloader` chart 固定 `2.2.16`,全局监听 Secret 变化;LiteLLM、Langfuse Web、Langfuse Worker 都带 `reloader.stakater.com/auto: "true"` |
-| 最大凭证发现延迟 | 约 5 分钟,之后等待一次常规 RollingUpdate 完成;无需人工 `kubectl rollout restart` |
-| LiteLLM 密钥 Secret | `litellm-env` |
-| Langfuse 密钥 Secret | `langfuse-postgres` |
+| Password source | RDS-managed Secrets Manager secret |
+| Sync frequency | ESO `refreshInterval` for both `litellm-env` and `langfuse-postgres` is **5m** |
+| Automatic restart | `reloader` chart pinned to `2.2.16`, watching Secret changes globally; LiteLLM, Langfuse Web, and Langfuse Worker all carry `reloader.stakater.com/auto: "true"` |
+| Maximum credential discovery delay | About 5 minutes, then one regular RollingUpdate to complete; no manual `kubectl rollout restart` needed |
+| LiteLLM secrets Secret | `litellm-env` |
+| Langfuse secrets Secret | `langfuse-postgres` |
 
-Langfuse 的 RDS 密码可能包含 `@`、`:`、`/`、`%`、`#`、`?` 等 URI 保留字符。`langfuse-postgres`
-ExternalSecret 会同时生成 URL-encoded 的 `database_url`,并以 `DATABASE_URL` / `DIRECT_URL` 注入
-Web 与 Worker,避免 Prisma `P1013 invalid port number` 错误。不能只把原始密码交给 chart 的 `DATABASE_PASSWORD`。
+Langfuse's RDS password may contain URI-reserved characters such as `@`, `:`, `/`, `%`, `#`, `?`. The `langfuse-postgres`
+ExternalSecret also generates a URL-encoded `database_url` and injects it as `DATABASE_URL` / `DIRECT_URL` into
+Web and Worker, avoiding the Prisma `P1013 invalid port number` error. You cannot just hand the raw password to the chart's `DATABASE_PASSWORD`.
 
-排障要点:
+Troubleshooting essentials:
 
-- 轮转后 LiteLLM 起不来:`kubectl get externalsecret -n litellm litellm-env`,看 `SecretSynced` 状态与最近同步时间;
-  若 ESO 已同步但 Pod 未重启,查 `kubectl logs -n kube-system deploy/reloader-reloader`;
-- 手动加速:`kubectl annotate externalsecret -n litellm litellm-env force-sync=$(date +%s) --overwrite` 触发立即同步;
-- 变更清单与验证记录见 [`rds-rotation-recovery-changes.md`](rds-rotation-recovery-changes.md);设计取舍见 [ADR-001](ADR.md)。
+- LiteLLM fails to start after rotation: `kubectl get externalsecret -n litellm litellm-env`, check the `SecretSynced` status and last sync time;
+  if ESO has synced but the Pod has not restarted, check `kubectl logs -n kube-system deploy/reloader-reloader`;
+- Manual acceleration: `kubectl annotate externalsecret -n litellm litellm-env force-sync=$(date +%s) --overwrite` triggers an immediate sync;
+- The change list and verification record are in [`rds-rotation-recovery-changes.md`](rds-rotation-recovery-changes.md); design trade-offs in [ADR-001](ADR.md).
 
-## Scorer 打分算法
+## Scorer Scoring Algorithm
 
-评分对象:LiteLLM deployment,即 **(渠道, 模型) 二元组**,只在同一模型组内互比。
-每 60s 一轮,取 Prometheus 过去 5 分钟窗口。参数的环境变量名与调整方法见上文[调整打分参数](#调整打分参数);
-设计取舍与已知缺口见 [ADR-005 / ADR-006](ADR.md)。
+Scoring target: a LiteLLM deployment, i.e. a **(channel, model) pair**; comparisons happen only within the same model group.
+One round every 60s, over the Prometheus window of the past 5 minutes. Parameter environment variable names and how to tune them are above in [Tuning Scoring Parameters](#tuning-scoring-parameters);
+design trade-offs and known gaps are in [ADR-005 / ADR-006](ADR.md).
 
-### 符号定义
+### Symbol Definitions
 
-| 符号 | 来源 | 含义 |
+| Symbol | Origin | Meaning |
 |------|------|------|
-| `d` | deployment | 被评分的 deployment,即(渠道, 模型)二元组 |
-| `j` | — | 求和下标,遍历与 `d` 同模型组内的所有 deployment |
-| `cat` | category | 错误类别,取值见下方严重性系数表 |
-| `lat(d)` | latency | `d` 在窗口内的端到端(E2E)p90 延迟 |
-| `lat_best` | latency, best | 同模型组内最小的 p90 延迟,即组内最快者的延迟 |
-| `req(d)` | requests | `d` 在窗口内的请求总数 |
-| `err(d, cat)` | errors | `d` 在窗口内类别为 `cat` 的错误数 |
-| `sev(cat)` | severity | 错误类别 `cat` 的严重性系数 |
-| `err_rate(d)` | error rate | `d` 的加权错误率 |
-| `score_lat(d)` | score, latency | 延迟单项得分,取值范围 [0, 1] |
-| `score_err(d)` | score, error | 错误单项得分,取值范围 (0, 1] |
-| `q_raw(d)` | quality, raw | 本轮的原始质量分 |
-| `q(d, t)` | quality | 第 `t` 轮 EWMA 平滑后的质量分;新渠道冷启动初始值 0.5 |
-| `gamma` | γ | 权重放大指数,取 2,用于放大组内分差 |
-| `weight(d)` | weight | 写回 LiteLLM 的路由权重 |
+| `d` | deployment | The deployment being scored, i.e. a (channel, model) pair |
+| `j` | -- | Summation index, ranging over all deployments in the same model group as `d` |
+| `cat` | category | Error category; values are in the severity coefficient table below |
+| `lat(d)` | latency | End-to-end (E2E) p90 latency of `d` within the window |
+| `lat_best` | latency, best | The smallest p90 latency in the model group, i.e. the latency of the fastest member |
+| `req(d)` | requests | Total requests of `d` within the window |
+| `err(d, cat)` | errors | Number of errors of category `cat` for `d` within the window |
+| `sev(cat)` | severity | Severity coefficient of error category `cat` |
+| `err_rate(d)` | error rate | Weighted error rate of `d` |
+| `score_lat(d)` | score, latency | Latency component score, range [0, 1] |
+| `score_err(d)` | score, error | Error component score, range (0, 1] |
+| `q_raw(d)` | quality, raw | Raw quality score for this round |
+| `q(d, t)` | quality | EWMA-smoothed quality score at round `t`; cold-start initial value for new channels is 0.5 |
+| `gamma` | γ | Weight amplification exponent, set to 2, used to amplify score gaps within the group |
+| `weight(d)` | weight | Routing weight written back to LiteLLM |
 
-### 严重性系数
+### Severity Coefficients
 
-| 错误类别 `cat` | 严重性系数 `sev(cat)` |
+| Error category `cat` | Severity coefficient `sev(cat)` |
 |------|------|
-| 5xx / Timeout / 连接错误 | 3.0 |
-| 429(限流) | 1.5 |
-| 其它 4xx | 0.5 |
+| 5xx / Timeout / connection errors | 3.0 |
+| 429 (rate limiting) | 1.5 |
+| Other 4xx | 0.5 |
 
-### 计算公式
+### Formulas
 
-**加权错误率**(分母取 max 防止除零):
+**Weighted error rate** (denominator takes max to avoid division by zero):
 
 ```
                 ∑  sev(cat) × err(d, cat)
@@ -443,7 +445,7 @@ err_rate(d) = ──────────────────────
                     max(req(d), 1)
 ```
 
-**单轮得分**(组内最快者 `score_lat = 1`;`err_rate = 8.6%` 时 `score_err` 降至 0.5):
+**Per-round scores** (the fastest member of the group gets `score_lat = 1`; at `err_rate = 8.6%`, `score_err` drops to 0.5):
 
 ```
                      ⎛ lat_best          ⎞
@@ -453,19 +455,19 @@ score_lat(d) = clamp ⎜ ──────── , 0 , 1  ⎟
 score_err(d) = exp( −8 × err_rate(d) )
 ```
 
-**原始质量分**(错误权重高于延迟):
+**Raw quality score** (errors weigh more than latency):
 
 ```
 q_raw(d) = 0.35 × score_lat(d) + 0.65 × score_err(d)
 ```
 
-**EWMA 平滑**(时间常数约 3 分钟):
+**EWMA smoothing** (time constant about 3 minutes):
 
 ```
 q(d, t) = 0.3 × q_raw(d) + 0.7 × q(d, t−1)
 ```
 
-**路由权重**(组内按质量分的 gamma 次幂归一化,gamma = 2):
+**Routing weight** (normalized within the group by the gamma-th power of the quality score, gamma = 2):
 
 ```
                 q(d)^gamma
@@ -474,49 +476,56 @@ weight(d) = ─────────────────
              j
 ```
 
-随后施加探索保底:`weight(d) ← max(weight(d), 0.05)`,再重新归一化,防止低分渠道死锁。
+Then the exploration floor is applied: `weight(d) ← max(weight(d), 0.05)`, followed by re-normalization, to prevent low-scoring channels from deadlocking.
 
-### 运行规则
+### Operating Rules
 
-| 环节 | 规则 |
+| Stage | Rule |
 |------|------|
-| 小样本保护 | `req(d) < 10` 时跳过本轮更新,沿用旧分 |
-| 熔断 | `err_rate(d) > 0.5` 且 severe 类(5xx/Timeout/连接错误)主导时,置 `weight(d) = 0`(优先于探索保底) |
-| 恢复 | 设计为连续 3 轮 `err_rate(d) < 0.1` 后关闭熔断;**当前实现有缺口**:权重 0 的渠道拿不到样本,状态机不再评估,需人工干预,详见 [ADR-006 §6.3](ADR.md) |
-| 写回 | 组内任一权重变化超过 2 个百分点才调用 LiteLLM `/model/update`(迟滞防抖) |
-| 降级 | Prometheus / LiteLLM API 不可用时,权重冻结并告警(Scorer 不在请求路径上) |
-| 状态持久化 | EWMA 分数存 Redis(`scorer:score:<channel_id>`),重启无损 |
-| 部署形态 | 单副本 Deployment(非 CronJob),自身导出 `scorer_quality_score` / `scorer_weight` / `scorer_last_success_timestamp` 指标 |
+| Small-sample protection | When `req(d) < 10`, skip this round's update and keep the old score |
+| Circuit breaking | When `err_rate(d) > 0.5` and severe categories (5xx/Timeout/connection errors) dominate, set `weight(d) = 0` (takes precedence over the exploration floor) |
+| Recovery | Designed to close the circuit after 3 consecutive rounds of `err_rate(d) < 0.1`; **the current implementation has a gap**: a channel with weight 0 gets no samples, the state machine stops evaluating it, and manual intervention is required -- see [ADR-006 §6.3](ADR.md) |
+| Write-back | LiteLLM `/model/update` is called only when any weight in the group changes by more than 2 percentage points (hysteresis debouncing) |
+| Degradation | When Prometheus / the LiteLLM API is unavailable, weights freeze and an alert fires (Scorer is not on the request path) |
+| State persistence | EWMA scores are stored in Redis (`scorer:score:<channel_id>`); restarts are lossless |
+| Deployment form | Single-replica Deployment (not a CronJob); it exports the `scorer_quality_score` / `scorer_weight` / `scorer_last_success_timestamp` metrics itself |
 
-## 告警响应
+## Alert Response
 
-| 告警 | 含义 | 处置 |
+| Alert | Meaning | Response |
 |---|---|---|
-| TPPScorerStale | Scorer >5min 未成功打分,权重冻结 | `kubectl logs -n scorer deploy/scorer`;常见:Prometheus 不可达、LiteLLM API 401(master key 轮转后 ExternalSecret 未刷新) |
-| TPPLiteLLMHighErrorRate | 整体错误率 >10% | 先看 TPP Dashboard "渠道稳定性与性能"表的错误分类定位渠道(窗口切 15m);单渠道故障应已被熔断,若是全渠道则查 Bedrock 服务状态/IAM |
-| TPPLiteLLMDown | proxy 全副本失联 | `kubectl get pods -n litellm`;查 RDS(litellm 启动强依赖 DB)与最近 apply |
-| TPPChannelCircuitOpen | 渠道被熔断 >5min | TPP Dashboard 健康徽章显示"熔断";当前实现**不会自动恢复**(见 [ADR-006 §6.3](ADR.md)):先查该 region 的 Bedrock 配额/健康,确认恢复后暂停 Scorer、手动把该渠道权重改回非 0 并清 Redis `scorer:circuit:<id>`,再恢复 Scorer |
+| TPPScorerStale | Scorer has not scored successfully for >5min; weights are frozen | `kubectl logs -n scorer deploy/scorer`; common causes: Prometheus unreachable, LiteLLM API 401 (ExternalSecret not refreshed after master key rotation) |
+| TPPLiteLLMHighErrorRate | Overall error rate >10% | First check the error breakdown in the TPP Dashboard "Channel stability and performance" table to locate the channel (switch the window to 15m); a single-channel failure should already be circuit-broken -- if all channels are affected, check Bedrock service status/IAM |
+| TPPLiteLLMDown | All proxy replicas unreachable | `kubectl get pods -n litellm`; check RDS (litellm has a hard startup dependency on the DB) and the most recent apply |
+| TPPChannelCircuitOpen | A channel has been circuit-open for >5min | The TPP Dashboard health badge shows "circuit open"; the current implementation **does not recover automatically** (see [ADR-006 §6.3](ADR.md)): first check that region's Bedrock quotas/health, and once confirmed recovered, pause Scorer, manually set the channel's weight back to non-zero and clear Redis `scorer:circuit:<id>`, then resume Scorer |
 
-## 已知事项 / 陷阱
+## Known Issues / Gotchas
 
-- **渠道定义只在 scorer-channels.yaml**,LiteLLM config 的 model_list 故意为空
-  (静态 config 模型无法被 Management API 调权)。不要在 LiteLLM UI 里手工加模型,会绕开注册表。
-- Langfuse 是 v4(OTel-native):LiteLLM callback 必须用 `langfuse_otel`,旧 `langfuse` callback 会 400。
-- 单节点 ClickHouse 必须 `clickhouse.cluster.enabled=false`,否则迁移要求 Keeper。
-- apps 层首次部署需两段 apply(CRD 时序),见 apps/README.md。
-- `/metrics` 受认证保护,ServiceMonitor 用 master key Bearer 抓取;轮转 master key 要同步等 ExternalSecret 刷新(`litellm-env` 现为 5m,`dashboard-env` 仍为 1h)或手动触发。
-  Dashboard 与 Scorer 都持有 master key 调 Management API,轮转后两者会 401,表现为 Dashboard 用户表为空、`TPPScorerStale` 告警。
-- **TPP Dashboard 无自身认证**,安全前提是不暴露 Ingress、只经隧道访问;它持有 master key 且能改配额,
-  不要把 3020 端口转发到局域网或公网。上 ALB 前必须先补 OIDC(`docs/scaling-500-users.md` §9)。
-- Dashboard 依赖 Prometheus 的 `model_id` / `exception_class` / `le` label 与 `scorer-channels.yaml` 注册表;
-  降基数或改注册表格式时要一起回归。
-- TTFT 指标仅流式请求产生;TPOT 用 `litellm_deployment_latency_per_output_token`。
-- **launchd 无法执行 `~/Documents` 下的脚本**(macOS TCC,报 `Operation not permitted`),
-  隧道脚本必须用 `~/.local/bin/` 下的副本;**改仓库脚本后要 `cp` 同步过去并重启服务**。
-- **本地 LiteLLM 端口是 14000**(从 4000 迁移而来,4000 让给了本机其他应用);
-  `14000:4000` 中右侧 4000 是 pod 容器端口,平台侧从未变更。
-- 手动/守护的 port-forward 会互抢端口:隧道脚本启动时会 pkill 接管同类进程;
-  排查端口冲突用 `lsof -nP -iTCP:<port> -sTCP:LISTEN` 看属主。
-- Claude Code 直连 Bedrock 的基线配置备份:`~/.claude/settings.json.bedrock-backup`
-  与 `docs/claude-code-config-baseline.md`,回滚见"Claude Code 接入 TPP"章节。
+- **Channel definitions live only in scorer-channels.yaml**; the LiteLLM config's model_list is intentionally empty
+  (models from static config cannot have their weights adjusted via the Management API). Do not add models manually in the LiteLLM UI -- that bypasses the registry.
+- Langfuse is v4 (OTel-native): the LiteLLM callback must be `langfuse_otel`; the old `langfuse` callback returns 400.
+- Single-node ClickHouse must have `clickhouse.cluster.enabled=false`, otherwise migrations require Keeper.
+- The first deployment of the apps layer needs two apply passes (CRD ordering); see apps/README.md.
+- `/metrics` is behind authentication; the ServiceMonitor scrapes with the master key as a Bearer token. When rotating the master key, wait for the ExternalSecret refresh (`litellm-env` is now 5m, `dashboard-env` is still 1h) or trigger it manually.
+  Both the Dashboard and Scorer hold the master key to call the Management API; after rotation both will get 401s, showing up as an empty Dashboard user table and a `TPPScorerStale` alert.
+- **The TPP Dashboard has no authentication of its own**; its security premise is no Ingress exposure and tunnel-only access. It holds the master key and can change quotas --
+  do not forward port 3020 to a LAN or the public internet. Before putting it behind an ALB, OIDC must be added first (`docs/scaling-500-users.md` §9).
+- The Dashboard depends on Prometheus's `model_id` / `exception_class` / `le` labels and the `scorer-channels.yaml` registry;
+  when reducing cardinality or changing the registry format, regression-test both together.
+- TTFT metrics are only produced by streaming requests; TPOT uses `litellm_deployment_latency_per_output_token`.
+- **launchd cannot execute scripts under `~/Documents`** (macOS TCC, fails with `Operation not permitted`);
+  the tunnel script must be the copy under `~/.local/bin/`; **after changing the repo script, `cp` it over and restart the service**.
+- **The local LiteLLM port is 14000** (migrated from 4000, which was given to another local application);
+  in `14000:4000`, the 4000 on the right is the pod container port, which has never changed on the platform side.
+- Manual and daemon port-forwards fight over ports: the tunnel script pkills and takes over similar processes at startup;
+  to investigate port conflicts, use `lsof -nP -iTCP:<port> -sTCP:LISTEN` to see the owner.
+- Backups of the Claude Code direct-Bedrock baseline configuration: `~/.claude/settings.json.bedrock-backup`
+  and `docs/claude-code-config-baseline.md`; for rollback see the "Claude Code with TPP" section.
 
+## Current Environment Registry
+
+- Channel registry: 4 Claude model groups x 2 regions + `gpt-5.6-terra` (Bedrock Mantle, usw2) = **9 channels**;
+- Existing users: `dev-laptop` ($100/day), `dev-laptop-codex` ($100/day, this machine's `TPP_API_KEY`, shared by Codex and `claude-tpp`);
+- Local Claude Code / Codex: **direct Bedrock by default, switch to TPP on demand** (`claude-tpp` / `codex --profile tpp`);
+- Local tunnel daemon: launchd `com.tpp.litellm-proxy` -> five tunnels;
+- Repo not yet git committed; the always-on dev environment costs about $400-450/month (cost-saving switch above).

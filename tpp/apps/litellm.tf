@@ -1,5 +1,5 @@
-# ---------- LiteLLM Proxy(M3)----------
-# 用原生 K8s 资源而非社区 Helm chart:部署完全可控、配置与 local/ 验证环境同构。
+# ---------- LiteLLM Proxy (M3) ----------
+# Uses native K8s resources instead of the community Helm chart: fully controllable deployment, config isomorphic to the local/ validation environment.
 
 resource "random_password" "litellm_master_key" {
   length  = 40
@@ -23,7 +23,7 @@ resource "kubernetes_namespace_v1" "litellm" {
   }
 }
 
-# SA 名与 infra/modules/iam 的 IRSA subject 严格一致:litellm/litellm
+# SA name must exactly match the IRSA subject in infra/modules/iam: litellm/litellm
 resource "kubernetes_service_account_v1" "litellm" {
   metadata {
     name      = "litellm"
@@ -45,9 +45,9 @@ resource "kubernetes_config_map_v1" "litellm_config" {
   }
 }
 
-# 从 Secrets Manager 同步并模板出运行时 env:
+# Sync from Secrets Manager and template the runtime env:
 #   LITELLM_MASTER_KEY <- tpp/litellm
-#   DATABASE_URL       <- RDS 托管主密码(rds!...)+ 远端 state 的 RDS 地址
+#   DATABASE_URL       <- RDS managed master password (rds!...) + RDS address from remote state
 resource "kubernetes_manifest" "litellm_external_secret" {
   manifest = {
     apiVersion = "external-secrets.io/v1"
@@ -121,7 +121,7 @@ resource "kubernetes_deployment_v1" "litellm" {
       metadata {
         labels = { app = "litellm" }
         annotations = {
-          # config 变更时滚动重启
+          # Rolling restart on config changes
           "tpp/config-hash" = sha256(file("${path.module}/values/litellm-config.yaml"))
         }
       }
@@ -177,7 +177,7 @@ resource "kubernetes_deployment_v1" "litellm" {
             }
           }
 
-          # 首次启动含 prisma migrate,给足冗余
+          # First startup includes prisma migrate, allow plenty of headroom
           startup_probe {
             http_get {
               path = "/health/readiness"
@@ -266,7 +266,7 @@ resource "kubernetes_annotations" "litellm_reloader" {
   depends_on = [helm_release.reloader]
 }
 
-# Prometheus 抓取 /metrics(Scorer 与 Grafana 的数据源)
+# Prometheus scrapes /metrics (data source for the Scorer and Grafana)
 resource "kubernetes_manifest" "litellm_service_monitor" {
   manifest = {
     apiVersion = "monitoring.coreos.com/v1"
@@ -284,7 +284,7 @@ resource "kubernetes_manifest" "litellm_service_monitor" {
           port     = "http"
           path     = "/metrics/"
           interval = "15s"
-          # /metrics 受 LiteLLM 认证保护,用 master key 抓取
+          # /metrics is protected by LiteLLM auth, scrape with the master key
           authorization = {
             type = "Bearer"
             credentials = {

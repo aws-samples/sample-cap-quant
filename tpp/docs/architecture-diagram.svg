@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 830" width="1200" height="830" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'PingFang SC','Microsoft YaHei',monospace">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 830" width="1200" height="830" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace">
         <defs>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" stroke-width="0.5"/>
@@ -128,93 +128,93 @@
         <rect x="0" y="0" width="1200" height="830" fill="#f8fafc"/>
         <rect x="0" y="0" width="1200" height="830" fill="url(#grid)"/>
 
-        <!-- ============ 边界 ============ -->
+        <!-- ============ Boundaries ============ -->
         <rect x="170" y="40" width="830" height="690" rx="12" fill="rgba(217,119,6,0.04)" stroke="#d97706" stroke-width="1" stroke-dasharray="8,4"/>
-        <text x="182" y="60" fill="#b45309" font-size="10" font-weight="600" text-anchor="start">AWS Account · us-west-2(渠道另含 us-east-1)</text>
+        <text x="182" y="60" fill="#b45309" font-size="10" font-weight="600" text-anchor="start">AWS Account · us-west-2 (channels also span us-east-1)</text>
         <rect x="190" y="70" width="640" height="520" rx="12" fill="rgba(8,145,178,0.04)" stroke="#0891b2" stroke-width="1" stroke-dasharray="8,4"/>
         <use href="#icon-eks" xlink:href="#icon-eks" x="200" y="78" width="20" height="20"/>
-        <text x="226" y="92" fill="#0e7490" font-size="10" font-weight="600" text-anchor="start">EKS Cluster: tpp-dev(3× m7i.large)</text>
+        <text x="226" y="92" fill="#0e7490" font-size="10" font-weight="600" text-anchor="start">EKS Cluster: tpp-dev (3× m7i.large)</text>
 
-        <!-- ============ 连接(先画,压在组件下层) ============ -->
-        <!-- 用户 → Bedrock 直连(默认) -->
+        <!-- ============ Connections (drawn first, layered beneath components) ============ -->
+        <!-- Users → Bedrock direct (default) -->
         <path d="M 85 240 L 85 22 L 960 22 L 960 308" fill="none" stroke="#64748b" stroke-width="1.2" stroke-dasharray="6,3" marker-end="url(#arrowhead)"/>
-        <text x="520" y="16" fill="#64748b" font-size="8" text-anchor="middle">直连 Bedrock(默认 claude / codex,不经 TPP;排障时的保底路径)</text>
-        <!-- 用户 → 隧道入口 -->
+        <text x="520" y="16" fill="#64748b" font-size="8" text-anchor="middle">Direct to Bedrock (default for claude / codex, bypasses TPP; fallback path for troubleshooting)</text>
+        <!-- Users → tunnel entry -->
         <line x1="160" y1="275" x2="208" y2="275" stroke="#0891b2" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <text x="184" y="267" fill="#64748b" font-size="7.5" text-anchor="middle">TPP key</text>
-        <!-- 入口 → LiteLLM -->
+        <!-- Entry → LiteLLM -->
         <line x1="335" y1="275" x2="378" y2="275" stroke="#0891b2" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <text x="357" y="267" fill="#0e7490" font-size="7" text-anchor="middle">:14000</text>
-        <!-- 入口 → Dashboard(:3020) -->
+        <!-- Entry → Dashboard (:3020) -->
         <line x1="250" y1="243" x2="250" y2="172" stroke="#0891b2" stroke-width="1.2" marker-end="url(#arrowhead)"/>
         <text x="254" y="212" fill="#0e7490" font-size="7" text-anchor="start">:3020</text>
-        <!-- Dashboard → Prometheus(查询) -->
+        <!-- Dashboard → Prometheus (query) -->
         <line x1="362" y1="118" x2="618" y2="118" stroke="#64748b" stroke-width="1.2" stroke-dasharray="4,4" marker-end="url(#arrowhead)"/>
-        <text x="490" y="111" fill="#64748b" font-size="7.5" text-anchor="middle">PromQL:litellm_* / scorer_*</text>
+        <text x="490" y="111" fill="#64748b" font-size="7.5" text-anchor="middle">PromQL: litellm_* / scorer_*</text>
         <!-- Dashboard → LiteLLM Management API -->
         <path d="M 330 172 L 330 205 L 440 205 L 440 238" fill="none" stroke="#64748b" stroke-width="1.2" stroke-dasharray="4,4" marker-end="url(#arrowhead)"/>
-        <text x="380" y="199" fill="#64748b" font-size="7.5" text-anchor="middle">/user/* 配额读写</text>
-        <!-- Prometheus → LiteLLM(scrape) -->
+        <text x="380" y="199" fill="#64748b" font-size="7.5" text-anchor="middle">/user/* quota read/write</text>
+        <!-- Prometheus → LiteLLM (scrape) -->
         <path d="M 618 148 L 500 148 L 500 238" fill="none" stroke="#64748b" stroke-width="1.2" stroke-dasharray="4,4" marker-end="url(#arrowhead)"/>
         <text x="559" y="141" fill="#64748b" font-size="7.5" text-anchor="middle">scrape /metrics</text>
         <!-- Prometheus → Grafana -->
         <line x1="695" y1="160" x2="695" y2="198" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
-        <!-- LiteLLM → Langfuse(callback) -->
+        <!-- LiteLLM → Langfuse (callback) -->
         <path d="M 530 305 L 575 305 L 575 370 L 618 370" fill="none" stroke="#059669" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <text x="583" y="336" fill="#047857" font-size="7" text-anchor="start">langfuse_otel</text>
         <!-- Langfuse → ClickHouse -->
         <line x1="695" y1="400" x2="695" y2="438" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <!-- Scorer → Prometheus ① -->
         <path d="M 530 435 L 800 435 L 800 130 L 772 130" fill="none" stroke="#d97706" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#arrowhead)"/>
-        <text x="806" y="290" fill="#b45309" font-size="8" text-anchor="start">① 查指标</text>
+        <text x="806" y="290" fill="#b45309" font-size="8" text-anchor="start">① query metrics</text>
         <!-- Scorer → LiteLLM ③ -->
         <line x1="455" y1="420" x2="455" y2="332" stroke="#d97706" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <text x="462" y="380" fill="#b45309" font-size="8" text-anchor="start">③ PATCH weight</text>
         <!-- LiteLLM → Bedrock -->
         <path d="M 530 300 L 815 300 L 815 360 L 853 360" fill="none" stroke="#d97706" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <text x="672" y="292" fill="#b45309" font-size="8" text-anchor="middle">AWS SDK · SigV4(IRSA,零静态密钥)</text>
-        <!-- LiteLLM → 外部渠道(预留) -->
+        <text x="672" y="292" fill="#b45309" font-size="8" text-anchor="middle">AWS SDK · SigV4 (IRSA, zero static keys)</text>
+        <!-- LiteLLM → external channels (reserved) -->
         <path d="M 530 262 L 570 262 L 570 52 L 1105 52 L 1105 88" fill="none" stroke="#64748b" stroke-width="1" stroke-dasharray="4,4" marker-end="url(#arrowhead)"/>
-        <text x="840" y="46" fill="#64748b" font-size="8" text-anchor="middle">HTTPS + API Key(预留,未启用)</text>
+        <text x="840" y="46" fill="#64748b" font-size="8" text-anchor="middle">HTTPS + API Key (reserved, not enabled)</text>
         <!-- LiteLLM → RDS -->
         <path d="M 380 318 L 250 318 L 250 638" fill="none" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <text x="256" y="470" fill="#6d28d9" font-size="8" text-anchor="start">keys · budget · spend</text>
         <!-- Scorer → Redis -->
         <line x1="455" y1="490" x2="455" y2="638" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <text x="462" y="575" fill="#6d28d9" font-size="8" text-anchor="start">EWMA · 熔断状态</text>
+        <text x="462" y="575" fill="#6d28d9" font-size="8" text-anchor="start">EWMA · breaker state</text>
         <!-- Langfuse → S3 -->
         <path d="M 618 385 L 600 385 L 600 638" fill="none" stroke="#d97706" stroke-width="1" marker-end="url(#arrowhead)"/>
-        <text x="596" y="560" fill="#64748b" font-size="8" text-anchor="end">事件</text>
+        <text x="596" y="560" fill="#64748b" font-size="8" text-anchor="end">events</text>
         <!-- Secrets Manager → ESO -->
         <line x1="760" y1="638" x2="760" y2="580" stroke="#e11d48" stroke-width="1.2" stroke-dasharray="4,4" marker-end="url(#arrowhead)"/>
-        <text x="766" y="612" fill="#be123c" font-size="8" text-anchor="start">5m 轮询</text>
+        <text x="766" y="612" fill="#be123c" font-size="8" text-anchor="start">5m poll</text>
         <!-- Bedrock → CloudWatch -->
         <line x1="920" y1="440" x2="920" y2="478" stroke="#d97706" stroke-width="1" stroke-dasharray="4,4" marker-end="url(#arrowhead)"/>
 
-        <!-- ============ 组件 ============ -->
+        <!-- ============ Components ============ -->
         <!-- Users -->
         <rect x="10" y="240" width="150" height="80" rx="6" fill="#ffffff"/>
         <rect x="10" y="240" width="150" height="80" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
         <text x="85" y="261" fill="#0f172a" font-size="8.5" font-weight="600" text-anchor="middle">Users · Claude Code · Codex</text>
         <text x="85" y="278" fill="#475569" font-size="8.5" text-anchor="middle">laptop · per-user key</text>
         <text x="85" y="293" fill="#64748b" font-size="7" text-anchor="middle">claude-tpp · codex --profile tpp</text>
-        <text x="85" y="308" fill="#64748b" font-size="7.5" text-anchor="middle">双模式:直连 ⇄ 经 TPP</text>
+        <text x="85" y="308" fill="#64748b" font-size="7.5" text-anchor="middle">Dual mode: direct ⇄ via TPP</text>
 
-        <!-- 隧道入口 -->
+        <!-- Tunnel entry -->
         <rect x="210" y="245" width="125" height="60" rx="6" fill="#ffffff"/>
         <rect x="210" y="245" width="125" height="60" rx="6" fill="#ecfeff" stroke="#0891b2" stroke-width="1.5"/>
         <use href="#icon-elb" xlink:href="#icon-elb" x="215" y="263" width="22" height="22"/>
-        <text x="286" y="265" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">隧道入口</text>
-        <text x="286" y="281" fill="#475569" font-size="8" text-anchor="middle">launchd 守护 · 5 条</text>
-        <text x="286" y="295" fill="#0e7490" font-size="7" text-anchor="middle">看门狗 15s×3 · ALB 预留</text>
+        <text x="286" y="265" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Tunnel Entry</text>
+        <text x="286" y="281" fill="#475569" font-size="8" text-anchor="middle">launchd daemons · 5 tunnels</text>
+        <text x="286" y="295" fill="#0e7490" font-size="7" text-anchor="middle">watchdog 15s×3 · ALB reserved</text>
 
         <!-- TPP Dashboard -->
         <rect x="210" y="100" width="150" height="70" rx="6" fill="#ffffff"/>
         <rect x="210" y="100" width="150" height="70" rx="6" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
         <text x="285" y="121" fill="#0f172a" font-size="12" font-weight="600" text-anchor="middle">TPP Dashboard</text>
-        <text x="285" y="138" fill="#475569" font-size="9" text-anchor="middle">统一入口 · 配额可改</text>
-        <text x="285" y="151" fill="#475569" font-size="8" text-anchor="middle">渠道消费 · 健康度 · 权重</text>
-        <text x="285" y="163" fill="#047857" font-size="7.5" text-anchor="middle">TTFT / TPOT / E2E / TPS 分位</text>
+        <text x="285" y="138" fill="#475569" font-size="9" text-anchor="middle">Unified portal · editable quotas</text>
+        <text x="285" y="151" fill="#475569" font-size="8" text-anchor="middle">Channel spend · health · weights</text>
+        <text x="285" y="163" fill="#047857" font-size="7.5" text-anchor="middle">TTFT / TPOT / E2E / TPS pctl</text>
 
         <!-- LiteLLM -->
         <rect x="380" y="240" width="150" height="90" rx="6" fill="#ffffff"/>
@@ -222,7 +222,7 @@
         <image href="data:image/png;base64,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" x="385" y="245" width="20" height="20"/>
         <text x="470" y="262" fill="#0f172a" font-size="12" font-weight="600" text-anchor="middle">LiteLLM Proxy</text>
         <text x="470" y="280" fill="#475569" font-size="9" text-anchor="middle">Deployment ×2</text>
-        <text x="470" y="295" fill="#475569" font-size="9" text-anchor="middle">USD quota · weight 路由</text>
+        <text x="470" y="295" fill="#475569" font-size="9" text-anchor="middle">USD quota · weight routing</text>
         <text x="470" y="313" fill="#047857" font-size="8" text-anchor="middle">:4000 · /v1 · /ui</text>
 
         <!-- Prometheus -->
@@ -238,7 +238,7 @@
         <rect x="620" y="200" width="150" height="50" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
         <use href="#icon-grafana" xlink:href="#icon-grafana" x="628" y="212" width="26" height="26"/>
         <text x="712" y="220" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Grafana</text>
-        <text x="712" y="237" fill="#475569" font-size="8" text-anchor="middle">TPP Overview + 4 条告警</text>
+        <text x="712" y="237" fill="#475569" font-size="8" text-anchor="middle">TPP Overview + 4 alerts</text>
 
         <!-- Langfuse -->
         <rect x="620" y="340" width="150" height="60" rx="6" fill="#ffffff"/>
@@ -246,27 +246,27 @@
         <use href="#icon-langfuse" xlink:href="#icon-langfuse" x="628" y="357" width="26" height="26"/>
         <text x="712" y="362" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Langfuse v4</text>
         <text x="712" y="379" fill="#475569" font-size="9" text-anchor="middle">Web + Worker</text>
-        <text x="712" y="392" fill="#475569" font-size="8" text-anchor="middle">LLM 调用 trace</text>
+        <text x="712" y="392" fill="#475569" font-size="8" text-anchor="middle">LLM call traces</text>
 
         <!-- ClickHouse -->
         <rect x="620" y="440" width="150" height="50" rx="6" fill="#ffffff"/>
         <rect x="620" y="440" width="150" height="50" rx="6" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
         <text x="695" y="460" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">ClickHouse</text>
-        <text x="695" y="477" fill="#475569" font-size="8" text-anchor="middle">单节点 STS · gp3 PVC</text>
+        <text x="695" y="477" fill="#475569" font-size="8" text-anchor="middle">Single-node STS · gp3 PVC</text>
 
         <!-- ESO + Reloader -->
         <rect x="620" y="532" width="150" height="45" rx="6" fill="#ffffff"/>
         <rect x="620" y="532" width="150" height="45" rx="6" fill="#fff1f2" stroke="#e11d48" stroke-width="1.5"/>
         <text x="695" y="548" fill="#0f172a" font-size="10.5" font-weight="600" text-anchor="middle">ESO + Reloader</text>
-        <text x="695" y="561" fill="#475569" font-size="8" text-anchor="middle">Secret 变化 → 滚动重启</text>
-        <text x="695" y="572" fill="#be123c" font-size="7" text-anchor="middle">RDS 7d 轮转自动恢复</text>
+        <text x="695" y="561" fill="#475569" font-size="8" text-anchor="middle">Secret change → rolling restart</text>
+        <text x="695" y="572" fill="#be123c" font-size="7" text-anchor="middle">Auto-recovery from RDS 7d rotation</text>
 
         <!-- Scorer -->
         <rect x="380" y="420" width="150" height="70" rx="6" fill="#ffffff"/>
         <rect x="380" y="420" width="150" height="70" rx="6" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
         <text x="455" y="442" fill="#0f172a" font-size="12" font-weight="600" text-anchor="middle">Scorer</text>
-        <text x="455" y="460" fill="#475569" font-size="9" text-anchor="middle">② 打分 · EWMA · 熔断</text>
-        <text x="455" y="478" fill="#047857" font-size="8" text-anchor="middle">每 60s 一轮 · 单副本</text>
+        <text x="455" y="460" fill="#475569" font-size="9" text-anchor="middle">② scoring · EWMA · breaker</text>
+        <text x="455" y="478" fill="#047857" font-size="8" text-anchor="middle">60s cycle · single replica</text>
 
         <!-- Bedrock -->
         <rect x="855" y="310" width="130" height="130" rx="6" fill="#ffffff"/>
@@ -274,75 +274,75 @@
         <use href="#icon-bedrock" xlink:href="#icon-bedrock" x="905" y="320" width="30" height="30"/>
         <text x="920" y="368" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Amazon Bedrock</text>
         <text x="920" y="385" fill="#475569" font-size="9" text-anchor="middle">us-west-2 / us-east-1</text>
-        <text x="920" y="400" fill="#475569" font-size="8" text-anchor="middle">Claude 4 组 × 2 region</text>
+        <text x="920" y="400" fill="#475569" font-size="8" text-anchor="middle">4 Claude groups × 2 regions</text>
         <text x="920" y="414" fill="#475569" font-size="8" text-anchor="middle">+ Mantle gpt-5.6-terra</text>
-        <text x="920" y="429" fill="#b45309" font-size="8" text-anchor="middle">= 9 渠道 · IRSA</text>
+        <text x="920" y="429" fill="#b45309" font-size="8" text-anchor="middle">= 9 channels · IRSA</text>
 
         <!-- CloudWatch -->
         <rect x="855" y="480" width="130" height="50" rx="6" fill="#ffffff"/>
         <rect x="855" y="480" width="130" height="50" rx="6" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
         <use href="#icon-cloudwatch" xlink:href="#icon-cloudwatch" x="862" y="493" width="24" height="24"/>
         <text x="936" y="500" fill="#0f172a" font-size="10" font-weight="600" text-anchor="middle">CloudWatch</text>
-        <text x="936" y="517" fill="#475569" font-size="7" text-anchor="middle">服务端指标 · 排障</text>
+        <text x="936" y="517" fill="#475569" font-size="7" text-anchor="middle">Server-side metrics · debug</text>
 
-        <!-- 外部渠道(预留) -->
+        <!-- External channels (reserved) -->
         <rect x="1030" y="90" width="150" height="120" rx="6" fill="#ffffff"/>
         <rect x="1030" y="90" width="150" height="120" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,4"/>
-        <text x="1105" y="112" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">外部渠道(预留)</text>
+        <text x="1105" y="112" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">External channels (reserved)</text>
         <text x="1105" y="134" fill="#475569" font-size="9" text-anchor="middle">Anthropic API</text>
         <text x="1105" y="150" fill="#475569" font-size="9" text-anchor="middle">OpenAI API</text>
-        <text x="1105" y="166" fill="#475569" font-size="9" text-anchor="middle">聚合商 OpenRouter</text>
-        <text x="1105" y="188" fill="#475569" font-size="8" text-anchor="middle">加进注册表即接入</text>
+        <text x="1105" y="166" fill="#475569" font-size="9" text-anchor="middle">OpenRouter (aggregator)</text>
+        <text x="1105" y="188" fill="#475569" font-size="8" text-anchor="middle">Add to registry to onboard</text>
 
         <!-- RDS -->
         <rect x="210" y="640" width="150" height="60" rx="6" fill="#ffffff"/>
         <rect x="210" y="640" width="150" height="60" rx="6" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
         <use href="#icon-rds" xlink:href="#icon-rds" x="218" y="657" width="26" height="26"/>
         <text x="301" y="662" fill="#0f172a" font-size="10.5" font-weight="600" text-anchor="middle">RDS PostgreSQL</text>
-        <text x="301" y="680" fill="#475569" font-size="8" text-anchor="middle">litellm 记账 + langfuse</text>
-        <text x="301" y="693" fill="#6d28d9" font-size="7" text-anchor="middle">托管主密码 · 7d 轮转</text>
+        <text x="301" y="680" fill="#475569" font-size="8" text-anchor="middle">litellm accounting + langfuse</text>
+        <text x="301" y="693" fill="#6d28d9" font-size="7" text-anchor="middle">Managed master pwd · 7d rotation</text>
 
         <!-- ElastiCache -->
         <rect x="390" y="640" width="130" height="60" rx="6" fill="#ffffff"/>
         <rect x="390" y="640" width="130" height="60" rx="6" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
         <use href="#icon-elasticache" xlink:href="#icon-elasticache" x="396" y="657" width="26" height="26"/>
         <text x="473" y="662" fill="#0f172a" font-size="10.5" font-weight="600" text-anchor="middle">ElastiCache</text>
-        <text x="473" y="680" fill="#475569" font-size="8" text-anchor="middle">Redis · budget 同步</text>
-        <text x="473" y="693" fill="#475569" font-size="8" text-anchor="middle">路由 · Scorer 状态</text>
+        <text x="473" y="680" fill="#475569" font-size="8" text-anchor="middle">Redis · budget sync</text>
+        <text x="473" y="693" fill="#475569" font-size="8" text-anchor="middle">Routing · Scorer state</text>
 
         <!-- S3 -->
         <rect x="550" y="640" width="110" height="60" rx="6" fill="#ffffff"/>
         <rect x="550" y="640" width="110" height="60" rx="6" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
         <use href="#icon-s3" xlink:href="#icon-s3" x="556" y="657" width="26" height="26"/>
         <text x="621" y="662" fill="#0f172a" font-size="10.5" font-weight="600" text-anchor="middle">S3</text>
-        <text x="621" y="680" fill="#475569" font-size="8" text-anchor="middle">Langfuse 事件</text>
-        <text x="621" y="693" fill="#475569" font-size="8" text-anchor="middle">90d 生命周期</text>
+        <text x="621" y="680" fill="#475569" font-size="8" text-anchor="middle">Langfuse events</text>
+        <text x="621" y="693" fill="#475569" font-size="8" text-anchor="middle">90d lifecycle</text>
 
         <!-- Secrets Manager -->
         <rect x="690" y="640" width="140" height="60" rx="6" fill="#ffffff"/>
         <rect x="690" y="640" width="140" height="60" rx="6" fill="#fff1f2" stroke="#e11d48" stroke-width="1.5"/>
         <use href="#icon-secrets" xlink:href="#icon-secrets" x="696" y="657" width="26" height="26"/>
         <text x="778" y="662" fill="#0f172a" font-size="10" font-weight="600" text-anchor="middle">Secrets Manager</text>
-        <text x="778" y="680" fill="#475569" font-size="8" text-anchor="middle">tpp/* · RDS 主密码</text>
-        <text x="778" y="693" fill="#475569" font-size="8" text-anchor="middle">不进 tfstate</text>
+        <text x="778" y="680" fill="#475569" font-size="8" text-anchor="middle">tpp/* · RDS master password</text>
+        <text x="778" y="693" fill="#475569" font-size="8" text-anchor="middle">Kept out of tfstate</text>
 
         <!-- ============ Legend ============ -->
-        <text x="190" y="768" fill="#0f172a" font-size="10" font-weight="600" text-anchor="start">Legend</text>
-        <rect x="190" y="778" width="16" height="10" rx="2" fill="#ecfeff" stroke="#0891b2" stroke-width="1"/>
-        <text x="212" y="787" fill="#475569" font-size="8" text-anchor="start">入口 / K8s 边界</text>
-        <rect x="310" y="778" width="16" height="10" rx="2" fill="#ecfdf5" stroke="#059669" stroke-width="1"/>
-        <text x="332" y="787" fill="#475569" font-size="8" text-anchor="start">应用服务</text>
-        <rect x="410" y="778" width="16" height="10" rx="2" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1"/>
-        <text x="432" y="787" fill="#475569" font-size="8" text-anchor="start">数据存储</text>
-        <rect x="510" y="778" width="16" height="10" rx="2" fill="#fffbeb" stroke="#d97706" stroke-width="1"/>
-        <text x="532" y="787" fill="#475569" font-size="8" text-anchor="start">AWS 托管 / 渠道</text>
-        <rect x="640" y="778" width="16" height="10" rx="2" fill="#fff1f2" stroke="#e11d48" stroke-width="1"/>
-        <text x="662" y="787" fill="#475569" font-size="8" text-anchor="start">安全 / 密钥</text>
-        <rect x="740" y="778" width="16" height="10" rx="2" fill="#f1f5f9" stroke="#64748b" stroke-width="1"/>
-        <text x="762" y="787" fill="#475569" font-size="8" text-anchor="start">外部 / 观测</text>
-        <line x1="840" y1="783" x2="862" y2="783" stroke="#d97706" stroke-width="1.2" stroke-dasharray="5,3"/>
-        <text x="868" y="787" fill="#475569" font-size="8" text-anchor="start">①②③ Scorer 调度环</text>
-        <line x1="990" y1="783" x2="1012" y2="783" stroke="#64748b" stroke-width="1.2" stroke-dasharray="6,3"/>
-        <text x="1018" y="787" fill="#475569" font-size="8" text-anchor="start">直连 / 预留 / 只读查询</text>
+        <text x="190" y="766" fill="#0f172a" font-size="10" font-weight="600" text-anchor="start">Legend</text>
+        <rect x="190" y="776" width="16" height="10" rx="2" fill="#ecfeff" stroke="#0891b2" stroke-width="1"/>
+        <text x="212" y="785" fill="#475569" font-size="8" text-anchor="start">Entry / K8s boundary</text>
+        <rect x="330" y="776" width="16" height="10" rx="2" fill="#ecfdf5" stroke="#059669" stroke-width="1"/>
+        <text x="352" y="785" fill="#475569" font-size="8" text-anchor="start">App services</text>
+        <rect x="430" y="776" width="16" height="10" rx="2" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1"/>
+        <text x="452" y="785" fill="#475569" font-size="8" text-anchor="start">Data stores</text>
+        <rect x="525" y="776" width="16" height="10" rx="2" fill="#fffbeb" stroke="#d97706" stroke-width="1"/>
+        <text x="547" y="785" fill="#475569" font-size="8" text-anchor="start">AWS managed / channels</text>
+        <rect x="675" y="776" width="16" height="10" rx="2" fill="#fff1f2" stroke="#e11d48" stroke-width="1"/>
+        <text x="697" y="785" fill="#475569" font-size="8" text-anchor="start">Security / secrets</text>
+        <rect x="805" y="776" width="16" height="10" rx="2" fill="#f1f5f9" stroke="#64748b" stroke-width="1"/>
+        <text x="827" y="785" fill="#475569" font-size="8" text-anchor="start">External / observability</text>
+        <line x1="190" y1="801" x2="212" y2="801" stroke="#d97706" stroke-width="1.2" stroke-dasharray="5,3"/>
+        <text x="218" y="805" fill="#475569" font-size="8" text-anchor="start">①②③ Scorer control loop</text>
+        <line x1="430" y1="801" x2="452" y2="801" stroke="#64748b" stroke-width="1.2" stroke-dasharray="6,3"/>
+        <text x="458" y="805" fill="#475569" font-size="8" text-anchor="start">Direct / reserved / read-only query</text>
 
 </svg>

@@ -6,7 +6,7 @@ module "vpc" {
   cidr = var.vpc_cidr
 
   azs = var.azs
-  # /20 私有子网(节点/Pod 主要地址消耗),/24 公有子网(仅 ALB/NAT)
+  # /20 private subnets (main address consumption by nodes/Pods), /24 public subnets (ALB/NAT only)
   private_subnets = [for i in range(length(var.azs)) : cidrsubnet(var.vpc_cidr, 4, i)]
   public_subnets  = [for i in range(length(var.azs)) : cidrsubnet(var.vpc_cidr, 8, i + 200)]
 
@@ -23,7 +23,7 @@ module "vpc" {
   }
 }
 
-# S3 走网关端点,Langfuse 事件上传与 ECR 镜像层下载不出 NAT(省流量费)
+# S3 via gateway endpoint, so Langfuse event uploads and ECR image layer downloads bypass NAT (saves data transfer costs)
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = module.vpc.vpc_id
   service_name      = "com.amazonaws.${var.region}.s3"

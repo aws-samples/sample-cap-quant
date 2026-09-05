@@ -1,6 +1,6 @@
-# TPP 渠道注册表:Scorer 启动时经 /model/new 同步进 LiteLLM DB(幂等,按 model_info.id)。
-# 渠道定义放这里而非 LiteLLM 静态 config —— 静态 config 模型无法通过 Management API 动态调权。
-# model_info.id 是稳定渠道 ID,同时出现在 Prometheus 指标的 model_id label 中。
+# TPP channel registry: synced into the LiteLLM DB via /model/new at Scorer startup (idempotent, keyed by model_info.id).
+# Channel definitions live here rather than in the LiteLLM static config -- models in the static config cannot have weights adjusted dynamically via the Management API.
+# model_info.id is the stable channel ID and also appears in the model_id label of Prometheus metrics.
 
 channels:
   - model_name: claude-sonnet-5
@@ -67,10 +67,10 @@ channels:
     model_info:
       id: claude-haiku-4-5--bedrock-use1
 
-  # OpenAI 模型经 Bedrock Mantle 提供;目前仅 us-west-2 单渠道(Codex CLI 接入用)
-  # 必须走 LiteLLM 的 bedrock_mantle/ 路由(OpenAI 兼容端点,原生透传 Responses API 与
-  # reasoning);写成 bedrock/us.openai.* 会走 Claude 的 converse 转换,把 reasoning_effort
-  # 译成 thinking 而被 Mantle 以 unknown_parameter 拒绝。IRSA 需 bedrock-mantle:CreateInference。
+  # OpenAI models are served via Bedrock Mantle; currently a single channel in us-west-2 only (for Codex CLI integration).
+  # Must use LiteLLM's bedrock_mantle/ route (OpenAI-compatible endpoint, natively passes through the Responses API
+  # and reasoning); writing bedrock/us.openai.* would go through Claude's converse conversion, translating reasoning_effort
+  # into thinking, which Mantle rejects as unknown_parameter. IRSA requires bedrock-mantle:CreateInference.
   - model_name: gpt-5.6-terra
     litellm_params:
       model: bedrock_mantle/openai.gpt-5.6-terra

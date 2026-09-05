@@ -1,4 +1,4 @@
-# ---------- Scorer:智能渠道权重调度(M5)----------
+# ---------- Scorer: intelligent channel weight scheduling (M5) ----------
 
 variable "scorer_image_tag" {
   type    = string
@@ -20,7 +20,7 @@ resource "kubernetes_namespace_v1" "scorer" {
   }
 }
 
-# LiteLLM master key(Management API 认证)
+# LiteLLM master key (Management API authentication)
 resource "kubernetes_manifest" "scorer_external_secret" {
   manifest = {
     apiVersion = "external-secrets.io/v1"
@@ -62,7 +62,7 @@ resource "kubernetes_deployment_v1" "scorer" {
   }
 
   spec {
-    replicas = 1 # 不在请求路径上,单副本足够;挂了权重只是冻结
+    replicas = 1 # Not on the request path, a single replica is enough; if it goes down, weights are merely frozen
 
     selector {
       match_labels = { app = "scorer" }

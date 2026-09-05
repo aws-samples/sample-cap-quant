@@ -1,9 +1,9 @@
-"""Scorer 主循环:每 interval 查 Prometheus -> 打分 -> 调 LiteLLM 权重。
+"""Scorer main loop: every interval, query Prometheus -> score -> adjust LiteLLM weights.
 
-设计要点(docs/architecture.md §3):
-- EWMA 状态存 Redis,重启无损;
-- 小样本保护、熔断、保底、迟滞;
-- 任一依赖不可用 -> 本轮跳过(权重冻结),自身指标暴露供告警。
+Design highlights (docs/architecture.md §3):
+- EWMA state lives in Redis, so restarts are lossless;
+- small-sample protection, circuit breaking, floor weight, hysteresis;
+- if any dependency is unavailable -> skip this round (weights frozen), own metrics exposed for alerting.
 """
 
 import logging
@@ -39,7 +39,7 @@ class Scorer:
         for ch in self.channels:
             self.ids_by_group[ch["model_name"]].append(ch["model_info"]["id"])
 
-    # ---- Redis 状态 ----
+    # ---- Redis state ----
     def _score_key(self, cid: str) -> str:
         return f"scorer:score:{cid}"
 
@@ -63,7 +63,7 @@ class Scorer:
     def set_circuit(self, cid: str, is_open: bool) -> None:
         self.redis.set(f"scorer:circuit:{cid}", "1" if is_open else "0")
 
-    # ---- 单轮 ----
+    # ---- Single cycle ----
     def run_cycle(self) -> None:
         cfg = self.cfg
         metrics = self.prom.fetch_metrics(self.groups)
@@ -86,12 +86,12 @@ class Scorer:
                 prev = self.get_score(cid)
 
                 if m is None or m.requests < cfg.min_samples:
-                    # 小样本保护:沿用旧分,新渠道给冷启动分
+                    # Small-sample protection: keep the old score; new channels get the cold-start score
                     q = prev if prev is not None else cfg.default_q
                 else:
                     q = scoring.ewma(prev, scoring.raw_score(m, best_lat, cfg), cfg.alpha)
 
-                    # 熔断状态机
+                    # Circuit breaker state machine
                     if scoring.circuit_should_open(m, cfg):
                         self.set_circuit(cid, True)
                         self.circuit_rounds(cid, good=False)
@@ -134,7 +134,7 @@ class Scorer:
                 LAST_SUCCESS.set(time.time())
                 CYCLES.labels("ok").inc()
             except Exception:
-                # 权重冻结在上一轮值;Scorer 不在请求路径上,失败可容忍
+                # Weights stay frozen at last round's values; the Scorer is off the request path, so failures are tolerable
                 log.exception("cycle failed, weights frozen")
                 CYCLES.labels("error").inc()
             time.sleep(max(1.0, self.cfg.interval_seconds - (time.time() - started)))

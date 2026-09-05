@@ -1,10 +1,10 @@
-# LiteLLM Proxy 配置(本地验证版;上云后由 apps/litellm.tf 的 Helm values 提供同构配置)
+# LiteLLM Proxy config (local verification version; in the cloud, apps/litellm.tf's Helm values provide the equivalent config)
 #
-# 核心概念:同一个 model_name 下的多个条目 = 同一模型组的多个渠道(deployment),
-# LiteLLM 按 weight 比例分流,weight 由 Scorer 每分钟动态调整。
+# Core concept: multiple entries under the same model_name = multiple channels (deployments) in the same model group.
+# LiteLLM splits traffic proportionally by weight; the Scorer dynamically adjusts weight every minute.
 
 model_list:
-  # ---- 模型组 claude-opus-5:Anthropic 直连 + Bedrock 双渠道 ----
+  # ---- Model group claude-opus-5: Anthropic direct + Bedrock, two channels ----
   - model_name: claude-opus-5
     litellm_params:
       model: anthropic/claude-opus-5
@@ -16,13 +16,13 @@ model_list:
     litellm_params:
       model: bedrock/anthropic.claude-opus-5
       aws_region_name: us-west-2
-      # 本地验证可用 AWS_BEARER_TOKEN_BEDROCK 或本机 AWS profile;
-      # EKS 上走 IRSA,此处不配任何静态凭据
+      # For local verification, use AWS_BEARER_TOKEN_BEDROCK or a local AWS profile;
+      # on EKS this uses IRSA, so no static credentials are configured here
       weight: 50
     model_info:
       channel: aws-bedrock
 
-  # ---- 模型组 gpt-5:OpenAI 直连(模型名按实际订阅调整)----
+  # ---- Model group gpt-5: OpenAI direct (adjust model name per actual subscription) ----
   - model_name: gpt-5
     litellm_params:
       model: openai/gpt-5
@@ -31,10 +31,10 @@ model_list:
     model_info:
       channel: openai-direct
 
-  # ---- 模型组 gpt-5.6-terra:OpenAI 模型经 Bedrock Mantle,单渠道(Codex CLI 接入用)----
-  # 凭据同上面的 Bedrock 渠道:本机 AWS profile 或 AWS_BEARER_TOKEN_BEDROCK
-  # 必须走 bedrock_mantle/ 路由(OpenAI 兼容端点,透传 Responses API 与 reasoning);
-  # bedrock/us.openai.* 会走 Claude converse 转换,reasoning_effort 被译成 thinking 而报错
+  # ---- Model group gpt-5.6-terra: OpenAI model via Bedrock Mantle, single channel (for Codex CLI access) ----
+  # Credentials same as the Bedrock channel above: local AWS profile or AWS_BEARER_TOKEN_BEDROCK
+  # Must use the bedrock_mantle/ route (OpenAI-compatible endpoint, passes through the Responses API and reasoning);
+  # bedrock/us.openai.* would go through the Claude converse transformation, where reasoning_effort gets translated into thinking and errors out
   - model_name: gpt-5.6-terra
     litellm_params:
       model: bedrock_mantle/openai.gpt-5.6-terra
@@ -43,29 +43,29 @@ model_list:
     model_info:
       channel: aws-bedrock-mantle
 
-  # ---- 聚合商渠道示例(OpenRouter,需要时取消注释)----
+  # ---- Aggregator channel example (OpenRouter, uncomment when needed) ----
   # - model_name: claude-opus-5
   #   litellm_params:
   #     model: openrouter/anthropic/claude-opus-5
   #     api_key: os.environ/OPENROUTER_API_KEY
-  #     weight: 0        # 初始为 0,由 Scorer 从探索保底流量开始爬坡
+  #     weight: 0        # starts at 0; the Scorer ramps it up from the exploration floor traffic
   #   model_info:
   #     channel: openrouter
 
 litellm_settings:
-  # M0 验证项:确认 OSS 版 prometheus callback 可用;不可用则换自建 exporter callback
+  # M0 verification item: confirm the OSS prometheus callback works; if not, switch to a self-built exporter callback
   success_callback: ["prometheus"]
   failure_callback: ["prometheus"]
-  # 启用 trace profile 后追加:
+  # After enabling the trace profile, append:
   # success_callback: ["prometheus", "langfuse"]
   # failure_callback: ["prometheus", "langfuse"]
 
 router_settings:
-  routing_strategy: simple-shuffle   # 按 weight 加权随机,配合 Scorer 动态调权
+  routing_strategy: simple-shuffle   # weighted random by weight, works with the Scorer's dynamic weight tuning
   redis_host: os.environ/REDIS_HOST
   redis_port: os.environ/REDIS_PORT
-  allowed_fails: 3                   # LiteLLM 自身熔断:窗口内失败 3 次进入 cooldown
-  cooldown_time: 60                  # 秒;与 Scorer 的熔断互为双保险
+  allowed_fails: 3                   # LiteLLM's own circuit breaking: 3 failures in the window triggers cooldown
+  cooldown_time: 60                  # seconds; mutual backstop with the Scorer's circuit breaker
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY

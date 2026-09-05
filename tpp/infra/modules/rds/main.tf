@@ -27,8 +27,8 @@ resource "aws_security_group" "rds" {
   }
 }
 
-# LiteLLM 记账账本(keys/budget/spend)——平台最关键的持久化数据。
-# langfuse 库不在此创建(RDS 无法直接建第二个库),由 M4 的 bootstrap Job 执行 CREATE DATABASE。
+# LiteLLM accounting ledger (keys/budget/spend) -- the platform's most critical persistent data.
+# The langfuse database is not created here (RDS cannot directly create a second database); the M4 bootstrap Job runs CREATE DATABASE.
 resource "aws_db_instance" "this" {
   identifier     = var.name
   engine         = "postgres"
@@ -37,7 +37,7 @@ resource "aws_db_instance" "this" {
 
   db_name  = "litellm"
   username = "tpp"
-  # 主密码托管进 Secrets Manager,不落 tfstate
+  # Master password managed in Secrets Manager, never lands in tfstate
   manage_master_user_password = true
 
   allocated_storage     = 50

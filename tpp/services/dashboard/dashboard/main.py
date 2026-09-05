@@ -1,11 +1,13 @@
-"""TPP 独立运营 dashboard 后端。
+"""Backend for the TPP standalone ops dashboard.
 
-聚合两个数据源,喂给 static/index.html 单页前端:
-- Prometheus:litellm_* / scorer_* 指标,渠道粒度靠 model_id label
-  (= scorer-channels.yaml 里的 model_info.id)
-- LiteLLM Management API:用户配额读写(master key 认证,只在服务端持有)
+Aggregates two data sources and feeds the static/index.html single-page frontend:
+- Prometheus: litellm_* / scorer_* metrics, per-channel granularity via the
+  model_id label (= model_info.id in scorer-channels.yaml)
+- LiteLLM Management API: user quota read/write (master key auth, held
+  server-side only)
 
-安全模型与 Prometheus 相同:自身无认证,不暴露 Ingress,仅经 kubectl 隧道访问。
+Same security model as Prometheus: no auth of its own, no Ingress exposure,
+accessed only via kubectl tunnel.
 """
 
 import asyncio
@@ -25,7 +27,7 @@ LITELLM_URL = os.environ.get("LITELLM_URL", "http://litellm.litellm:4000")
 LITELLM_MASTER_KEY = os.environ.get("LITELLM_MASTER_KEY", "")
 CHANNELS_FILE = os.environ.get("CHANNELS_FILE", "/etc/dashboard/channels.yaml")
 
-# 4 个既有 dashboard 的跳转链接;默认按本地隧道端口(tpp-tunnels.sh 约定)
+# Jump links to the 4 existing dashboards; defaults follow the local tunnel ports (tpp-tunnels.sh convention)
 LINKS = {
     "LiteLLM": os.environ.get("LINK_LITELLM", "http://localhost:14000/ui"),
     "Grafana": os.environ.get("LINK_GRAFANA", "http://localhost:3000"),
@@ -33,7 +35,7 @@ LINKS = {
     "Prometheus": os.environ.get("LINK_PROMETHEUS", "http://localhost:9090"),
 }
 
-# 性能/错误统计窗口白名单(下拉选项与 PromQL range 共用)
+# Whitelist of performance/error stat windows (shared by the dropdown options and the PromQL range)
 WINDOWS = ("15m", "1h", "6h", "24h", "7d")
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -42,9 +44,10 @@ app = FastAPI(title="tpp-dashboard")
 
 
 def load_channels() -> list[dict]:
-    """渠道注册表 → [{model_group, channel_id, region, provider}]。
+    """Channel registry -> [{model_group, channel_id, region, provider}].
 
-    以注册表为准渲染全部渠道行,避免"没流量的渠道在 Prometheus 里无 series 就消失"。
+    Render all channel rows from the registry, so that channels with no
+    traffic don't vanish just because they have no series in Prometheus.
     """
     with open(CHANNELS_FILE) as f:
         doc = yaml.safe_load(f)
@@ -74,7 +77,7 @@ async def prom_query(client: httpx.AsyncClient, promql: str) -> list[dict]:
 
 
 def by_channel(series: list[dict]) -> dict[str, float]:
-    """{model_id: value},NaN 丢弃(histogram_quantile 无样本时返回 NaN)。"""
+    """{model_id: value}; drop NaN (histogram_quantile returns NaN when there are no samples)."""
     out = {}
     for s in series:
         cid = s["metric"].get("model_id")
@@ -103,11 +106,11 @@ async def overview(window: str = Query("1h")):
     w = window
 
     q = {
-        # 消费与用量固定看 24h(需求是"费用情况"日粒度);性能/错误跟随窗口选择
+        # Spend and usage are fixed at 24h (the requirement is daily-granularity "cost overview"); performance/errors follow the selected window
         "spend_24h": "sum by (model_id) (increase(litellm_spend_metric_total[24h]))",
         "tokens_in_24h": "sum by (model_id) (increase(litellm_input_tokens_metric_total[24h]))",
         "tokens_out_24h": "sum by (model_id) (increase(litellm_output_tokens_metric_total[24h]))",
-        # prompt cache:litellm_input_tokens 不含缓存部分,读/写单独计
+        # prompt cache: litellm_input_tokens excludes the cached portion; reads/writes are counted separately
         "cache_read_24h": "sum by (model_id) (increase(litellm_input_cached_tokens_metric_total[24h]))",
         "cache_write_24h": "sum by (model_id) (increase(litellm_input_cache_creation_tokens_metric_total[24h]))",
         "requests": f"sum by (model_id) (increase(litellm_deployment_total_requests_total[{w}]))",
@@ -115,7 +118,7 @@ async def overview(window: str = Query("1h")):
         "quality": "max by (model_id) (scorer_quality_score)",
         "weight": "max by (model_id) (scorer_weight)",
         "circuit": "max by (model_id) (scorer_circuit_open)",
-        # 同一渠道多副本/多 api_base 会有多条 state,取最差(0 健康 / 1 部分 / 2 异常)
+        # A channel with multiple replicas/api_bases has multiple state series; take the worst (0 healthy / 1 partial / 2 unhealthy)
         "dstate": "max by (model_id) (litellm_deployment_state)",
     }
     hists = {
@@ -165,7 +168,7 @@ async def overview(window: str = Query("1h")):
             "tokens_out_24h": g("tokens_out_24h") or 0.0,
             "cache_read_24h": c_read,
             "cache_write_24h": c_write,
-            # 命中率 = 缓存读 / 全部输入(普通输入+缓存读+缓存写),近 24h
+            # Hit rate = cache reads / all input (regular input + cache reads + cache writes), last 24h
             "cache_hit_rate": (c_read / prompt_total) if prompt_total > 0 else None,
             "requests": reqs,
             "failures": fails,
@@ -178,7 +181,7 @@ async def overview(window: str = Query("1h")):
         }
         for h in hists:
             row[h] = {p: g(f"{h}_{p}") for p in quantiles}
-        # TPS 由 TPOT 直方图分位数换算(1/TPOT):pXX TPS = pXX-慢请求的解码吞吐
+        # TPS derived from TPOT histogram quantiles (1/TPOT): pXX TPS = decode throughput of the pXX-slow request
         row["tps"] = {
             p: (1.0 / row["tpot"][p]) if row["tpot"][p] else None for p in quantiles
         }
@@ -187,7 +190,7 @@ async def overview(window: str = Query("1h")):
     return {"window": w, "channels": channels}
 
 
-# ---------- 用户配额(USD/day) ----------
+# ---------- User quotas (USD/day) ----------
 
 def _llm_headers() -> dict:
     return {"Authorization": f"Bearer {LITELLM_MASTER_KEY}"}
@@ -230,7 +233,7 @@ async def update_budget(req: BudgetUpdate):
     if req.max_budget < 0:
         raise HTTPException(400, "max_budget must be >= 0")
     async with httpx.AsyncClient(timeout=15.0) as client:
-        # /user/update 对不存在的 user 会隐式创建,先校验存在,只做更新
+        # /user/update implicitly creates nonexistent users; verify existence first so this is update-only
         info = await client.get(
             f"{LITELLM_URL}/user/info",
             params={"user_id": req.user_id},
@@ -238,7 +241,7 @@ async def update_budget(req: BudgetUpdate):
         )
         if info.status_code != 200:
             raise HTTPException(404, f"user not found: {req.user_id}")
-        # 配额语义固定为 USD/day:写入时同时钉住 budget_duration=1d
+        # Quota semantics are fixed to USD/day: pin budget_duration=1d on every write
         r = await client.post(
             f"{LITELLM_URL}/user/update",
             json={

@@ -15,7 +15,7 @@ output "oidc_provider_arn" {
 }
 
 output "oidc_provider" {
-  description = "OIDC issuer(去掉 https:// 前缀),IRSA assume policy 用"
+  description = "OIDC issuer (without the https:// prefix), used by the IRSA assume policy"
   value       = module.eks.oidc_provider
 }
 

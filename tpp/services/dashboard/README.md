@@ -1,23 +1,26 @@
 # tpp-dashboard
 
-TPP 独立运营 dashboard(M7):单容器 = FastAPI 聚合后端 + 纯静态单页前端。
+TPP standalone ops dashboard (M7): a single container = FastAPI aggregation backend + pure static single-page frontend.
 
-展示:
+Displays:
 
-1. **用户配额**(USD/day,`budget_duration=1d`)——页面上可直接改,写回 LiteLLM
-   `/user/update`;
-2. **渠道消费 / 健康度 / 权重**——9 条 region×模型渠道(近 24h 消费与 tokens、
-   `scorer_quality_score`、`scorer_weight`、熔断与 `litellm_deployment_state`);
-3. **渠道稳定性与性能**——TTFT / TPOT / E2E / TPS 的 p50/p90/p99 与错误分类,
-   统计窗口可选(15m/1h/6h/24h/7d);TPS 由 TPOT 直方图分位数换算(1/TPOT);
-4. 4 个既有 dashboard(LiteLLM / Grafana / Langfuse / Prometheus)跳转链接。
+1. **User quotas** (USD/day, `budget_duration=1d`) -- editable directly on the page,
+   written back via LiteLLM `/user/update`;
+2. **Channel spend / health / weight** -- 9 region x model channels (last-24h spend
+   and tokens, `scorer_quality_score`, `scorer_weight`, circuit breaker status and
+   `litellm_deployment_state`);
+3. **Channel stability and performance** -- p50/p90/p99 for TTFT / TPOT / E2E / TPS
+   plus error breakdown by class, with a selectable stat window (15m/1h/6h/24h/7d);
+   TPS is derived from TPOT histogram quantiles (1/TPOT);
+4. Jump links to the 4 existing dashboards (LiteLLM / Grafana / Langfuse / Prometheus).
 
-数据源:Prometheus(`litellm_*` / `scorer_*` 指标,渠道粒度靠 `model_id` label)
-与 LiteLLM Management API(master key 由 ExternalSecret 注入,仅服务端持有)。
-安全模型与 Prometheus 相同:自身无认证、不暴露 Ingress,仅经 kubectl 隧道访问
-(本地端口约定 3020,见 `scripts/tpp-tunnels.sh`)。
+Data sources: Prometheus (`litellm_*` / `scorer_*` metrics, per-channel granularity
+via the `model_id` label) and the LiteLLM Management API (master key injected via
+ExternalSecret, held server-side only).
+Same security model as Prometheus: no auth of its own, no Ingress exposure, accessed
+only via kubectl tunnel (local port convention 3020, see `scripts/tpp-tunnels.sh`).
 
-## 本地开发
+## Local development
 
 ```bash
 pip install -e .
@@ -28,7 +31,7 @@ CHANNELS_FILE=../../apps/values/scorer-channels.yaml \
 PORT=3020 dashboard
 ```
 
-## 构建镜像
+## Building the image
 
 ```bash
 aws ecr get-login-password --region us-west-2 | \
@@ -37,4 +40,4 @@ docker buildx build --platform linux/amd64 \
   -t <aws account>.dkr.ecr.us-west-2.amazonaws.com/tpp/dashboard:0.1.0 --push .
 ```
 
-部署见 `apps/tpp-dashboard.tf`(改版本号要同步 `var.dashboard_image_tag`)。
+For deployment see `apps/tpp-dashboard.tf` (when bumping the version, also update `var.dashboard_image_tag`).

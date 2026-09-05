@@ -27,7 +27,7 @@ resource "aws_security_group" "redis" {
   }
 }
 
-# LiteLLM 多副本的 budget/cooldown 同步 + Scorer EWMA 状态 + Langfuse 队列
+# budget/cooldown sync across LiteLLM replicas + Scorer EWMA state + Langfuse queue
 resource "aws_elasticache_replication_group" "this" {
   replication_group_id = var.name
   description          = "TPP shared Redis"
@@ -42,6 +42,6 @@ resource "aws_elasticache_replication_group" "this" {
 
   automatic_failover_enabled = var.num_nodes > 1
   at_rest_encryption_enabled = true
-  # dev 关闭 TLS 简化客户端配置;prod 开启并给 LiteLLM/Langfuse 配 REDIS_SSL
+  # dev disables TLS to simplify client config; enable in prod and set REDIS_SSL for LiteLLM/Langfuse
   transit_encryption_enabled = var.transit_encryption
 }
