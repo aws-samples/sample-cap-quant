@@ -46,19 +46,28 @@ resource "aws_iam_role_policy" "litellm_bedrock" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = [
-        "bedrock:InvokeModel",
-        "bedrock:InvokeModelWithResponseStream",
-        "bedrock:Converse",
-        "bedrock:ConverseStream"
-      ]
-      Resource = [
-        "arn:aws:bedrock:*::foundation-model/*",
-        "arn:aws:bedrock:*:${var.account_id}:inference-profile/*"
-      ]
-    }]
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+          "bedrock:Converse",
+          "bedrock:ConverseStream"
+        ]
+        Resource = [
+          "arn:aws:bedrock:*::foundation-model/*",
+          "arn:aws:bedrock:*:${var.account_id}:inference-profile/*"
+        ]
+      },
+      {
+        # Bedrock Mantle(OpenAI 模型的 OpenAI 兼容端点,LiteLLM 路由 bedrock_mantle/)
+        # 是独立服务前缀,不在 bedrock:* 之内;资源为 Mantle project(默认 project/default)
+        Effect   = "Allow"
+        Action   = ["bedrock-mantle:CreateInference"]
+        Resource = ["arn:aws:bedrock-mantle:*:${var.account_id}:project/*"]
+      }
+    ]
   })
 }
 

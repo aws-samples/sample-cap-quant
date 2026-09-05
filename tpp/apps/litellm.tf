@@ -57,7 +57,7 @@ resource "kubernetes_manifest" "litellm_external_secret" {
       namespace = kubernetes_namespace_v1.litellm.metadata[0].name
     }
     spec = {
-      refreshInterval = "1h"
+      refreshInterval = "5m"
       secretStoreRef = {
         name = "aws-secrets-manager"
         kind = "ClusterSecretStore"
@@ -145,6 +145,13 @@ resource "kubernetes_deployment_v1" "litellm" {
             }
           }
 
+          # Reloader updates this value with a Secret checksum to trigger a
+          # rollout. Keep it first so Terraform can ignore only that dynamic
+          # value while continuing to manage the application environment.
+          env {
+            name  = "STAKATER_LITELLM_ENV_SECRET"
+            value = "managed-by-reloader"
+          }
           env {
             name  = "REDIS_HOST"
             value = local.infra.redis_endpoint
@@ -208,6 +215,14 @@ resource "kubernetes_deployment_v1" "litellm" {
     }
   }
 
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations["reloader.stakater.com/auto"],
+      spec[0].template[0].metadata[0].annotations["reloader.stakater.com/auto"],
+      spec[0].template[0].spec[0].container[0].env[0].value,
+    ]
+  }
+
   depends_on = [kubernetes_manifest.litellm_external_secret]
 }
 
@@ -227,6 +242,28 @@ resource "kubernetes_service_v1" "litellm" {
       target_port = "http"
     }
   }
+}
+
+# Reloader restarts LiteLLM when External Secrets refreshes its environment
+# secret after RDS password rotation.
+resource "kubernetes_annotations" "litellm_reloader" {
+  api_version = "apps/v1"
+  kind        = "Deployment"
+
+  metadata {
+    name      = kubernetes_deployment_v1.litellm.metadata[0].name
+    namespace = kubernetes_namespace_v1.litellm.metadata[0].name
+  }
+
+  annotations = {
+    "reloader.stakater.com/auto" = "true"
+  }
+
+  template_annotations = {
+    "reloader.stakater.com/auto" = "true"
+  }
+
+  depends_on = [helm_release.reloader]
 }
 
 # Prometheus 抓取 /metrics(Scorer 与 Grafana 的数据源)

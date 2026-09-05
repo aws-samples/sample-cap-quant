@@ -66,3 +66,15 @@ channels:
       weight: 50
     model_info:
       id: claude-haiku-4-5--bedrock-use1
+
+  # OpenAI 模型经 Bedrock Mantle 提供;目前仅 us-west-2 单渠道(Codex CLI 接入用)
+  # 必须走 LiteLLM 的 bedrock_mantle/ 路由(OpenAI 兼容端点,原生透传 Responses API 与
+  # reasoning);写成 bedrock/us.openai.* 会走 Claude 的 converse 转换,把 reasoning_effort
+  # 译成 thinking 而被 Mantle 以 unknown_parameter 拒绝。IRSA 需 bedrock-mantle:CreateInference。
+  - model_name: gpt-5.6-terra
+    litellm_params:
+      model: bedrock_mantle/openai.gpt-5.6-terra
+      aws_region_name: us-west-2
+      weight: 100
+    model_info:
+      id: gpt-5.6-terra--bedrock-usw2

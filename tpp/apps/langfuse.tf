@@ -71,9 +71,22 @@ resource "kubernetes_manifest" "langfuse_postgres_external_secret" {
       namespace = kubernetes_namespace_v1.langfuse.metadata[0].name
     }
     spec = {
-      refreshInterval = "1h"
+      refreshInterval = "5m"
       secretStoreRef  = { name = "aws-secrets-manager", kind = "ClusterSecretStore" }
-      target          = { name = "langfuse-postgres" }
+      target = {
+        name = "langfuse-postgres"
+        template = {
+          engineVersion = "v2"
+          data = {
+            # Prisma needs URL-encoded credentials. RDS managed passwords include
+            # reserved URI characters, so the raw password cannot safely be used
+            # to construct a PostgreSQL URL.
+            password     = "{{ .password }}"
+            database_url = "postgresql://tpp:{{ .password | urlquery }}@${local.infra.rds_address}:5432/langfuse"
+          }
+          mergePolicy = "Replace"
+        }
+      }
       data = [
         {
           secretKey = "password"
@@ -301,6 +314,48 @@ resource "helm_release" "langfuse" {
     kubernetes_stateful_set_v1.clickhouse,
     kubernetes_manifest.langfuse_init_external_secret,
   ]
+}
+
+# Reloader restarts both chart-managed Langfuse Deployments when their
+# database Secret refreshes after RDS credential rotation.
+resource "kubernetes_annotations" "langfuse_web_reloader" {
+  api_version = "apps/v1"
+  kind        = "Deployment"
+
+  metadata {
+    name      = "langfuse-web"
+    namespace = kubernetes_namespace_v1.langfuse.metadata[0].name
+  }
+
+  annotations = {
+    "reloader.stakater.com/auto" = "true"
+  }
+
+  template_annotations = {
+    "reloader.stakater.com/auto" = "true"
+  }
+
+  depends_on = [helm_release.langfuse, helm_release.reloader]
+}
+
+resource "kubernetes_annotations" "langfuse_worker_reloader" {
+  api_version = "apps/v1"
+  kind        = "Deployment"
+
+  metadata {
+    name      = "langfuse-worker"
+    namespace = kubernetes_namespace_v1.langfuse.metadata[0].name
+  }
+
+  annotations = {
+    "reloader.stakater.com/auto" = "true"
+  }
+
+  template_annotations = {
+    "reloader.stakater.com/auto" = "true"
+  }
+
+  depends_on = [helm_release.langfuse, helm_release.reloader]
 }
 
 output "langfuse_admin_password" {

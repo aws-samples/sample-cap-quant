@@ -20,6 +20,21 @@ langfuse:
     - secretRef:
         name: langfuse-init
 
+  # The chart's individual PostgreSQL fields pass the raw password through to
+  # Prisma. Use the URL-encoded connection string rendered by External Secrets
+  # instead; DIRECT_URL is used by Prisma migrations.
+  additionalEnv:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: langfuse-postgres
+          key: database_url
+    - name: DIRECT_URL
+      valueFrom:
+        secretKeyRef:
+          name: langfuse-postgres
+          key: database_url
+
 postgresql:
   deploy: false
   host: ${rds_address}

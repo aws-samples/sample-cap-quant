@@ -62,6 +62,18 @@ resource "helm_release" "external_secrets" {
   }
 }
 
+# ---------- Secret reloads ----------
+# External Secrets updates Secret objects, but Kubernetes does not refresh
+# environment variables in existing Pods. Reloader watches those updates and
+# rolls annotated Deployments so workloads receive rotated credentials.
+resource "helm_release" "reloader" {
+  name       = "reloader"
+  repository = "https://stakater.github.io/stakater-charts"
+  chart      = "reloader"
+  namespace  = "kube-system"
+  version    = "2.2.16"
+}
+
 # 全局 SecretStore:指向 Secrets Manager,后续 litellm/langfuse 的 ExternalSecret 都用它
 resource "kubernetes_manifest" "cluster_secret_store" {
   manifest = {

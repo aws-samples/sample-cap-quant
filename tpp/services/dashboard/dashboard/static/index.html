@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TPP Dashboard</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;      /* 卡片/图表面 */
+    --page: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --accent: #2a78d6;         /* 单一序列色(量级对比) */
+    --accent-track: #cde2fb;   /* meter 底轨:同 ramp 浅一档 */
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+  }
+  /* 深色令牌定义两处:媒体查询覆盖"跟随系统",data-theme 覆盖手动选择(手动选择优先) */
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --accent: #3987e5;
+      --accent-track: #0d366b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255,255,255,0.10);
+    --accent: #3987e5;
+    --accent-track: #0d366b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--text-primary);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 24px 48px; }
+
+  header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  header h1 { font-size: 20px; margin: 0; }
+  header .sub { color: var(--text-muted); font-size: 12px; }
+  .links { margin-left: auto; display: flex; gap: 8px; }
+  .links a {
+    display: inline-block; padding: 5px 12px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--surface-1); color: var(--text-primary);
+    text-decoration: none; font-size: 13px;
+  }
+  .links a:hover { border-color: var(--accent); }
+  .links a span { color: var(--text-muted); margin-left: 4px; }
+
+  /* 主题切换:自动/浅/深 三态 */
+  .theme-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .theme-seg button {
+    padding: 5px 10px; font: inherit; font-size: 12px; border: none; cursor: pointer;
+    background: var(--surface-1); color: var(--text-secondary);
+  }
+  .theme-seg button + button { border-left: 1px solid var(--border); }
+  .theme-seg button.on { color: var(--accent); font-weight: 600; }
+
+  section { margin-bottom: 28px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  h2 .hint { font-weight: 400; font-size: 12px; color: var(--text-muted); margin-left: 8px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+
+  /* KPI 行 */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .tile .label { font-size: 12px; color: var(--text-secondary); }
+  .tile .value { font-size: 26px; font-weight: 600; margin-top: 2px; }
+  .tile .meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* 表格 */
+  .tbl-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; white-space: nowrap; }
+  th, td { padding: 7px 10px; text-align: right; font-variant-numeric: tabular-nums; }
+  th { color: var(--text-secondary); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--baseline); }
+  td { border-bottom: 1px solid var(--grid); }
+  tr:last-child td { border-bottom: none; }
+  th.l, td.l { text-align: left; }
+  thead tr.grp th { border-bottom: none; padding-bottom: 0; font-size: 11px; color: var(--text-muted); }
+  thead tr.grp th.sep, tbody td.sep, thead tr.sub th.sep { border-left: 1px solid var(--grid); }
+  td .mono { color: var(--text-muted); font-size: 12px; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px;
+          background: var(--page); border: 1px solid var(--border); color: var(--text-secondary); }
+
+  /* 状态徽章:图标 + 文字,不靠颜色单独表意 */
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-primary); }
+  .badge i { width: 9px; height: 9px; border-radius: 999px; display: inline-block; }
+  .badge.good i { background: var(--good); }
+  .badge.warning i { background: var(--warning); border-radius: 2px; }           /* 方形 */
+  .badge.serious i { background: var(--serious); clip-path: polygon(50% 0,100% 100%,0 100%); border-radius: 0; } /* 三角 */
+  .badge.critical i { background: var(--critical); clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%); border-radius: 0; } /* 菱形 */
+  .badge.none { color: var(--text-muted); }
+  .badge.none i { background: var(--baseline); }
+
+  /* 权重 meter:同 ramp 浅一档做底轨 */
+  .meter { display: inline-flex; align-items: center; gap: 8px; }
+  .meter .track { width: 90px; height: 6px; border-radius: 3px; background: var(--accent-track); overflow: hidden; }
+  .meter .fill { height: 100%; border-radius: 3px; background: var(--accent); }
+
+  /* 配额编辑 */
+  .quota-edit { display: inline-flex; align-items: center; gap: 6px; }
+  .quota-edit input {
+    width: 88px; padding: 4px 8px; text-align: right; font: inherit;
+    font-variant-numeric: tabular-nums; color: var(--text-primary);
+    background: var(--page); border: 1px solid var(--border); border-radius: 6px;
+  }
+  .quota-edit input:focus { outline: none; border-color: var(--accent); }
+  button.save {
+    padding: 4px 12px; font: inherit; font-size: 12px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); cursor: pointer;
+  }
+  button.save:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+  button.save:disabled { opacity: .45; cursor: default; }
+
+  /* 窗口选择 */
+  .filters { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+  .filters .lbl { font-size: 12px; color: var(--text-muted); margin-right: 2px; }
+  .filters button {
+    padding: 4px 12px; font: inherit; font-size: 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); cursor: pointer;
+  }
+  .filters button.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+  /* 图表 */
+  .chart-note { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.14);
+  }
+  #tooltip .t { font-weight: 600; margin-bottom: 2px; }
+  #tooltip .r { color: var(--text-secondary); }
+  svg text { font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; }
+
+  footer { color: var(--text-muted); font-size: 12px; margin-top: 8px; }
+  .err-banner { display: none; background: var(--surface-1); border: 1px solid var(--critical);
+                border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>TPP Dashboard</h1>
+    <span class="sub" id="updated-at"></span>
+    <nav class="links" id="links"></nav>
+    <span class="theme-seg" id="theme-seg" title="主题">
+      <button data-t="auto">自动</button><button data-t="light">浅色</button><button data-t="dark">深色</button>
+    </span>
+  </header>
+
+  <div class="err-banner" id="err-banner"></div>
+
+  <section>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section>
+    <h2>用户配额<span class="hint">单位 USD/day(budget_duration=1d,到期自动重置);修改后点保存写回 LiteLLM</span></h2>
+    <div class="card tbl-scroll"><table id="users-tbl">
+      <thead><tr>
+        <th class="l">用户</th><th class="l">别名</th><th>Key 数</th>
+        <th>本期已消费</th><th>剩余</th><th>重置时间</th><th>日配额 (USD/day)</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>渠道消费 · 健康度 · 权重<span class="hint">9 条 region×模型 渠道;消费/tokens 为近 24h</span></h2>
+    <div class="card">
+      <div id="spend-chart"></div>
+      <div class="chart-note">近 24h 消费(USD),按渠道。悬停看明细。</div>
+    </div>
+    <div style="height:12px"></div>
+    <div class="card tbl-scroll"><table id="chan-tbl">
+      <thead><tr>
+        <th class="l">模型</th><th class="l">Region</th><th>消费 24h</th>
+        <th>输入 tokens</th><th>输出 tokens</th>
+        <th title="缓存读 / (普通输入+缓存读+缓存写),近 24h">缓存命中率</th>
+        <th>健康度</th><th>质量分</th><th class="l">权重</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>渠道稳定性与性能<span class="hint">TPS 由 TPOT 换算(1/TPOT,解码吞吐 tok/s)</span></h2>
+    <div class="filters" id="win-filters"><span class="lbl">统计窗口</span></div>
+    <div class="card tbl-scroll"><table id="perf-tbl">
+      <thead>
+        <tr class="grp">
+          <th class="l"></th><th></th>
+          <th colspan="3" class="sep">TTFT (s)</th>
+          <th colspan="3" class="sep">TPOT (s/tok)</th>
+          <th colspan="3" class="sep">E2E (s)</th>
+          <th colspan="3" class="sep">TPS (tok/s)</th>
+          <th colspan="3" class="sep">错误</th>
+        </tr>
+        <tr class="sub">
+          <th class="l">渠道</th><th>请求数</th>
+          <th class="sep">p50</th><th>p90</th><th>p99</th>
+          <th class="sep">p50</th><th>p90</th><th>p99</th>
+          <th class="sep">p50</th><th>p90</th><th>p99</th>
+          <th class="sep">p50</th><th>p90</th><th>p99</th>
+          <th class="sep">次数</th><th>错误率</th><th class="l">分类</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <footer>30s 自动刷新 · 数据源:Prometheus(litellm/scorer 指标)+ LiteLLM Management API</footer>
+</div>
+<div id="tooltip"></div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+let CONFIG = null;
+let WINDOW = "1h";
+
+/* ---------- 主题:自动(跟随系统)/浅/深,选择存 localStorage ---------- */
+function applyTheme(mode) {
+  if (mode === "light" || mode === "dark") {
+    document.documentElement.dataset.theme = mode;
+  } else {
+    delete document.documentElement.dataset.theme;
+    mode = "auto";
+  }
+  try { localStorage.setItem("tpp-theme", mode); } catch (e) { /* 私密窗口等场景忽略 */ }
+  document.querySelectorAll("#theme-seg button").forEach((b) =>
+    b.classList.toggle("on", b.dataset.t === mode));
+}
+(() => {
+  let saved = "auto";
+  try { saved = localStorage.getItem("tpp-theme") || "auto"; } catch (e) {}
+  applyTheme(saved);
+  document.querySelectorAll("#theme-seg button").forEach((b) =>
+    b.addEventListener("click", () => applyTheme(b.dataset.t)));
+})();
+
+/* ---------- 格式化 ---------- */
+const fmtUSD = (v) => v == null ? "—" :
+  "$" + (v >= 100 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : v.toFixed(4));
+const fmtTok = (v) => {
+  if (v == null) return "—";
+  if (v >= 1e9) return (v / 1e9).toFixed(1) + "B";
+  if (v >= 1e6) return (v / 1e6).toFixed(1) + "M";
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + "K";
+  return String(Math.round(v));
+};
+const fmtSec = (v) => v == null ? "—" : v < 1 ? Math.round(v * 1000) + "ms" : v.toFixed(2) + "s";
+const fmtTpot = (v) => v == null ? "—" : Math.round(v * 1000) + "ms";
+const fmtTps = (v) => v == null ? "—" : v >= 100 ? Math.round(v) : v.toFixed(1);
+const fmtPct = (v) => v == null ? "—" : (v * 100).toFixed(v >= 0.1 ? 0 : 1) + "%";
+const fmtInt = (v) => v == null ? "—" : Math.round(v).toLocaleString();
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const shortRegion = (r) => ({ "us-west-2": "usw2", "us-east-1": "use1" }[r] || r);
+
+/* ---------- 健康徽章:图标+文字,颜色不独扛语义 ---------- */
+function healthBadge(ch) {
+  if (ch.circuit_open) return ["critical", "熔断"];
+  if (ch.deployment_state === 2) return ["serious", "异常"];
+  if (ch.deployment_state === 1) return ["warning", "部分异常"];
+  if (ch.error_rate != null && ch.error_rate > 0.05) return ["warning", "错误偏高"];
+  if (ch.quality == null && !ch.requests) return ["none", "无流量"];
+  if (ch.quality != null && ch.quality < 0.5) return ["warning", "低质量"];
+  return ["good", "正常"];
+}
+const badge = (ch) => {
+  const [cls, label] = healthBadge(ch);
+  return `<span class="badge ${cls}"><i></i>${label}</span>`;
+};
+
+/* ---------- tooltip ---------- */
+const tip = $("#tooltip");
+function showTip(evt, html) {
+  tip.innerHTML = html;
+  tip.style.display = "block";
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  if (x + w > innerWidth - 8) x = evt.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = evt.clientY - h - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+const hideTip = () => { tip.style.display = "none"; };
+
+/* ---------- 消费横向条形图(单色=量级;手绘 SVG) ---------- */
+function renderSpendChart(channels) {
+  const rows = [...channels].sort((a, b) => b.spend_24h - a.spend_24h);
+  const max = Math.max(...rows.map((r) => r.spend_24h), 1e-9);
+  const barH = 18, gap = 10, labelW = 210, valueW = 84;
+  const W = Math.min(1180, Math.max(640, ($("#spend-chart").clientWidth || 900)));
+  const plotW = W - labelW - valueW;
+  const H = rows.length * (barH + gap) + 24;
+
+  // 轴刻度:0/50%/100% 三条竖向 hairline
+  const ticks = [0, 0.5, 1].map((t) => {
+    const x = labelW + plotW * t;
+    const v = max * t;
+    return `<line x1="${x}" y1="6" x2="${x}" y2="${H - 18}" stroke="var(--grid)" stroke-width="1"/>
+      <text x="${x}" y="${H - 4}" text-anchor="middle" fill="var(--text-muted)">${fmtUSD(v)}</text>`;
+  }).join("");
+
+  const bars = rows.map((r, i) => {
+    const y = 8 + i * (barH + gap);
+    const w = Math.max(r.spend_24h / max * plotW, 0);
+    const name = `${r.model_group} · ${shortRegion(r.region)}`;
+    // 数据端 4px 圆角、基线端方角
+    const rr = Math.min(4, w);
+    const path = w < 0.5 ? "" :
+      `M${labelW},${y} h${w - rr} q${rr},0 ${rr},${rr} v${barH - 2 * rr} q0,${rr} -${rr},${rr} h-${w - rr} Z`;
+    return `<g class="bar-row" data-i="${i}">
+      <text x="${labelW - 10}" y="${y + barH / 2 + 4}" text-anchor="end" fill="var(--text-secondary)">${esc(name)}</text>
+      ${path ? `<path d="${path}" fill="var(--accent)"/>` : ""}
+      <text x="${labelW + w + 8}" y="${y + barH / 2 + 4}" fill="var(--text-primary)">${fmtUSD(r.spend_24h)}</text>
+      <rect x="0" y="${y - gap / 2}" width="${W}" height="${barH + gap}" fill="transparent"/>
+    </g>`;
+  }).join("");
+
+  $("#spend-chart").innerHTML =
+    `<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="近24小时各渠道消费(USD)">
+      ${ticks}
+      <line x1="${labelW}" y1="6" x2="${labelW}" y2="${H - 18}" stroke="var(--baseline)" stroke-width="1"/>
+      ${bars}
+    </svg>`;
+
+  $("#spend-chart").querySelectorAll(".bar-row").forEach((g) => {
+    const r = rows[+g.dataset.i];
+    g.addEventListener("mousemove", (e) => showTip(e,
+      `<div class="t">${esc(r.channel_id)}</div>
+       <div class="r">消费 24h:<b>${fmtUSD(r.spend_24h)}</b></div>
+       <div class="r">tokens:输入 ${fmtTok(r.tokens_in_24h)} / 输出 ${fmtTok(r.tokens_out_24h)}</div>
+       <div class="r">缓存命中率:${r.cache_hit_rate == null ? "—" : fmtPct(r.cache_hit_rate)}</div>
+       <div class="r">权重:${r.weight == null ? "—" : fmtPct(r.weight)}</div>`));
+    g.addEventListener("mouseleave", hideTip);
+  });
+}
+
+/* ---------- 渠道表 ---------- */
+function renderChanTable(channels) {
+  $("#chan-tbl tbody").innerHTML = channels.map((ch) => `
+    <tr>
+      <td class="l">${esc(ch.model_group)}<br><span class="mono">${esc(ch.channel_id)}</span></td>
+      <td class="l"><span class="chip">${esc(ch.region)}</span></td>
+      <td>${fmtUSD(ch.spend_24h)}</td>
+      <td>${fmtTok(ch.tokens_in_24h)}</td>
+      <td>${fmtTok(ch.tokens_out_24h)}</td>
+      <td>${ch.cache_hit_rate == null ? "—" :
+        `${fmtPct(ch.cache_hit_rate)}<br><span class="mono">读 ${fmtTok(ch.cache_read_24h)} / 写 ${fmtTok(ch.cache_write_24h)}</span>`}</td>
+      <td style="text-align:left">${badge(ch)}</td>
+      <td>${ch.quality == null ? "—" : ch.quality.toFixed(3)}</td>
+      <td class="l">${ch.weight == null ? "—" :
+        `<span class="meter"><span class="track"><span class="fill" style="width:${Math.min(ch.weight * 100, 100)}%"></span></span>${fmtPct(ch.weight)}</span>`}</td>
+    </tr>`).join("");
+}
+
+/* ---------- 性能表 ---------- */
+function renderPerfTable(channels) {
+  const q3 = (o, fmt) =>
+    `<td class="sep">${fmt(o.p50)}</td><td>${fmt(o.p90)}</td><td>${fmt(o.p99)}</td>`;
+  $("#perf-tbl tbody").innerHTML = channels.map((ch) => {
+    const errCls = Object.entries(ch.errors_by_class)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => `${esc(k)}×${v}`).join(", ");
+    return `<tr>
+      <td class="l">${esc(ch.model_group)} · ${shortRegion(ch.region)}</td>
+      <td>${fmtInt(ch.requests)}</td>
+      ${q3(ch.ttft, fmtSec)}${q3(ch.tpot, fmtTpot)}${q3(ch.e2e, fmtSec)}${q3(ch.tps, fmtTps)}
+      <td class="sep">${fmtInt(ch.failures)}</td>
+      <td>${fmtPct(ch.error_rate)}</td>
+      <td class="l" style="max-width:260px;overflow:hidden;text-overflow:ellipsis" title="${esc(errCls)}">${errCls || "—"}</td>
+    </tr>`;
+  }).join("");
+}
+
+/* ---------- KPI ---------- */
+function renderKpis(channels, users) {
+  const spend = channels.reduce((s, c) => s + c.spend_24h, 0);
+  const toks = channels.reduce((s, c) => s + c.tokens_in_24h + c.tokens_out_24h, 0);
+  const reqs = channels.reduce((s, c) => s + c.requests, 0);
+  const fails = channels.reduce((s, c) => s + c.failures, 0);
+  const open = channels.filter((c) => c.circuit_open).length;
+  const quota = users.reduce((s, u) => s + (u.max_budget || 0), 0);
+  const tiles = [
+    ["总消费(近 24h)", fmtUSD(spend), `tokens ${fmtTok(toks)}`],
+    [`请求数(${WINDOW})`, fmtInt(reqs), `错误 ${fmtInt(fails)} / ${fmtPct(reqs ? fails / reqs : null)}`],
+    ["熔断渠道", `${open} / ${channels.length}`, open ? "有渠道被熔断" : "全部在环"],
+    ["配额总额(USD/day)", fmtUSD(quota), `${users.length} 个用户`],
+  ];
+  $("#kpis").innerHTML = tiles.map(([l, v, m]) =>
+    `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="meta">${m}</div></div>`).join("");
+}
+
+/* ---------- 用户配额表 ---------- */
+function renderUsers(users) {
+  $("#users-tbl tbody").innerHTML = users.map((u, i) => {
+    const remain = u.max_budget == null ? null : Math.max(u.max_budget - (u.spend || 0), 0);
+    const reset = u.budget_reset_at ? new Date(u.budget_reset_at).toLocaleString() : "—";
+    return `<tr>
+      <td class="l">${esc(u.user_id)}</td>
+      <td class="l">${u.alias ? esc(u.alias) : "—"}</td>
+      <td>${u.key_count}</td>
+      <td>${fmtUSD(u.spend)}</td>
+      <td>${fmtUSD(remain)}</td>
+      <td><span class="mono">${reset}</span></td>
+      <td><span class="quota-edit">
+        <input type="number" min="0" step="1" id="budget-${i}" value="${u.max_budget ?? ""}" placeholder="未设置">
+        <button class="save" data-i="${i}" data-uid="${esc(u.user_id)}">保存</button>
+      </span></td>
+    </tr>`;
+  }).join("");
+
+  $("#users-tbl").querySelectorAll("button.save").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const v = parseFloat($("#budget-" + btn.dataset.i).value);
+      if (!(v >= 0)) { alert("请输入 >= 0 的数字"); return; }
+      btn.disabled = true; btn.textContent = "…";
+      try {
+        const r = await fetch("/api/users/budget", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: btn.dataset.uid, max_budget: v }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        btn.textContent = "已保存";
+        setTimeout(refresh, 800);
+      } catch (e) {
+        btn.textContent = "失败"; btn.disabled = false;
+        showError("配额保存失败:" + e.message);
+      }
+    });
+  });
+}
+
+/* ---------- 窗口选择 ---------- */
+function renderWindowFilters() {
+  const box = $("#win-filters");
+  box.querySelectorAll("button").forEach((b) => b.remove());
+  CONFIG.windows.forEach((w) => {
+    const b = document.createElement("button");
+    b.textContent = w;
+    b.className = w === WINDOW ? "on" : "";
+    b.addEventListener("click", () => { WINDOW = w; renderWindowFilters(); refresh(); });
+    box.appendChild(b);
+  });
+}
+
+function showError(msg) {
+  const el = $("#err-banner");
+  el.textContent = msg; el.style.display = "block";
+  clearTimeout(el._t); el._t = setTimeout(() => { el.style.display = "none"; }, 8000);
+}
+
+/* ---------- 主刷新 ---------- */
+async function refresh() {
+  try {
+    const [ov, us] = await Promise.all([
+      fetch(`/api/overview?window=${WINDOW}`).then((r) => { if (!r.ok) throw new Error("overview " + r.status); return r.json(); }),
+      fetch("/api/users").then((r) => { if (!r.ok) throw new Error("users " + r.status); return r.json(); }),
+    ]);
+    renderKpis(ov.channels, us.users);
+    renderUsers(us.users);
+    renderSpendChart(ov.channels);
+    renderChanTable(ov.channels);
+    renderPerfTable(ov.channels);
+    $("#updated-at").textContent = "更新于 " + new Date().toLocaleTimeString();
+  } catch (e) {
+    showError("刷新失败:" + e.message);
+  }
+}
+
+async function init() {
+  CONFIG = await fetch("/api/config").then((r) => r.json());
+  $("#links").innerHTML = Object.entries(CONFIG.links).map(([name, url]) =>
+    `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}<span>↗</span></a>`).join("");
+  renderWindowFilters();
+  await refresh();
+  setInterval(refresh, 30_000);
+}
+init();
+</script>
+</body>
+</html>
