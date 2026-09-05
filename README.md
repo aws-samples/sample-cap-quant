@@ -94,7 +94,7 @@ This repo discusses **Data Accessing** and **Research Modeling** as well as **ho
 - 🎯[Core Strategy](https://github.com/aws-samples/sample-cap-quant/blob/main/low-latency/README.md)
 
 🌟 GenAI
-- 🎯[Token Proxy Platform](https://github.com/aws-samples/sample-cap-quant/tree/main/tpp)
+- 🎯[Token Proxy Platform](https://github.com/aws-samples/sample-cap-quant/tree/tpp-english/tpp)
 - 🎯[aws billing mcp](https://github.com/aws-samples/sample-cap-quant/tree/main/aws-billing-mcp)
 
 # 🔐Security
