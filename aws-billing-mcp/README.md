@@ -1,5 +1,7 @@
 # aws-billing-mcp
 
+**English** | [中文](README.zh-CN.md)
+
 MCP server that exposes AWS Billing and Cost Management data for the current AWS account via the local AWS CLI, so MCP clients such as Quick Desktop can analyze spend and usage. Written in TypeScript; compiled output lives in `dist/`.
 
 ## Prerequisites
