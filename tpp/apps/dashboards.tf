@@ -11,7 +11,13 @@ resource "kubernetes_config_map_v1" "tpp_dashboard" {
   }
 
   data = {
-    "tpp-overview.json" = file("${path.module}/values/tpp-overview-dashboard.json")
+    # Stamp the environment into the dashboard title: dev and prod render identically otherwise, and a
+    # Grafana tab gives no other clue which cluster it is pointed at. Decode/encode rather than a string
+    # substitution so the title is the only thing that can change.
+    "tpp-overview.json" = jsonencode(merge(
+      jsondecode(file("${path.module}/values/tpp-overview-dashboard.json")),
+      { title = "TPP Overview — ${upper(var.env)}" },
+    ))
   }
 
   depends_on = [helm_release.kube_prometheus_stack]
@@ -67,7 +73,7 @@ resource "kubernetes_manifest" "tpp_alerts" {
               labels = { severity = "warning" }
               annotations = {
                 summary     = "Channel {{ $labels.model_id }} has been circuit-broken for over 5 minutes"
-                description = "This channel's severe error ratio was too high, so its traffic was set to zero; recovery requires 3 consecutive rounds with weighted error rate < 10%."
+                description = "This channel's severe error ratio was too high, so its traffic was cut to a 1% probe; it closes by itself after 3 consecutive rounds with weighted error rate < 10% on the probe samples. Check the region's Bedrock quota and health; see runbook TPPChannelCircuitOpen if it persists."
               }
             }
           ]

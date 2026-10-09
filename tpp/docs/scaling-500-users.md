@@ -169,10 +169,15 @@ Quality analysis does not need 100% capture of full 50k-token prompts.
 `hashed_api_key` / `api_key_alias` / `end_user`;
 `500 keys × 9+ channels × a dozen metric families` → millions of series; 2Gi is certain death.
 
-Prescription: add `metricRelabelConfigs` to the ServiceMonitor at `apps/litellm.tf:270`,
-**labeldrop the per-key / per-user labels and keep only `model_id`, `requested_model`,
-`exception_class`, `le`** — these four are exactly the only labels `services/scorer/scorer/prom.py`
-and tpp-dashboard depend on. Per-user attribution should be looked up in the RDS ledger and Langfuse, not stored in the time-series database.
+Prescription: control the labels **at the source** with LiteLLM's `prometheus_metrics_config` / `include_labels`
+(`apps/values/litellm-config-prod.yaml`), keeping `model_id`, `requested_model`, `exception_class` and the
+histogram `le` — exactly what `services/scorer/scorer/prom.py` and tpp-dashboard depend on — plus one gauge per user for
+the Grafana budget panel. Per-user attribution should be looked up in the RDS ledger and Langfuse, not stored in the time-series database.
+
+> An earlier revision of this document proposed a `metricRelabelConfigs` labeldrop on the ServiceMonitor instead. That is
+> wrong for counters: dropping the label that distinguishes two series inside one scrape produces duplicate samples, and
+> Prometheus keeps only the first (`prometheus_target_scrapes_sample_duplicate_timestamp_total` climbs), so request and spend
+> counts would be silently undercounted. Only the source-side whitelist is safe.
 
 After cardinality reduction: Prometheus on a dedicated node, 8Gi, 200Gi volume, 30d retention.
 **Retention must not go below 7d** — the dashboard's statistics window whitelist includes `7d`.
@@ -286,3 +291,32 @@ is on the order of **$40k–170k/month**.
 | Domain and certificates | External domain, ACM certificate ownership |
 | SpendLogs retention | 30d / 90d, and whether long-term billing needs Athena queries |
 | Langfuse sampling rate | Whether 20% payload sampling satisfies quality analysis needs |
+
+## 15. Implementation Status in This Repository
+
+The platform side of this plan is expressed as a second environment that shares every module with dev:
+`infra/envs/prod` (state 1) and `apps/envs/prod.tfvars` (state 2). Nothing in dev changes shape; every prod feature
+sits behind a variable whose default is the dev behaviour.
+
+| Section | Item | Status | Where |
+|---|---|---|---|
+| §3 | Bedrock quota sharding, extra Regions, Provisioned Throughput | **not modeled** (business workstream) | — |
+| §4 | 1 worker/pod, 1 vCPU / 4Gi, PDB, zone spread | done | `apps/litellm.tf`, `apps/envs/prod.tfvars` |
+| §4 | HPA 4 → 20 on in-flight load (KEDA + Prometheus) | done, on request rate as the in-flight stand-in (5 RPS/pod ≈ 175 streams) | `apps/litellm.tf` ScaledObject, `apps/platform.tf` |
+| §5 | PgBouncer (transaction mode) | done; pods set `DISABLE_SCHEMA_UPDATE`, migrations run as a Job | `apps/pgbouncer.tf` |
+| §5 | Aurora PostgreSQL writer + reader, ledger / langfuse split | done | `infra/modules/aurora`, `infra/envs/prod/main.tf` |
+| §5 | SpendLogs retention 90d | done | `apps/values/litellm-config-prod.yaml` |
+| §5 | Daily billing ETL to S3 + Athena | open | — |
+| §6 | Two Redis groups, HA, TLS + AUTH | done | `infra/envs/prod/main.tf`, `redis_tls_enabled` in apps |
+| §7 | ClickHouse sizing + dedicated tainted pool | done (single node, 500Gi) | `apps/langfuse.tf` |
+| §7 | Payload sampling, clustering, TTL + S3 tiering, worker KEDA | open | — |
+| §8 | Cardinality control, Prometheus 30d / 200Gi / 8Gi on its own pool | done, at the source (see §8 note) | `apps/values/litellm-config-prod.yaml`, `apps/values/kube-prometheus-stack-prod.yaml` |
+| §9 | ALB + ACM (+ optional WAF) for the LiteLLM API | done, disabled until certificate and hostname exist | `apps/litellm.tf` Ingress |
+| §9 | OIDC, key broker, per-key rate limits, Dashboard auth | open | — |
+| §10 | Scorer: quota-exhausted state, throttled-vs-broken distinction, half-open breaker | open (design in ADR-006) | — |
+| §11 | Three node groups + Karpenter, NAT per AZ | done as one `system` managed group + three Karpenter NodePools | `infra/modules/eks`, `apps/karpenter.tf`, `infra/modules/network` |
+
+Deployment order and the post-apply checks are in `apps/README.md`. Assumptions about third-party behaviour that the first
+prod apply must confirm: LiteLLM's `prometheus_metrics_config` metric names, `litellm --skip_server_startup` as the
+migration entrypoint, the Langfuse chart's `redis.tls` / `redis.auth.existingSecret` keys, and the `edoburu/pgbouncer`
+environment variables.

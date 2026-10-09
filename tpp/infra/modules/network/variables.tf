@@ -19,3 +19,9 @@ variable "single_nat_gateway" {
   type        = bool
   default     = true
 }
+
+variable "extra_private_subnet_tags" {
+  description = "Additional tags on private subnets, e.g. karpenter.sh/discovery so Karpenter can find them"
+  type        = map(string)
+  default     = {}
+}

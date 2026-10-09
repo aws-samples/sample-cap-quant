@@ -1,5 +1,14 @@
 # ---------- Langfuse (M4: trace) ----------
 # All external dependencies point to AWS managed resources (RDS/ElastiCache/S3); ClickHouse is a self-managed single-node StatefulSet.
+# prod: Langfuse gets its own RDS instance and its own queue Redis (TLS + AUTH); ClickHouse is sized up and pinned to a tainted pool.
+
+locals {
+  # prod splits the langfuse database onto its own instance; dev shares the ledger instance
+  langfuse_rds_address    = try(local.infra.langfuse_rds_address, local.infra.rds_address)
+  langfuse_rds_secret_arn = try(local.infra.langfuse_rds_master_user_secret_arn, local.infra.rds_master_user_secret_arn)
+  # prod has a dedicated queue Redis so queue growth can never evict router state
+  redis_queue_host = try(local.infra.redis_queue_endpoint, local.infra.redis_endpoint)
+}
 
 resource "kubernetes_namespace_v1" "langfuse" {
   metadata {
@@ -24,7 +33,7 @@ resource "random_password" "langfuse_admin_pw" {
 }
 
 resource "aws_secretsmanager_secret" "langfuse" {
-  name = "tpp/langfuse"
+  name = "${var.secret_prefix}/langfuse"
 }
 
 resource "aws_secretsmanager_secret_version" "langfuse" {
@@ -54,7 +63,7 @@ resource "kubernetes_manifest" "langfuse_init_external_secret" {
       refreshInterval = "1h"
       secretStoreRef  = { name = "aws-secrets-manager", kind = "ClusterSecretStore" }
       target          = { name = "langfuse-init" }
-      dataFrom        = [{ extract = { key = "tpp/langfuse" } }]
+      dataFrom        = [{ extract = { key = "${var.secret_prefix}/langfuse" } }]
     }
   }
 
@@ -82,7 +91,7 @@ resource "kubernetes_manifest" "langfuse_postgres_external_secret" {
             # reserved URI characters, so the raw password cannot safely be used
             # to construct a PostgreSQL URL.
             password     = "{{ .password }}"
-            database_url = "postgresql://tpp:{{ .password | urlquery }}@${local.infra.rds_address}:5432/langfuse"
+            database_url = "postgresql://tpp:{{ .password | urlquery }}@${local.langfuse_rds_address}:5432/langfuse"
           }
           mergePolicy = "Replace"
         }
@@ -90,14 +99,41 @@ resource "kubernetes_manifest" "langfuse_postgres_external_secret" {
       data = [
         {
           secretKey = "password"
-          remoteRef = { key = local.infra.rds_master_user_secret_arn, property = "password" }
+          remoteRef = { key = local.langfuse_rds_secret_arn, property = "password" }
         }
       ]
     }
   }
 }
 
-# ---- Database bootstrap Job: create the langfuse database on RDS (idempotent) ----
+# ---- Queue Redis AUTH token (prod): synced from <prefix>/redis-queue for the chart's redis.auth.existingSecret ----
+resource "kubernetes_manifest" "langfuse_redis_external_secret" {
+  count = var.redis_tls_enabled ? 1 : 0
+
+  manifest = {
+    apiVersion = "external-secrets.io/v1"
+    kind       = "ExternalSecret"
+    metadata = {
+      name      = "langfuse-redis"
+      namespace = kubernetes_namespace_v1.langfuse.metadata[0].name
+    }
+    spec = {
+      refreshInterval = "1h"
+      secretStoreRef  = { name = "aws-secrets-manager", kind = "ClusterSecretStore" }
+      target          = { name = "langfuse-redis" }
+      data = [
+        {
+          secretKey = "password"
+          remoteRef = { key = "${var.secret_prefix}/redis-queue", property = "auth_token" }
+        }
+      ]
+    }
+  }
+}
+
+# ---- Database bootstrap Job: create the langfuse database (idempotent) ----
+# Connects to the always-present 'postgres' maintenance database, so it works both on the shared dev instance
+# (where only 'litellm' exists beforehand) and on the dedicated prod instance (created with db_name = langfuse).
 resource "kubernetes_job_v1" "langfuse_db_bootstrap" {
   metadata {
     name      = "langfuse-db-bootstrap"
@@ -125,7 +161,7 @@ resource "kubernetes_job_v1" "langfuse_db_bootstrap" {
 
           env {
             name  = "PGHOST"
-            value = local.infra.rds_address
+            value = local.langfuse_rds_address
           }
           env {
             name  = "PGUSER"
@@ -133,7 +169,11 @@ resource "kubernetes_job_v1" "langfuse_db_bootstrap" {
           }
           env {
             name  = "PGDATABASE"
-            value = "litellm"
+            value = "postgres"
+          }
+          env {
+            name  = "PGSSLMODE"
+            value = "require"
           }
           env {
             name = "PGPASSWORD"
@@ -160,6 +200,8 @@ resource "kubernetes_job_v1" "langfuse_db_bootstrap" {
 }
 
 # ---- Self-managed single-node ClickHouse (trace data, regenerable, EBS PVC) ----
+# prod sizes it up (500Gi, 4 vCPU / 16Gi) and pins it to the tainted clickhouse pool. Clustering (Altinity operator)
+# and TTL + S3 tiering remain open items in docs/scaling-500-users.md §7; sampling at the source is the cheaper first step.
 resource "random_password" "clickhouse" {
   length  = 32
   special = false
@@ -197,6 +239,18 @@ resource "kubernetes_stateful_set_v1" "clickhouse" {
       }
 
       spec {
+        node_selector = var.node_selectors.clickhouse
+
+        dynamic "toleration" {
+          for_each = var.clickhouse_tolerations
+          content {
+            key      = toleration.value.key
+            operator = toleration.value.operator
+            value    = toleration.value.value
+            effect   = toleration.value.effect
+          }
+        }
+
         container {
           name  = "clickhouse"
           image = "clickhouse/clickhouse-server:26.4"
@@ -230,13 +284,8 @@ resource "kubernetes_stateful_set_v1" "clickhouse" {
           }
 
           resources {
-            requests = {
-              cpu    = "500m"
-              memory = "2Gi"
-            }
-            limits = {
-              memory = "4Gi"
-            }
+            requests = var.clickhouse.requests
+            limits   = var.clickhouse.limits
           }
 
           readiness_probe {
@@ -259,7 +308,7 @@ resource "kubernetes_stateful_set_v1" "clickhouse" {
         storage_class_name = "gp3"
         resources {
           requests = {
-            storage = "50Gi"
+            storage = var.clickhouse.storage
           }
         }
       }
@@ -301,11 +350,16 @@ resource "helm_release" "langfuse" {
 
   values = [
     templatefile("${path.module}/values/langfuse-values.yaml.tftpl", {
-      langfuse_role_arn = local.infra.langfuse_role_arn
-      rds_address       = local.infra.rds_address
-      redis_endpoint    = local.infra.redis_endpoint
-      bucket            = local.infra.langfuse_bucket
-      region            = var.region
+      langfuse_role_arn     = local.infra.langfuse_role_arn
+      rds_address           = local.langfuse_rds_address
+      redis_endpoint        = local.redis_queue_host
+      redis_tls             = var.redis_tls_enabled
+      bucket                = local.infra.langfuse_bucket
+      region                = var.region
+      node_selector         = var.node_selectors.observability
+      web_replicas          = var.langfuse.web_replicas
+      worker_replicas       = var.langfuse.worker_replicas
+      langfuse_nextauth_url = var.langfuse.nextauth_url
     })
   ]
 
@@ -313,6 +367,7 @@ resource "helm_release" "langfuse" {
     kubernetes_job_v1.langfuse_db_bootstrap,
     kubernetes_stateful_set_v1.clickhouse,
     kubernetes_manifest.langfuse_init_external_secret,
+    kubernetes_manifest.langfuse_redis_external_secret,
   ]
 }
 

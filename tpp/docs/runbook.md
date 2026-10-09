@@ -25,38 +25,71 @@ Prerequisite: `aws eks update-kubeconfig --name tpp-dev --region us-west-2`
 - [Known Issues / Gotchas](#known-issues--gotchas)
 - [Current Environment Registry](#current-environment-registry)
 
-## Access Endpoints (dev has no Ingress exposed yet)
-**On machines with the tunnel daemon configured (launchd service `com.tpp.litellm-proxy` running `tpp-tunnels.sh`), just open a browser --
-no commands needed**; the "Manual command" column below is only for machines without the daemon.
+## Access Endpoints (neither environment exposes an Ingress yet)
 
-| Service | Direct URL / credentials | Manual command (fallback) |
-|---|---|---|
-| LiteLLM API + Admin UI | http://localhost:14000/ui, log in as `admin` / master key (`cd apps && terraform output -raw litellm_master_key`) | `kubectl port-forward -n litellm svc/litellm 14000:4000` |
-| Grafana (TPP Overview) | http://localhost:3000, admin / `terraform output -raw grafana_admin_password` | `kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80` |
-| Langfuse UI | http://localhost:3010, admin@tpp.local / `terraform output -raw langfuse_admin_password`; **the local port must be 3010** (bound by NEXTAUTH_URL) | `kubectl port-forward -n langfuse svc/langfuse-web 3010:3000` |
-| Prometheus | http://localhost:9090 (no auth) | `kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090` |
-| TPP Dashboard (quotas/channel spend/performance) | http://localhost:3020 (no auth; quotas can be edited directly on the page) | `kubectl port-forward -n dashboard svc/dashboard 3020:8080` |
+**Every URL is a local tunnel.** Neither cluster has an Ingress, a LoadBalancer or a NodePort -- every
+service is ClusterIP -- so there are no public hostnames for TPP, only `localhost` ports.
+
+A `localhost` URL carries **no environment identity**. dev and prod therefore use **disjoint port blocks**,
+so both can be tunneled at the same time and the port itself tells you which cluster you are on:
+
+| Service | dev | prod | Credentials |
+|---|---|---|---|
+| LiteLLM API + Admin UI (`/ui`) | 14000 | **24000** | `admin` / `terraform output -raw litellm_master_key` |
+| Grafana (TPP Overview) | 3000 | **4000** | `admin` / `terraform output -raw grafana_admin_password` |
+| Langfuse UI | 3010 | **4010** | `admin@tpp.local` / `terraform output -raw langfuse_admin_password` |
+| Prometheus | 9090 | **9091** | no auth |
+| TPP Dashboard (quotas/channel spend/performance) | 3020 | **4020** | no auth; quotas editable on the page |
+
+**On machines with the tunnel daemon configured (launchd service `com.tpp.litellm-proxy` running
+`tpp-tunnels.sh`), just open a browser** -- no commands needed. Otherwise start them with
+`./scripts/tpp-tunnels.sh` (dev) or `TPP_ENV=prod ./scripts/tpp-tunnels.sh`. The manual per-service
+fallback, with `<port>` from the table above:
+
+```bash
+kubectl port-forward --context <ctx> -n litellm    svc/litellm                          <port>:4000
+kubectl port-forward --context <ctx> -n monitoring svc/kube-prometheus-stack-grafana    <port>:80
+kubectl port-forward --context <ctx> -n langfuse   svc/langfuse-web                     <port>:3000
+kubectl port-forward --context <ctx> -n monitoring svc/kube-prometheus-stack-prometheus <port>:9090
+kubectl port-forward --context <ctx> -n dashboard  svc/dashboard                        <port>:8080
+```
+
+Always pass `--context` explicitly. A port-forward binds its target at launch and leaves no trace of it in
+the process list, so after a `kubectl config use-context` there is no way to tell from the browser, the URL
+or `ps` which cluster `localhost:3020` is editing. `tpp-tunnels.sh` resolves the context from `TPP_ENV` and
+passes it to every forward for this reason.
+
+**Langfuse's port is not a convention.** `NEXTAUTH_URL` binds the browser-facing origin, so the local port
+must equal the apps variable `langfuse.nextauth_url` (dev `3010`, prod `4010`) or login breaks on redirect.
+Changing it requires a `terraform apply`, not just a tunnel change.
+
+Two further environment cues, so a stray tab is identifiable: the TPP Dashboard header carries a badge
+(`dev` grey, `prod` red) driven by the `TPP_ENV` env var, the Grafana dashboard is titled
+`TPP Overview — DEV` / `— PROD`, and every Prometheus series is stamped `cluster="tpp-dev"` / `"tpp-prod"`.
 
 ## Connecting Your Laptop to TPP for Claude
 
 1. Keep the proxy connection alive, pick one of:
    - **launchd resident service (recommended, zero manual work)**: `~/Library/LaunchAgents/com.tpp.litellm-proxy.plist`
-     runs `tpp-tunnels.sh`, maintaining all five tunnels at once: LiteLLM (14000) / Grafana (3000) / Langfuse (3010) /
-     Prometheus (9090) / TPP Dashboard (3020).
+     runs `tpp-tunnels.sh`, maintaining all five tunnels at once (ports per the table above; set
+     `TPP_ENV=prod` in the plist's `EnvironmentVariables` for a prod daemon, or run two plists with
+     different `Label`s to keep both environments resident).
      It starts at login and each tunnel auto-restarts on disconnect; every tunnel has a health-probe watchdog
      (a wedged kubectl -- process alive but forwarding dead -- is auto-restarted within
      ~45 seconds). (The script copy lives in `~/.local/bin/` -- launchd cannot execute scripts under
      Documents due to TCC restrictions; after changing the repo script, copy it over again.) Logs: `/tmp/tpp-proxy.log`.
      Manage with: `launchctl bootout gui/$UID/com.tpp.litellm-proxy` (stop) /
      `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.tpp.litellm-proxy.plist` (start);
-   - Manual: `./scripts/tpp-tunnels.sh` (all five tunnels) or `./scripts/tpp-connect.sh` (LiteLLM only,
-     default port 14000); runs in the foreground, Ctrl-C to exit.
+   - Manual: `./scripts/tpp-tunnels.sh` (all five tunnels) or `./scripts/tpp-connect.sh` (LiteLLM only);
+     both take `TPP_ENV` (default `dev`) and runs in the foreground, Ctrl-C to exit.
 2. Every machine/person uses their own user + key (do not use the master key); see `/user/new` in the quota section below.
-3. Client configuration (pick one; the key goes in `Authorization: Bearer` or `x-api-key` either way):
-   - **OpenAI-compatible** (most tools): base_url `http://localhost:14000/v1`,
-     env: `OPENAI_BASE_URL=http://localhost:14000/v1`, `OPENAI_API_KEY=<your key>`
-   - **Anthropic native** (Anthropic SDK / Claude Code): base_url `http://localhost:14000`
-     (the proxy serves `/v1/messages`), env: `ANTHROPIC_BASE_URL=http://localhost:14000`,
+   Keys are per-cluster: a dev key is not valid against prod.
+3. Client configuration (pick one; the key goes in `Authorization: Bearer` or `x-api-key` either way).
+   `<litellm-port>` is `14000` for dev, `24000` for prod:
+   - **OpenAI-compatible** (most tools): base_url `http://localhost:<litellm-port>/v1`,
+     env: `OPENAI_BASE_URL=http://localhost:<litellm-port>/v1`, `OPENAI_API_KEY=<your key>`
+   - **Anthropic native** (Anthropic SDK / Claude Code): base_url `http://localhost:<litellm-port>`
+     (the proxy serves `/v1/messages`), env: `ANTHROPIC_BASE_URL=http://localhost:<litellm-port>`,
      `ANTHROPIC_AUTH_TOKEN=<your key>`
 4. Available model names = the model_name entries in the channel registry: `claude-fable-5`, `claude-opus-5`, `claude-sonnet-5`,
    `claude-haiku-4-5` (same names as the official Anthropic model IDs, so most clients need zero configuration), plus
@@ -66,7 +99,11 @@ no commands needed**; the "Manual command" column below is only for machines wit
 
 ### Installing the Tunnel Daemon on a New Machine (one-time)
 
-Prerequisites: aws cli installed (with IAM credentials), kubectl installed, and `aws eks update-kubeconfig --name tpp-dev --region us-west-2` already run.
+Prerequisites: aws cli installed (with IAM credentials), kubectl installed, and the kubeconfig entry for the
+environment you want already created -- `aws eks update-kubeconfig --name tpp-dev --region us-west-2`, and/or
+`aws eks update-kubeconfig --name tpp-prod --region us-east-1`. The example below is the dev daemon; for prod,
+add `<key>TPP_ENV</key><string>prod</string>` to `EnvironmentVariables` and give the plist a distinct `Label`
+(e.g. `com.tpp.litellm-proxy-prod`) so both can be resident at once.
 
 ```bash
 # 1. Put the script somewhere launchd can execute (macOS TCC blocks launchd from running scripts under Documents)
@@ -100,6 +137,7 @@ EOF
 # 3. Start and verify
 launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.tpp.litellm-proxy.plist
 sleep 8
+# dev ports; for prod use 24000 / 4000 / 4010 / 9091 / 4020
 curl -s -o /dev/null -w "litellm %{http_code}\n"    http://localhost:14000/health/liveliness
 curl -s -o /dev/null -w "grafana %{http_code}\n"    http://localhost:3000/api/health
 curl -s -o /dev/null -w "langfuse %{http_code}\n"   http://localhost:3010/api/public/health
@@ -116,7 +154,9 @@ overrides shell environment variables, see https://code.claude.com/docs/en/cli-r
 1. Keep `~/.claude/settings.json` as the **direct-Bedrock baseline** (full text in
    `docs/claude-code-config-baseline.md`): `CLAUDE_CODE_USE_BEDROCK=true`,
    `AWS_PROFILE=default`, `AWS_REGION=us-west-2`, with model names using Bedrock inference profile ids;
-2. Create `~/.claude/tpp.settings.json` (`chmod 600`, contains the TPP key):
+2. Create one overlay per environment (`chmod 600`, each contains that cluster's TPP key). The only
+   difference is the port and the key -- `~/.claude/tpp.settings.json` for dev (`14000`) and
+   `~/.claude/tpp-prod.settings.json` for prod (`24000`):
 
    ```json
    {
@@ -131,12 +171,19 @@ overrides shell environment variables, see https://code.claude.com/docs/en/cli-r
    }
    ```
 
-3. Add an alias to `~/.zshrc`: `alias claude-tpp='claude --settings ~/.claude/tpp.settings.json'`.
+   Keys do not cross clusters: mint the prod key against prod's LiteLLM (`/user/new` on `:24000`).
 
-- **Usage**: `claude` goes direct; `claude-tpp` goes through TPP (for one-off use you can also run
-  `claude --settings ~/.claude/tpp.settings.json` directly). To make TPP the default, merge the overlay's
-  `env`/`model` into `settings.json` and remove the `AWS_*` entries;
-- **Prerequisite**: the LiteLLM tunnel is running (launchd daemon or `./scripts/tpp-tunnels.sh`, local :14000);
+3. Add aliases to `~/.zshrc`:
+   `alias claude-tpp='claude --settings ~/.claude/tpp.settings.json'` and
+   `alias claude-tpp-prod='claude --settings ~/.claude/tpp-prod.settings.json'`.
+
+- **Usage**: `claude` goes direct; `claude-tpp` / `claude-tpp-prod` go through the respective TPP (for
+  one-off use you can also run `claude --settings <file>` directly). To make TPP the default, merge an
+  overlay's `env`/`model` into `settings.json` and remove the `AWS_*` entries;
+- **Prerequisite**: that environment's LiteLLM tunnel is running (launchd daemon or
+  `./scripts/tpp-tunnels.sh` for dev :14000 / `TPP_ENV=prod ./scripts/tpp-tunnels.sh` for prod :24000).
+  The failure mode if you pick the wrong overlay is a connection refused, not a silent cross-environment
+  call -- which is the point of the disjoint port blocks;
 - **Verifying traffic goes through TPP**: in `claude-tpp -p "reply OK" --output-format json`, the `modelUsage`
   keys should be TPP model group names (`claude-fable-5`/`claude-haiku-4-5`) rather than `us.anthropic.*`;
   then check that `/user/info` spend grows (LiteLLM accounting lags by about 5~15 s) or look for a new trace in Langfuse;
@@ -175,6 +222,10 @@ with a full baseline backup in the repo's `.codex-backup/`. The corresponding TP
    wire_api = "responses"
    ```
 
+   For prod add a second provider block (`[model_providers.tpp-prod]`, `base_url`
+   `http://localhost:24000/v1`, `env_key = "TPP_PROD_API_KEY"`) and a matching
+   `~/.codex/tpp-prod.config.toml` with `model_provider = "tpp-prod"`.
+
 2. Create `~/.codex/tpp.config.toml` (profile files use top-level keys; do **not** write a `[profiles.tpp]` table again):
 
    ```toml
@@ -185,7 +236,8 @@ with a full baseline backup in the repo's `.codex-backup/`. The corresponding TP
 - **Usage**: `export TPP_API_KEY=<TPP key>` (use your own user key, not the master key;
   see `/user/new` in the quota section), then `codex --profile tpp`. To make TPP the default, change the top-level
   `model` / `model_provider` to `gpt-5.6-terra` / `tpp`;
-- **Prerequisite**: the LiteLLM tunnel is running (launchd daemon or `./scripts/tpp-tunnels.sh`, local :14000);
+- **Prerequisite**: the LiteLLM tunnel is running (launchd daemon or `./scripts/tpp-tunnels.sh`; dev :14000,
+  prod :24000);
 - **Local docker-compose verification**: change `base_url` to `http://localhost:4000/v1` and
   use the local `LITELLM_MASTER_KEY` as the key (the model group has the same name, `gpt-5.6-terra`);
 - **Verifying traffic goes through TPP**: after one conversation round, check that `/user/info` spend grows, or look for a new trace in Langfuse
@@ -211,6 +263,11 @@ with a full baseline backup in the repo's `.codex-backup/`. The corresponding TP
   then confirm via `/model/info`.
 
 ## Routine Operations
+
+> **Ports in this section are dev's** (`14000` LiteLLM, `3020` Dashboard, `3000` Grafana, `3010` Langfuse,
+> `9090` Prometheus). For prod substitute `24000` / `4020` / `4000` / `4010` / `9091` per the
+> [Access Endpoints](#access-endpoints-neither-environment-exposes-an-ingress-yet) table, and add
+> `-var-file=envs/prod.tfvars` plus `TF_DATA_DIR=.terraform-prod` to every `terraform` command.
 
 **Adding/changing channels**: edit `apps/values/scorer-channels.yaml` -> `cd apps && terraform apply`
 (the ConfigMap hash change triggers Scorer and Dashboard restarts; Scorer idempotently registers new channels at startup, and the Dashboard channel table gains the new rows;
@@ -318,6 +375,7 @@ It takes effect in the next cycle (within 60s) after the Pod rolling restart; **
 | `GAMMA` | 2.0 | Score-gap amplification; larger -> a wider traffic gap between good and bad channels |
 | `K_ERR` | 8.0 | Steepness of the error penalty (at the default, the score halves at an error rate of 8.6%) |
 | `W_FLOOR` | 0.05 | Traffic floor for low-scoring channels (trade-off between exploration samples and wasted traffic) |
+| `W_PROBE` | 0.01 | Traffic kept on a circuit-open channel so its recovery can be observed; larger -> faster recovery but more failed requests while the channel is down |
 | `MIN_SAMPLES` | 10 | Minimum requests in the window; below this the score is not updated |
 | `HYSTERESIS` | 0.02 | Weights are written back to LiteLLM only when the change exceeds this value |
 | `INTERVAL_SECONDS` / `WINDOW` | 60 / 5m | Scoring interval / metrics observation window |
@@ -483,8 +541,8 @@ Then the exploration floor is applied: `weight(d) ← max(weight(d), 0.05)`, fol
 | Stage | Rule |
 |------|------|
 | Small-sample protection | When `req(d) < 10`, skip this round's update and keep the old score |
-| Circuit breaking | When `err_rate(d) > 0.5` and severe categories (5xx/Timeout/connection errors) dominate, set `weight(d) = 0` (takes precedence over the exploration floor) |
-| Recovery | Designed to close the circuit after 3 consecutive rounds of `err_rate(d) < 0.1`; **the current implementation has a gap**: a channel with weight 0 gets no samples, the state machine stops evaluating it, and manual intervention is required -- see [ADR-006 §6.3](ADR.md) |
+| Circuit breaking | When `err_rate(d) > 0.5` and severe categories (5xx/Timeout/connection errors) dominate, set `weight(d) = W_PROBE = 0.01` (takes precedence over the exploration floor; never 0, so the channel keeps producing samples) |
+| Recovery | Close the circuit after 3 consecutive rounds of `err_rate(d) < 0.1` on the probe samples; evaluated even below `MIN_SAMPLES`, rounds with no probe samples are skipped rather than counted -- see [ADR-006 §6.3](ADR.md) |
 | Write-back | LiteLLM `/model/update` is called only when any weight in the group changes by more than 2 percentage points (hysteresis debouncing) |
 | Degradation | When Prometheus / the LiteLLM API is unavailable, weights freeze and an alert fires (Scorer is not on the request path) |
 | State persistence | EWMA scores are stored in Redis (`scorer:score:<channel_id>`); restarts are lossless |
@@ -497,7 +555,7 @@ Then the exploration floor is applied: `weight(d) ← max(weight(d), 0.05)`, fol
 | TPPScorerStale | Scorer has not scored successfully for >5min; weights are frozen | `kubectl logs -n scorer deploy/scorer`; common causes: Prometheus unreachable, LiteLLM API 401 (ExternalSecret not refreshed after master key rotation) |
 | TPPLiteLLMHighErrorRate | Overall error rate >10% | First check the error breakdown in the TPP Dashboard "Channel stability and performance" table to locate the channel (switch the window to 15m); a single-channel failure should already be circuit-broken -- if all channels are affected, check Bedrock service status/IAM |
 | TPPLiteLLMDown | All proxy replicas unreachable | `kubectl get pods -n litellm`; check RDS (litellm has a hard startup dependency on the DB) and the most recent apply |
-| TPPChannelCircuitOpen | A channel has been circuit-open for >5min | The TPP Dashboard health badge shows "circuit open"; the current implementation **does not recover automatically** (see [ADR-006 §6.3](ADR.md)): first check that region's Bedrock quotas/health, and once confirmed recovered, pause Scorer, manually set the channel's weight back to non-zero and clear Redis `scorer:circuit:<id>`, then resume Scorer |
+| TPPChannelCircuitOpen | A channel has been circuit-open for >5min | The TPP Dashboard health badge shows "circuit open"; the channel keeps 1% probe traffic and closes by itself after 3 consecutive good rounds once the region answers again (see [ADR-006 §6.3](ADR.md)). Check that region's Bedrock quotas/health. If the alert persists after the region is confirmed healthy, inspect the probe samples in the Dashboard error breakdown; to force-close, pause Scorer, patch the weight back to non-zero, clear Redis `scorer:circuit:<id>`, then resume Scorer |
 
 ## Known Issues / Gotchas
 
@@ -515,9 +573,17 @@ Then the exploration floor is applied: `weight(d) ← max(weight(d), 0.05)`, fol
 - TTFT metrics are only produced by streaming requests; TPOT uses `litellm_deployment_latency_per_output_token`.
 - **launchd cannot execute scripts under `~/Documents`** (macOS TCC, fails with `Operation not permitted`);
   the tunnel script must be the copy under `~/.local/bin/`; **after changing the repo script, `cp` it over and restart the service**.
-- **The local LiteLLM port is 14000** (migrated from 4000, which was given to another local application);
-  in `14000:4000`, the 4000 on the right is the pod container port, which has never changed on the platform side.
-- Manual and daemon port-forwards fight over ports: the tunnel script pkills and takes over similar processes at startup;
+- **The local LiteLLM port is 14000 for dev, 24000 for prod** (dev migrated from 4000, which was given to
+  another local application); in `14000:4000`, the 4000 on the right is the pod container port, which has
+  never changed on the platform side and is the same in both environments.
+- **A localhost URL does not identify the cluster.** Before yesterday dev and prod shared one port block, so
+  the same five URLs could mean either cluster and the TPP Dashboard -- which has no auth and edits real user
+  quotas inline -- looked identical in both. Hence the disjoint port blocks, the `--context` on every
+  port-forward, the Dashboard env badge, the `— DEV`/`— PROD` Grafana title and the `cluster` external label.
+  If you find yourself reasoning about "which context was current when I started that tunnel", stop and
+  check the port instead.
+- Manual and daemon port-forwards fight over ports: the tunnel script pkills and takes over similar processes at startup.
+  It scopes that pkill by `--context`, so starting the dev tunnels no longer kills prod's (and vice versa);
   to investigate port conflicts, use `lsof -nP -iTCP:<port> -sTCP:LISTEN` to see the owner.
 - Backups of the Claude Code direct-Bedrock baseline configuration: `~/.claude/settings.json.bedrock-backup`
   and `docs/claude-code-config-baseline.md`; for rollback see the "Claude Code with TPP" section.

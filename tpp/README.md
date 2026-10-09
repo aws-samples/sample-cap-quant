@@ -56,6 +56,11 @@ apps/                           # state 2: in-cluster applications (changes freq
 Why two states: a plan/apply for a channel-config change never touches the infrastructure, keeping the blast radius small;
 the whole setup can later be migrated to ArgoCD as-is. All secrets flow through Secrets Manager → ESO and never land in tfstate.
 
+Two environments share these modules. `infra/envs/dev` + `apps` defaults is the ~50-user shape documented below.
+`infra/envs/prod` + `apps/envs/prod.tfvars` is the 500-user shape from [`docs/scaling-500-users.md`](docs/scaling-500-users.md)
+(Aurora, PgBouncer, KEDA, Karpenter pools, dual Redis with TLS, ALB); its deployment order is in [`apps/README.md`](apps/README.md)
+and [`infra/README.md`](infra/README.md).
+
 ## Deployment
 
 Two paths: **local docker-compose** (quickly validate configuration and wiring) and **full AWS EKS deployment** (production form).
@@ -80,6 +85,10 @@ curl http://localhost:4000/v1/chat/completions \
 ### Option 2: Full AWS EKS deployment
 
 The deployment order is fixed: **bootstrap (one-time) → infra (state 1) → apps (state 2) → Scorer / Dashboard images → access and verification**.
+
+Step-by-step runbooks with timings, expected plan contents, verification and rollback:
+[dev, about 50 users](docs/deploy-dev-50-users.md) and [prod, 500 users](docs/deploy-prod-500-users.md).
+The rest of this section is the condensed dev sequence.
 
 #### 0. Prerequisites
 
@@ -184,6 +193,12 @@ The dev environment exposes no public Ingress; access goes through port-forward 
 ```bash
 ./scripts/tpp-tunnels.sh   # LiteLLM :14000 / Grafana :3000 / Langfuse :3010 / Prometheus :9090 / TPP Dashboard :3020
 ```
+
+Neither environment exposes an Ingress, so every URL is a local tunnel and carries no environment identity.
+dev and prod therefore use disjoint port blocks and can be tunneled simultaneously:
+`TPP_ENV=prod ./scripts/tpp-tunnels.sh` serves LiteLLM :24000 / Grafana :4000 / Langfuse :4010 /
+Prometheus :9091 / Dashboard :4020. See the
+[Runbook access endpoints table](docs/runbook.md#access-endpoints-neither-environment-exposes-an-ingress-yet).
 
 For day-to-day work, start from the **TPP Dashboard (http://localhost:3020)**: the home page aggregates user quotas, channel spend / health / weights,
 and channel performance percentiles, and provides links to the other four dashboards.

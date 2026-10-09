@@ -50,5 +50,6 @@ The only channel-related items in `~/.zshrc` are the `TPP_API_KEY` export and th
 - `permissions` / `effortLevel` / `tui` are channel-agnostic; leave them untouched when switching to TPP;
 - Switching to TPP **does not modify this file**; use the overlay `~/.claude/tpp.settings.json`:
   `CLAUDE_CODE_USE_BEDROCK="0"` (must be `"0"`, parsed numerically),
-  `ANTHROPIC_BASE_URL=http://localhost:14000`, `ANTHROPIC_AUTH_TOKEN=<TPP user key>`,
+  `ANTHROPIC_BASE_URL=http://localhost:14000` (dev; prod is `:24000` via a separate
+  `~/.claude/tpp-prod.settings.json` overlay), `ANTHROPIC_AUTH_TOKEN=<TPP user key for that cluster>`,
   and set the two model names plus the top-level `"model"` to the TPP registry names (`claude-fable-5` / `claude-haiku-4-5`).

@@ -2,14 +2,15 @@
 # Single container = FastAPI aggregation backend (Prometheus + LiteLLM Management API) + static single-page frontend.
 # Displays: user quotas (editable, written back) / channel spend, health, weight / channel performance percentiles / links to 4 dashboards.
 # Same security model as Prometheus: no built-in auth, no Ingress exposure, accessed via kubectl tunnel (local port 3020).
+# This holds in prod too until OIDC lands (Phase 3); only the LiteLLM API goes behind the ALB.
 
 variable "dashboard_image_tag" {
   type    = string
-  default = "0.1.2"
+  default = "0.1.3" # 0.1.3 adds the TPP_ENV header badge; 0.1.2 ignores TPP_ENV but honours LINK_*
 }
 
 resource "aws_ecr_repository" "dashboard" {
-  name                 = "tpp/dashboard"
+  name                 = "${var.ecr_prefix}/dashboard"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -39,7 +40,7 @@ resource "kubernetes_manifest" "dashboard_external_secret" {
       data = [
         {
           secretKey = "LITELLM_MASTER_KEY"
-          remoteRef = { key = "tpp/litellm", property = "master_key" }
+          remoteRef = { key = "${var.secret_prefix}/litellm", property = "master_key" }
         }
       ]
     }
@@ -81,6 +82,8 @@ resource "kubernetes_deployment_v1" "dashboard" {
       }
 
       spec {
+        node_selector = var.node_selectors.data_plane
+
         container {
           name  = "dashboard"
           image = "${aws_ecr_repository.dashboard.repository_url}:${var.dashboard_image_tag}"
@@ -96,6 +99,29 @@ resource "kubernetes_deployment_v1" "dashboard" {
           env {
             name  = "CHANNELS_FILE"
             value = "/etc/dashboard/channels.yaml"
+          }
+          # Shown as a badge in the Dashboard header. A localhost URL carries no environment identity,
+          # so without this there is nothing on screen distinguishing dev from prod.
+          env {
+            name  = "TPP_ENV"
+            value = var.env
+          }
+          # Jump links must target this environment's tunnel ports; the image defaults are dev's.
+          env {
+            name  = "LINK_LITELLM"
+            value = var.ui_links.litellm
+          }
+          env {
+            name  = "LINK_GRAFANA"
+            value = var.ui_links.grafana
+          }
+          env {
+            name  = "LINK_LANGFUSE"
+            value = var.ui_links.langfuse
+          }
+          env {
+            name  = "LINK_PROMETHEUS"
+            value = var.ui_links.prometheus
           }
           env {
             name = "LITELLM_MASTER_KEY"

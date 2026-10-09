@@ -339,7 +339,8 @@ Error severity coefficients `sev(cat)`: Timeout / connection errors / 5xx-class 
 
 ## ADR-006 [Ops] Scorer Runtime Rules
 
-**Status**: implemented, with one known gap (see "Recovery"). Code in `services/scorer/scorer/main.py`.
+**Status**: implemented. The recovery gap recorded in an earlier revision of §6.3 was closed on 2026-10-01 with a probe weight
+(`W_PROBE`). Code in `services/scorer/scorer/main.py` and `scoring.py`.
 The "runtime rules" table at the end of the "Scorer Scoring Algorithm" section of
 [`docs/runbook.md`](runbook.md#scorer-scoring-algorithm) is the short version of this record;
 this record expands each rule according to the code.
@@ -357,23 +358,31 @@ weights change only when the evidence is solid.
 - Rationale: 1 timeout out of 10 requests is a 10% weighted error rate times 3 (severity), enough to halve the score;
   small-sample scores are noise.
 - Side effect: a model group with no traffic stays at 0.5 / 0.5 with weights 50 / 50 forever — designed behavior, not a fault.
-- Note: **with small samples the circuit-breaker state machine is not evaluated either**, which is the root cause of the gap in 6.3.
+- Note: with small samples the breaker is **never tripped**, for the same noise reason. The one exception is an already-open
+  breaker: its recovery counter is advanced on whatever probe samples exist (see 6.3), because probe traffic is below
+  `MIN_SAMPLES` by design.
 
 ### 6.2 Circuit breaking
 
 - Trigger conditions (both must hold):
   1. `err_rate(d) > CIRCUIT_ERR_THRESHOLD` (default 0.5);
   2. **Severe errors dominate**: the **counts** of Timeout / connection errors / 5xx-class errors make up ≥ 50% of all error counts.
-- Behavior: set `scorer:circuit:<id> = 1`; the channel's weight is set straight to 0, **taking precedence over the exploration floor**;
-  the remaining channels in the group are renormalized. If the whole group is broken, weights are split evenly so traffic has
-  somewhere to go, relying on LiteLLM's own cooldown as the fallback.
+- Behavior: set `scorer:circuit:<id> = 1`; the channel's weight drops to the probe weight `W_PROBE` (default 0.01),
+  **taking precedence over the exploration floor**; the remaining channels in the group share the rest. The total probe share
+  of a group is capped at 50%, which only matters when most of a group is tripped. If the whole group is broken, weights are
+  split evenly so traffic has somewhere to go, relying on LiteLLM's own cooldown as the fallback.
+  `to_litellm_weights` never rounds a non-zero weight down to 0, so the probe survives the conversion to LiteLLM's integer scale.
 - Rationale:
   - The second condition separates "channel broken" from "channel rate limited". 429 (`RateLimitError`) has severity 1.5 and is not
     in the severe set, so **rate limiting never trips the breaker; it only lowers the weight through the score**. In a dual-region
     topology this is correct: a rate-limited channel can still serve part of the requests.
     Revisit after multi-account multi-region sharding, see ADR-008 §10.
-  - Weight 0 rather than the 5% floor, because severe-error dominance means the channel is most likely completely unusable;
-    5% traffic would just be 5% failures.
+  - 1% rather than the 5% floor, because severe-error dominance means the channel is most likely completely unusable and
+    5% traffic would just be 5% failures. 1% is the smallest share that still produces samples: at 40 RPS group traffic it is
+    about 120 requests per 5-minute window; at dev-scale 0.1 RPS it is a request every few minutes, which is enough because
+    rounds without probe samples neither advance nor reset the recovery counter.
+  - Not 0, because a weight-0 deployment receives no traffic, produces no samples, and can never be observed recovering.
+    That was the root cause of the gap described in the history of 6.3.
 - Relationship with LiteLLM's own circuit breaking: LiteLLM's `allowed_fails: 3` / `cooldown_time: 60` is the first layer —
   **on the request path, independent per proxy replica, second-level granularity**; Scorer circuit breaking is the second layer —
   **globally consistent, minute-level, based on 5-minute window statistics**. The former is fast but narrow-sighted;
@@ -381,20 +390,27 @@ weights change only when the evidence is solid.
 
 ### 6.3 Recovery
 
-- Design intent (runbook rules table): after `CIRCUIT_RECOVERY_ROUNDS = 3` consecutive rounds with
-  `err_rate(d) < CIRCUIT_RECOVERY_ERR = 0.1`, close the breaker, restore the channel to the floor weight,
-  and let the score climb back up.
-- Code behavior: the good-round counter lives in Redis `scorer:circuit_good:<id>`; any round that misses the bar resets it to zero;
-  when the counter reaches 3 the breaker closes.
-- **Known gap**: the recovery check runs only in the `req(d) ≥ MIN_SAMPLES` branch. But after the breaker opens the weight is 0,
-  LiteLLM `simple-shuffle` assigns no traffic to a weight-0 deployment, the sample count drops to zero once the 5-minute window
-  slides past, the state machine is never evaluated again, and **the breaker never closes automatically**.
-  Today the only real ways it can recover are: all other channels in the group entering LiteLLM cooldown so traffic falls onto it;
-  or a human changing the weight with the master key / clearing the Redis keys. The `TPPChannelCircuitOpen` alert's claim of
-  "usually no action needed (recovers automatically)" is premised on this and does not currently hold.
-  The runbook's rules table has been annotated with this gap.
-- Suggested fix directions (not implemented): keep a tiny probe weight (e.g. 1%) on broken channels; or move to a time-based
-  "half-open" state after tripping and use LiteLLM `/health` active probing instead of traffic samples.
+- Rule: after `CIRCUIT_RECOVERY_ROUNDS = 3` consecutive rounds with `err_rate(d) < CIRCUIT_RECOVERY_ERR = 0.1` on the probe
+  samples, close the breaker, reset the counter, and let the channel return to the group at no less than the floor weight;
+  the score then climbs back up through the normal path.
+- Code behavior: the good-round counter lives in Redis `scorer:circuit_good:<id>`. A round with probe samples that miss the bar
+  resets it to zero. A round with **no** probe samples for the channel leaves both the counter and the breaker untouched.
+  The check runs in both branches of the sample-size split: in the `req(d) ≥ MIN_SAMPLES` branch as before, and in the
+  small-sample branch whenever the breaker is already open and `req(d) > 0`. Re-tripping is still only possible with
+  `req(d) ≥ MIN_SAMPLES`, so a false recovery is undone within a minute of real traffic, not on one failed probe.
+- Why this works where the previous version did not: the recovery check used to live only in the `req(d) ≥ MIN_SAMPLES` branch,
+  and a tripped channel had weight 0. LiteLLM `simple-shuffle` sends a weight-0 deployment no traffic, the sample count fell to
+  zero once the 5-minute window slid past, the state machine was never evaluated again, and the breaker never closed by itself.
+  Recovery required another channel entering LiteLLM cooldown, or an operator pausing the Scorer, patching the weight, and
+  clearing the Redis key. The `TPPChannelCircuitOpen` alert and the runbook said so from 2026-09 until this fix.
+- Trade-off accepted: 1% of the group's traffic fails while a channel is truly down. With 3 rounds at a 1-minute interval and a
+  5-minute window, the earliest automatic close is about 3 minutes after the channel starts answering again; a single probe
+  request that succeeds stays in the window for 5 rounds and can on its own satisfy the 3-round rule at very low traffic.
+- Alternative not taken (for now): a time-based "half-open" state driven by LiteLLM's active `/health` probe. It would cost no
+  user requests and would not depend on traffic volume, but it needs a probe scheduler, a third breaker state, and a dependency
+  on the health endpoint representing real inference. Revisit if the 1% failure share becomes material at 500 users (ADR-008).
+- Tests: `services/scorer/tests/test_circuit_recovery.py` drives `run_cycle` with in-memory Redis / Prometheus / LiteLLM stand-ins
+  through trip, probe-only recovery, counter reset on a probe failure, and no-sample rounds.
 
 ### 6.4 Write-back (hysteresis debouncing)
 

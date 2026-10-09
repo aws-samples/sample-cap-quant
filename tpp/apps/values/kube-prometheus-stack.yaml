@@ -1,5 +1,8 @@
 prometheus:
   prometheusSpec:
+    # Stamp every series with its origin cluster; see the prod values file for why.
+    externalLabels:
+      cluster: tpp-dev
     retention: 15d
     # Key: must be false to scrape ServiceMonitors/PodMonitors declared outside Helm values
     # (litellm in M3 and scorer in M5 both rely on this)

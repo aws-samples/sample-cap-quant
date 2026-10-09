@@ -1,0 +1,55 @@
+# kube-prometheus-stack values for the 500-user environment (apps/envs/prod.tfvars -> prometheus_values_file).
+# Cardinality is controlled at the source (values/litellm-config-prod.yaml prometheus_metrics_config), so the
+# sizing below is for a channel-level series set, not a per-user one.
+prometheus:
+  prometheusSpec:
+    # Stamp every series with its origin cluster. dev and prod are otherwise indistinguishable in
+    # Prometheus, and would silently merge if these are ever federated or remote-written together.
+    externalLabels:
+      cluster: tpp-prod
+    retention: 30d # must not go below 7d: the Dashboard's window whitelist includes 7d
+    retentionSize: 180GB
+    # Key: must be false to scrape ServiceMonitors/PodMonitors declared outside Helm values (litellm, scorer)
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    nodeSelector:
+      tpp.io/pool: observability
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 200Gi
+    resources:
+      requests:
+        cpu: "1"
+        memory: 4Gi
+      limits:
+        memory: 8Gi
+
+grafana:
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 10Gi
+  nodeSelector:
+    tpp.io/pool: observability
+  # Still ClusterIP: Grafana goes behind the ALB only together with OIDC (Phase 3)
+  service:
+    type: ClusterIP
+
+alertmanager:
+  alertmanagerSpec:
+    nodeSelector:
+      tpp.io/pool: observability
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi

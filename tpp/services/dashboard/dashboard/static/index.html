@@ -61,6 +61,12 @@
   header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
   header h1 { font-size: 20px; margin: 0; }
   header .sub { color: var(--text-muted); font-size: 12px; }
+  /* Environment badge: the only on-screen cue distinguishing dev from prod, since both are reached
+     over a localhost tunnel. Prod is deliberately loud -- quota edits here hit real users. */
+  .env-badge { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+               padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border);
+               color: var(--text-muted); }
+  .env-badge.prod { background: var(--critical); border-color: var(--critical); color: #fff; }
   .links { margin-left: auto; display: flex; gap: 8px; }
   .links a {
     display: inline-block; padding: 5px 12px; border: 1px solid var(--border);
@@ -165,6 +171,7 @@
 <div class="wrap">
   <header>
     <h1>TPP Dashboard</h1>
+    <span class="env-badge" id="env-badge"></span>
     <span class="sub" id="updated-at"></span>
     <nav class="links" id="links"></nav>
     <span class="theme-seg" id="theme-seg" title="Theme">
@@ -495,6 +502,11 @@ async function refresh() {
 
 async function init() {
   CONFIG = await fetch("/api/config").then((r) => r.json());
+  const env = CONFIG.env || "dev";
+  const badge = $("#env-badge");
+  badge.textContent = env;
+  badge.classList.toggle("prod", env === "prod");
+  document.title = `TPP Dashboard — ${env.toUpperCase()}`;
   $("#links").innerHTML = Object.entries(CONFIG.links).map(([name, url]) =>
     `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}<span>↗</span></a>`).join("");
   renderWindowFilters();

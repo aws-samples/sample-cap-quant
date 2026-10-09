@@ -142,8 +142,8 @@ An exploration floor is then applied: `weight(d) ← max(weight(d), 0.05)`, foll
 | Stage | Rule |
 |------|------|
 | Small-sample protection | when `req(d) < 10`, skip this round's update and keep the old score |
-| Circuit breaking | when `err_rate(d) > 0.5` and severe categories (5xx/Timeout/connection errors) dominate, set `weight(d) = 0` (takes precedence over the exploration floor) |
-| Recovery | after 3 consecutive rounds with `err_rate(d) < 0.1`, restore to the floor weight and ramp back up |
+| Circuit breaking | when `err_rate(d) > 0.5` and severe categories (5xx/Timeout/connection errors) dominate, set `weight(d) = 0.01` (probe weight, takes precedence over the exploration floor) |
+| Recovery | after 3 consecutive rounds with `err_rate(d) < 0.1` on the probe samples, restore to the floor weight and ramp back up |
 | Write-back | LiteLLM `/model/update` is called only when any weight within the group changes by more than 2 percentage points (hysteresis debouncing) |
 | Degradation | when Prometheus / the LiteLLM API is unavailable, weights are frozen and an alert fires (the Scorer is not on the request path) |
 | State persistence | EWMA scores are stored in Redis (`scorer:score:{model}:{provider}`); restarts are lossless |

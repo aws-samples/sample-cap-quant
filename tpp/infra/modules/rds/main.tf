@@ -27,21 +27,22 @@ resource "aws_security_group" "rds" {
   }
 }
 
-# LiteLLM accounting ledger (keys/budget/spend) -- the platform's most critical persistent data.
-# The langfuse database is not created here (RDS cannot directly create a second database); the M4 bootstrap Job runs CREATE DATABASE.
+# dev: LiteLLM accounting ledger (keys/budget/spend) plus the langfuse database created by the apps bootstrap Job
+#      (RDS cannot create a second database itself).
+# prod: langfuse metadata only; the ledger moves to modules/aurora.
 resource "aws_db_instance" "this" {
   identifier     = var.name
   engine         = "postgres"
   engine_version = var.engine_version
   instance_class = var.instance_class
 
-  db_name  = "litellm"
+  db_name  = var.db_name
   username = "tpp"
   # Master password managed in Secrets Manager, never lands in tfstate
   manage_master_user_password = true
 
-  allocated_storage     = 50
-  max_allocated_storage = 200
+  allocated_storage     = var.allocated_storage
+  max_allocated_storage = var.max_allocated_storage
   storage_type          = "gp3"
   storage_encrypted     = true
 
@@ -49,7 +50,7 @@ resource "aws_db_instance" "this" {
   vpc_security_group_ids = [aws_security_group.rds.id]
   multi_az               = var.multi_az
 
-  backup_retention_period      = 7
+  backup_retention_period      = var.backup_retention_period
   performance_insights_enabled = true
   auto_minor_version_upgrade   = true
 

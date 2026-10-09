@@ -27,7 +27,13 @@ LITELLM_URL = os.environ.get("LITELLM_URL", "http://litellm.litellm:4000")
 LITELLM_MASTER_KEY = os.environ.get("LITELLM_MASTER_KEY", "")
 CHANNELS_FILE = os.environ.get("CHANNELS_FILE", "/etc/dashboard/channels.yaml")
 
-# Jump links to the 4 existing dashboards; defaults follow the local tunnel ports (tpp-tunnels.sh convention)
+# Rendered as a badge in the header. A localhost URL carries no environment identity, so without this
+# there is nothing on screen telling you whether the quota you are editing is dev's or prod's.
+TPP_ENV = os.environ.get("TPP_ENV", "dev")
+
+# Jump links to the 4 existing dashboards; defaults follow the *dev* tunnel ports (tpp-tunnels.sh).
+# Prod runs a disjoint port block, so apps/tpp-dashboard.tf sets all four explicitly per environment --
+# relying on these defaults in prod would link the prod dashboard to the dev UIs.
 LINKS = {
     "LiteLLM": os.environ.get("LINK_LITELLM", "http://localhost:14000/ui"),
     "Grafana": os.environ.get("LINK_GRAFANA", "http://localhost:3000"),
@@ -96,7 +102,12 @@ async def healthz():
 
 @app.get("/api/config")
 async def config():
-    return {"links": LINKS, "channels": load_channels(), "windows": list(WINDOWS)}
+    return {
+        "env": TPP_ENV,
+        "links": LINKS,
+        "channels": load_channels(),
+        "windows": list(WINDOWS),
+    }
 
 
 @app.get("/api/overview")

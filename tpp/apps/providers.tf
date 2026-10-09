@@ -1,10 +1,14 @@
+data "aws_caller_identity" "current" {}
+
 data "terraform_remote_state" "infra" {
   backend = "s3"
 
   config = {
-    bucket = "tpp-tfstate-<aws account>"
+    bucket = "tpp-tfstate-${data.aws_caller_identity.current.account_id}"
     key    = "infra/${var.env}/terraform.tfstate"
-    region = var.region
+    # The state bucket lives in us-west-2 and is shared by every environment, so this is deliberately not
+    # var.region: prod runs in us-east-1 but still reads its state from the us-west-2 bucket.
+    region = "us-west-2"
   }
 }
 
