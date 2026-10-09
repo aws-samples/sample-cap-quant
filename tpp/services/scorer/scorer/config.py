@@ -19,6 +19,9 @@ class Config:
     litellm_master_key: str = os.environ.get("LITELLM_MASTER_KEY", "")
     redis_host: str = os.environ.get("REDIS_HOST", "localhost")
     redis_port: int = _i("REDIS_PORT", 6379)
+    # prod ElastiCache runs with TLS + AUTH; dev leaves both empty
+    redis_password: str = os.environ.get("REDIS_PASSWORD", "")
+    redis_ssl: bool = os.environ.get("REDIS_SSL", "false").strip().lower() in ("1", "true", "yes")
     channels_file: str = os.environ.get("CHANNELS_FILE", "/etc/scorer/channels.yaml")
     metrics_port: int = _i("METRICS_PORT", 9100)
 
@@ -32,6 +35,7 @@ class Config:
     w_lat: float = _f("W_LAT", 0.35)           # latency score weight
     w_err: float = _f("W_ERR", 0.65)           # error score weight
     w_floor: float = _f("W_FLOOR", 0.05)       # exploration floor weight
+    w_probe: float = _f("W_PROBE", 0.01)       # probe weight kept on circuit-open channels so recovery can be observed
     min_samples: int = _i("MIN_SAMPLES", 10)   # small-sample protection threshold
     hysteresis: float = _f("HYSTERESIS", 0.02) # write-back hysteresis (only update if weight change > 2pp)
     default_q: float = _f("DEFAULT_Q", 0.5)    # cold-start score for new channels

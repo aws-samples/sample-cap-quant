@@ -60,10 +60,18 @@ def test_weights_floor_prevents_starvation():
     assert abs(sum(w.values()) - 1.0) < 1e-9
 
 
-def test_weights_circuit_open_gets_zero():
+def test_weights_circuit_open_gets_probe_weight():
     w = weights_from_scores({"a": 1.0, "b": 0.9}, {"b"}, CFG)
-    assert w["b"] == 0.0
-    assert abs(w["a"] - 1.0) < 1e-9
+    assert abs(w["b"] - CFG.w_probe) < 1e-9  # below the floor, but never zero
+    assert abs(w["a"] - (1.0 - CFG.w_probe)) < 1e-9
+    assert abs(sum(w.values()) - 1.0) < 1e-9
+
+
+def test_weights_probe_total_capped_when_most_channels_open():
+    cfg = Config(litellm_master_key="test", w_probe=0.3)
+    w = weights_from_scores({"a": 1.0, "b": 0.5, "c": 0.5}, {"b", "c"}, cfg)
+    assert abs(w["b"] + w["c"] - 0.5) < 1e-9  # probe share is capped at half the group
+    assert abs(w["a"] - 0.5) < 1e-9
 
 
 def test_weights_all_circuit_open_falls_back_to_even():
@@ -89,3 +97,9 @@ def test_max_delta():
 
 def test_to_litellm_weights():
     assert to_litellm_weights({"a": 0.85, "b": 0.15}) == {"a": 85, "b": 15}
+
+
+def test_to_litellm_weights_keeps_probe_nonzero():
+    # 0.4% would round to 0 and LiteLLM would send no probe traffic at all
+    assert to_litellm_weights({"a": 0.996, "b": 0.004}) == {"a": 100, "b": 1}
+    assert to_litellm_weights({"a": 1.0, "b": 0.0}) == {"a": 100, "b": 0}

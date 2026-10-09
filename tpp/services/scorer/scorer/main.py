@@ -2,7 +2,7 @@
 
 Design highlights (docs/architecture.md §3):
 - EWMA state lives in Redis, so restarts are lossless;
-- small-sample protection, circuit breaking, floor weight, hysteresis;
+- small-sample protection, circuit breaking with a probe weight for recovery, floor weight, hysteresis;
 - if any dependency is unavailable -> skip this round (weights frozen), own metrics exposed for alerting.
 """
 
@@ -32,7 +32,13 @@ class Scorer:
         self.cfg = cfg
         self.prom = PromClient(cfg)
         self.litellm = LiteLLMClient(cfg.litellm_url, cfg.litellm_master_key)
-        self.redis = redis_lib.Redis(host=cfg.redis_host, port=cfg.redis_port, decode_responses=True)
+        self.redis = redis_lib.Redis(
+            host=cfg.redis_host,
+            port=cfg.redis_port,
+            password=cfg.redis_password or None,
+            ssl=cfg.redis_ssl,
+            decode_responses=True,
+        )
         self.channels = self.litellm.load_channels_spec(cfg.channels_file)
         self.groups = sorted({ch["model_name"] for ch in self.channels})
         self.ids_by_group: dict[str, list[str]] = defaultdict(list)
@@ -63,6 +69,17 @@ class Scorer:
     def set_circuit(self, cid: str, is_open: bool) -> None:
         self.redis.set(f"scorer:circuit:{cid}", "1" if is_open else "0")
 
+    def _evaluate_recovery(self, group: str, cid: str, m: scoring.ChannelMetrics) -> None:
+        """Advance the recovery counter of an open breaker; close it after N consecutive good rounds."""
+        cfg = self.cfg
+        if scoring.weighted_error_rate(m) < cfg.circuit_recovery_err:
+            if self.circuit_rounds(cid, good=True) >= cfg.circuit_recovery_rounds:
+                self.set_circuit(cid, False)
+                self.circuit_rounds(cid, good=False)
+                log.info("group=%s channel=%s circuit closed after %d good rounds", group, cid, cfg.circuit_recovery_rounds)
+        else:
+            self.circuit_rounds(cid, good=False)
+
     # ---- Single cycle ----
     def run_cycle(self) -> None:
         cfg = self.cfg
@@ -88,20 +105,21 @@ class Scorer:
                 if m is None or m.requests < cfg.min_samples:
                     # Small-sample protection: keep the old score; new channels get the cold-start score
                     q = prev if prev is not None else cfg.default_q
+                    # An open breaker only receives probe traffic (W_PROBE), which is below MIN_SAMPLES by design.
+                    # Evaluate recovery on whatever probe samples exist; never (re)trip on so few samples.
+                    if m is not None and m.requests > 0 and self.is_circuit_open(cid):
+                        self._evaluate_recovery(group, cid, m)
                 else:
                     q = scoring.ewma(prev, scoring.raw_score(m, best_lat, cfg), cfg.alpha)
 
                     # Circuit breaker state machine
                     if scoring.circuit_should_open(m, cfg):
+                        if not self.is_circuit_open(cid):
+                            log.warning("group=%s channel=%s circuit opened: %s", group, cid, m.errors_by_class)
                         self.set_circuit(cid, True)
                         self.circuit_rounds(cid, good=False)
                     elif self.is_circuit_open(cid):
-                        err = scoring.weighted_error_rate(m)
-                        if err < cfg.circuit_recovery_err:
-                            if self.circuit_rounds(cid, good=True) >= cfg.circuit_recovery_rounds:
-                                self.set_circuit(cid, False)
-                        else:
-                            self.circuit_rounds(cid, good=False)
+                        self._evaluate_recovery(group, cid, m)
 
                 self.set_score(cid, q)
                 scores[cid] = q
