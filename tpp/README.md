@@ -1,5 +1,7 @@
 # TPP — Token Proxy Platform
 
+**English** | [中文](README.zh-CN.md)
+
 - A proxy platform providing unified access to multiple LLM token channels (the Anthropic official API / the OpenAI official API / aggregators / cloud providers such as AWS Bedrock)
 - Provides per-user daily USD quotas, channel × model metrics, call traces, and intelligent channel traffic scheduling based on quality scoring
 - Deployment target: AWS EKS, managed with Terraform + Helm.
