@@ -1,4 +1,4 @@
-# Langfuse 事件/大对象存储
+# Langfuse event / large object storage
 resource "aws_s3_bucket" "langfuse" {
   bucket = var.bucket_name
 }

@@ -1,4 +1,4 @@
-"""打分核心:纯函数,不做任何 IO,便于单测。算法见 docs/architecture.md §3。"""
+"""Scoring core: pure functions with no IO, easy to unit test. Algorithm in docs/architecture.md §3."""
 
 import math
 from dataclasses import dataclass, field
@@ -8,11 +8,11 @@ from .config import Config, SEVERITY, SEVERITY_DEFAULT, SEVERE_CLASSES
 
 @dataclass
 class ChannelMetrics:
-    """一个渠道(deployment)在窗口内的观测值。"""
+    """Observations for one channel (deployment) within the window."""
 
     model_group: str
     channel_id: str
-    p90_latency: float | None  # 秒;窗口内无成功请求时为 None
+    p90_latency: float | None  # seconds; None when the window has no successful requests
     requests: float
     errors_by_class: dict[str, float] = field(default_factory=dict)
 
@@ -54,24 +54,32 @@ def circuit_should_open(m: ChannelMetrics, cfg: Config) -> bool:
 def weights_from_scores(
     scores: dict[str, float], circuit_open: set[str], cfg: Config
 ) -> dict[str, float]:
-    """分数 -> 归一化权重。熔断渠道置 0;非熔断渠道有 w_floor 保底。"""
-    active = {cid: q for cid, q in scores.items() if cid not in circuit_open}
+    """Scores -> normalized weights.
+
+    Circuit-open channels get the probe weight w_probe (below the exploration floor) so they keep
+    producing samples and the recovery rule can be evaluated; the remaining channels share the rest,
+    with a w_floor floor applied before renormalization.
+    """
+    open_ids = {cid for cid in circuit_open if cid in scores}
+    active = {cid: q for cid, q in scores.items() if cid not in open_ids}
     if not active:
-        # 全部熔断:均分,避免流量无处可去(LiteLLM 自身 cooldown 仍会兜底)
+        # All circuits open: split evenly so traffic still has somewhere to go (LiteLLM's own cooldown remains as fallback)
         return {cid: 1.0 / len(scores) for cid in scores}
 
     powered = {cid: max(q, 1e-6) ** cfg.gamma for cid, q in active.items()}
     total = sum(powered.values())
     weights = {cid: v / total for cid, v in powered.items()}
 
-    # 保底 + 重归一化
+    # Apply floor + renormalize
     floored = {cid: max(w, cfg.w_floor) for cid, w in weights.items()}
     total = sum(floored.values())
     weights = {cid: w / total for cid, w in floored.items()}
 
-    for cid in circuit_open:
-        if cid in scores:
-            weights[cid] = 0.0
+    # Tripped channels take a fixed probe share; active channels scale down to make room
+    probe_total = min(cfg.w_probe * len(open_ids), 0.5)
+    weights = {cid: w * (1.0 - probe_total) for cid, w in weights.items()}
+    for cid in open_ids:
+        weights[cid] = probe_total / len(open_ids)
     return weights
 
 
@@ -81,5 +89,9 @@ def max_delta(a: dict[str, float], b: dict[str, float]) -> float:
 
 
 def to_litellm_weights(weights: dict[str, float]) -> dict[str, int]:
-    """归一化权重 -> LiteLLM 的整数 weight(0-100)。"""
-    return {cid: round(w * 100) for cid, w in weights.items()}
+    """Normalized weights -> LiteLLM integer weight (0-100).
+
+    A non-zero weight never rounds down to 0: LiteLLM sends a weight-0 deployment no traffic at all,
+    which would silently defeat the probe weight.
+    """
+    return {cid: (max(1, round(w * 100)) if w > 0 else 0) for cid, w in weights.items()}

@@ -1,4 +1,4 @@
-# ---------- Scorer:智能渠道权重调度(M5)----------
+# ---------- Scorer: intelligent channel weight scheduling (M5) ----------
 
 variable "scorer_image_tag" {
   type    = string
@@ -6,7 +6,7 @@ variable "scorer_image_tag" {
 }
 
 resource "aws_ecr_repository" "scorer" {
-  name                 = "tpp/scorer"
+  name                 = "${var.ecr_prefix}/scorer"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -20,7 +20,7 @@ resource "kubernetes_namespace_v1" "scorer" {
   }
 }
 
-# LiteLLM master key(Management API 认证)
+# LiteLLM master key (Management API authentication) + router Redis AUTH token in prod
 resource "kubernetes_manifest" "scorer_external_secret" {
   manifest = {
     apiVersion = "external-secrets.io/v1"
@@ -33,12 +33,20 @@ resource "kubernetes_manifest" "scorer_external_secret" {
       refreshInterval = "1h"
       secretStoreRef  = { name = "aws-secrets-manager", kind = "ClusterSecretStore" }
       target          = { name = "scorer-env" }
-      data = [
-        {
-          secretKey = "LITELLM_MASTER_KEY"
-          remoteRef = { key = "tpp/litellm", property = "master_key" }
-        }
-      ]
+      data = concat(
+        [
+          {
+            secretKey = "LITELLM_MASTER_KEY"
+            remoteRef = { key = "${var.secret_prefix}/litellm", property = "master_key" }
+          }
+        ],
+        var.redis_tls_enabled ? [
+          {
+            secretKey = "REDIS_PASSWORD"
+            remoteRef = { key = "${var.secret_prefix}/redis-router", property = "auth_token" }
+          }
+        ] : [],
+      )
     }
   }
 }
@@ -62,7 +70,7 @@ resource "kubernetes_deployment_v1" "scorer" {
   }
 
   spec {
-    replicas = 1 # 不在请求路径上,单副本足够;挂了权重只是冻结
+    replicas = 1 # Not on the request path, a single replica is enough; two would write conflicting weights. Holds at 500 users.
 
     selector {
       match_labels = { app = "scorer" }
@@ -77,6 +85,8 @@ resource "kubernetes_deployment_v1" "scorer" {
       }
 
       spec {
+        node_selector = var.node_selectors.data_plane
+
         container {
           name  = "scorer"
           image = "${aws_ecr_repository.scorer.repository_url}:${var.scorer_image_tag}"
@@ -91,11 +101,30 @@ resource "kubernetes_deployment_v1" "scorer" {
           }
           env {
             name  = "REDIS_HOST"
-            value = local.infra.redis_endpoint
+            value = local.redis_router_host
           }
           env {
             name  = "REDIS_PORT"
             value = "6379"
+          }
+          dynamic "env" {
+            for_each = var.redis_tls_enabled ? [1] : []
+            content {
+              name  = "REDIS_SSL"
+              value = "true"
+            }
+          }
+          dynamic "env" {
+            for_each = var.redis_tls_enabled ? [1] : []
+            content {
+              name = "REDIS_PASSWORD"
+              value_from {
+                secret_key_ref {
+                  name = "scorer-env"
+                  key  = "REDIS_PASSWORD"
+                }
+              }
+            }
           }
           env {
             name  = "CHANNELS_FILE"

@@ -1,5 +1,5 @@
-# TPP 应用的 IRSA roles。命名空间/ServiceAccount 约定(apps 层 Helm values 必须与此一致):
-#   litellm/litellm、langfuse/langfuse、external-secrets/external-secrets
+# IRSA roles for TPP applications. Namespace/ServiceAccount conventions (apps-layer Helm values must match these):
+#   litellm/litellm, langfuse/langfuse, external-secrets/external-secrets
 
 locals {
   irsa_subjects = {
@@ -34,7 +34,7 @@ data "aws_iam_policy_document" "assume" {
   }
 }
 
-# ---- LiteLLM:调用 Bedrock(渠道之一,凭据即此 role,无静态密钥)----
+# ---- LiteLLM: invokes Bedrock (one of the channels; this role is the credential, no static keys) ----
 resource "aws_iam_role" "litellm" {
   name               = "${var.name_prefix}-litellm"
   assume_role_policy = data.aws_iam_policy_document.assume["litellm"].json
@@ -61,8 +61,8 @@ resource "aws_iam_role_policy" "litellm_bedrock" {
         ]
       },
       {
-        # Bedrock Mantle(OpenAI 模型的 OpenAI 兼容端点,LiteLLM 路由 bedrock_mantle/)
-        # 是独立服务前缀,不在 bedrock:* 之内;资源为 Mantle project(默认 project/default)
+        # Bedrock Mantle (OpenAI-compatible endpoint for OpenAI models, LiteLLM route bedrock_mantle/)
+        # is a separate service prefix not covered by bedrock:*; the resource is a Mantle project (default project/default)
         Effect   = "Allow"
         Action   = ["bedrock-mantle:CreateInference"]
         Resource = ["arn:aws:bedrock-mantle:*:${var.account_id}:project/*"]
@@ -71,7 +71,7 @@ resource "aws_iam_role_policy" "litellm_bedrock" {
   })
 }
 
-# ---- Langfuse:事件桶读写 ----
+# ---- Langfuse: event bucket read/write ----
 resource "aws_iam_role" "langfuse" {
   name               = "${var.name_prefix}-langfuse"
   assume_role_policy = data.aws_iam_policy_document.assume["langfuse"].json
@@ -98,7 +98,7 @@ resource "aws_iam_role_policy" "langfuse_s3" {
   })
 }
 
-# ---- AWS Load Balancer Controller(策略庞大,用社区模块自带的托管策略)----
+# ---- AWS Load Balancer Controller (the policy is large; use the managed policy bundled with the community module) ----
 module "lb_controller_irsa" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
@@ -114,7 +114,7 @@ module "lb_controller_irsa" {
   }
 }
 
-# ---- External Secrets Operator:只读 tpp/ 前缀下的 secrets ----
+# ---- External Secrets Operator: read-only access to secrets under the tpp/ prefix ----
 resource "aws_iam_role" "external_secrets" {
   name               = "${var.name_prefix}-external-secrets"
   assume_role_policy = data.aws_iam_policy_document.assume["external_secrets"].json
@@ -134,7 +134,7 @@ resource "aws_iam_role_policy" "external_secrets_sm" {
       ]
       Resource = [
         "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:tpp/*",
-        # RDS 托管主密码(rds! 前缀),用于拼 DATABASE_URL
+        # RDS managed master password (rds! prefix), used to construct DATABASE_URL
         "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:rds!*"
       ]
     }]

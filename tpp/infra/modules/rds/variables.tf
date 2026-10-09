@@ -11,7 +11,7 @@ variable "subnet_ids" {
 }
 
 variable "allowed_security_group_ids" {
-  description = "允许访问 5432 的 SG(EKS node SG)"
+  description = "SGs allowed to access port 5432 (EKS node SG)"
   type        = list(string)
 }
 
@@ -23,6 +23,27 @@ variable "engine_version" {
 variable "instance_class" {
   type    = string
   default = "db.t4g.medium"
+}
+
+variable "db_name" {
+  description = "Initial database. dev: litellm (the apps bootstrap Job adds langfuse on the same instance); prod: langfuse (the ledger lives in modules/aurora)."
+  type        = string
+  default     = "litellm"
+}
+
+variable "allocated_storage" {
+  type    = number
+  default = 50
+}
+
+variable "max_allocated_storage" {
+  type    = number
+  default = 200
+}
+
+variable "backup_retention_period" {
+  type    = number
+  default = 7
 }
 
 variable "multi_az" {

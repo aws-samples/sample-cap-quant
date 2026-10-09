@@ -13,7 +13,7 @@ module "network" {
   vpc_cidr = var.vpc_cidr
   azs      = var.azs
 
-  single_nat_gateway = true # dev 省成本
+  single_nat_gateway = true # cost saving for dev
 }
 
 module "eks" {
@@ -36,7 +36,7 @@ module "rds" {
   subnet_ids                 = module.network.private_subnet_ids
   allowed_security_group_ids = [module.eks.node_security_group_id]
 
-  # dev 规格;prod 覆盖:multi_az=true, deletion_protection=true, skip_final_snapshot=false
+  # dev sizing; prod overrides: multi_az=true, deletion_protection=true, skip_final_snapshot=false
   instance_class      = "db.t4g.medium"
   multi_az            = false
   deletion_protection = false

@@ -1,6 +1,6 @@
-# TPP 本地验证环境(Milestone 0)
-# 基础栈:  docker compose up -d
-# 含 trace: docker compose --profile trace up -d
+# TPP local verification environment (Milestone 0)
+# Base stack:  docker compose up -d
+# With trace:  docker compose --profile trace up -d
 services:
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
@@ -57,7 +57,7 @@ services:
       - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafanadata:/var/lib/grafana
 
-  # ---------- trace profile:Langfuse v3 及其依赖 ----------
+  # ---------- trace profile: Langfuse v3 and its dependencies ----------
   langfuse-web:
     image: langfuse/langfuse:3
     profiles: ["trace"]

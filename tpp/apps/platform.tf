@@ -1,4 +1,4 @@
-# ---------- 存储:gp3 StorageClass(不设默认,chart values 里显式引用) ----------
+# ---------- Storage: gp3 StorageClass (not set as default, referenced explicitly in chart values) ----------
 resource "kubernetes_storage_class_v1" "gp3" {
   metadata {
     name = "gp3"
@@ -74,7 +74,7 @@ resource "helm_release" "reloader" {
   version    = "2.2.16"
 }
 
-# 全局 SecretStore:指向 Secrets Manager,后续 litellm/langfuse 的 ExternalSecret 都用它
+# Global SecretStore: points to Secrets Manager; the litellm/langfuse ExternalSecrets below all use it
 resource "kubernetes_manifest" "cluster_secret_store" {
   manifest = {
     apiVersion = "external-secrets.io/v1"
@@ -103,7 +103,7 @@ resource "kubernetes_manifest" "cluster_secret_store" {
   depends_on = [helm_release.external_secrets]
 }
 
-# ---------- kube-prometheus-stack(Prometheus + Grafana + Alertmanager) ----------
+# ---------- kube-prometheus-stack (Prometheus + Grafana + Alertmanager) ----------
 resource "random_password" "grafana_admin" {
   length  = 20
   special = false
@@ -118,7 +118,7 @@ resource "helm_release" "kube_prometheus_stack" {
   version          = "75.6.0"
   timeout          = 900
 
-  values = [file("${path.module}/values/kube-prometheus-stack.yaml")]
+  values = [file("${path.module}/values/${var.prometheus_values_file}")]
 
   set_sensitive {
     name  = "grafana.adminPassword"
@@ -131,4 +131,23 @@ resource "helm_release" "kube_prometheus_stack" {
 output "grafana_admin_password" {
   value     = random_password.grafana_admin.result
   sensitive = true
+}
+
+# ---------- KEDA (prod): scales LiteLLM on a Prometheus query instead of CPU ----------
+# The ScaledObject lives in litellm.tf. Include this release in the targeted first pass so the CRD exists before
+# the ScaledObject is planned.
+resource "helm_release" "keda" {
+  count = var.keda.enabled ? 1 : 0
+
+  name             = "keda"
+  repository       = "https://kedacore.github.io/charts"
+  chart            = "keda"
+  namespace        = "keda"
+  create_namespace = true
+  version          = var.keda.version
+
+  set {
+    name  = "nodeSelector.tpp\\.io/pool"
+    value = "system"
+  }
 }

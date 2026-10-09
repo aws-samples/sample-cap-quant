@@ -1,9 +1,9 @@
-"""Scorer 主循环:每 interval 查 Prometheus -> 打分 -> 调 LiteLLM 权重。
+"""Scorer main loop: every interval, query Prometheus -> score -> adjust LiteLLM weights.
 
-设计要点(docs/architecture.md §3):
-- EWMA 状态存 Redis,重启无损;
-- 小样本保护、熔断、保底、迟滞;
-- 任一依赖不可用 -> 本轮跳过(权重冻结),自身指标暴露供告警。
+Design highlights (docs/architecture.md §3):
+- EWMA state lives in Redis, so restarts are lossless;
+- small-sample protection, circuit breaking with a probe weight for recovery, floor weight, hysteresis;
+- if any dependency is unavailable -> skip this round (weights frozen), own metrics exposed for alerting.
 """
 
 import logging
@@ -32,14 +32,20 @@ class Scorer:
         self.cfg = cfg
         self.prom = PromClient(cfg)
         self.litellm = LiteLLMClient(cfg.litellm_url, cfg.litellm_master_key)
-        self.redis = redis_lib.Redis(host=cfg.redis_host, port=cfg.redis_port, decode_responses=True)
+        self.redis = redis_lib.Redis(
+            host=cfg.redis_host,
+            port=cfg.redis_port,
+            password=cfg.redis_password or None,
+            ssl=cfg.redis_ssl,
+            decode_responses=True,
+        )
         self.channels = self.litellm.load_channels_spec(cfg.channels_file)
         self.groups = sorted({ch["model_name"] for ch in self.channels})
         self.ids_by_group: dict[str, list[str]] = defaultdict(list)
         for ch in self.channels:
             self.ids_by_group[ch["model_name"]].append(ch["model_info"]["id"])
 
-    # ---- Redis 状态 ----
+    # ---- Redis state ----
     def _score_key(self, cid: str) -> str:
         return f"scorer:score:{cid}"
 
@@ -63,7 +69,18 @@ class Scorer:
     def set_circuit(self, cid: str, is_open: bool) -> None:
         self.redis.set(f"scorer:circuit:{cid}", "1" if is_open else "0")
 
-    # ---- 单轮 ----
+    def _evaluate_recovery(self, group: str, cid: str, m: scoring.ChannelMetrics) -> None:
+        """Advance the recovery counter of an open breaker; close it after N consecutive good rounds."""
+        cfg = self.cfg
+        if scoring.weighted_error_rate(m) < cfg.circuit_recovery_err:
+            if self.circuit_rounds(cid, good=True) >= cfg.circuit_recovery_rounds:
+                self.set_circuit(cid, False)
+                self.circuit_rounds(cid, good=False)
+                log.info("group=%s channel=%s circuit closed after %d good rounds", group, cid, cfg.circuit_recovery_rounds)
+        else:
+            self.circuit_rounds(cid, good=False)
+
+    # ---- Single cycle ----
     def run_cycle(self) -> None:
         cfg = self.cfg
         metrics = self.prom.fetch_metrics(self.groups)
@@ -86,22 +103,23 @@ class Scorer:
                 prev = self.get_score(cid)
 
                 if m is None or m.requests < cfg.min_samples:
-                    # 小样本保护:沿用旧分,新渠道给冷启动分
+                    # Small-sample protection: keep the old score; new channels get the cold-start score
                     q = prev if prev is not None else cfg.default_q
+                    # An open breaker only receives probe traffic (W_PROBE), which is below MIN_SAMPLES by design.
+                    # Evaluate recovery on whatever probe samples exist; never (re)trip on so few samples.
+                    if m is not None and m.requests > 0 and self.is_circuit_open(cid):
+                        self._evaluate_recovery(group, cid, m)
                 else:
                     q = scoring.ewma(prev, scoring.raw_score(m, best_lat, cfg), cfg.alpha)
 
-                    # 熔断状态机
+                    # Circuit breaker state machine
                     if scoring.circuit_should_open(m, cfg):
+                        if not self.is_circuit_open(cid):
+                            log.warning("group=%s channel=%s circuit opened: %s", group, cid, m.errors_by_class)
                         self.set_circuit(cid, True)
                         self.circuit_rounds(cid, good=False)
                     elif self.is_circuit_open(cid):
-                        err = scoring.weighted_error_rate(m)
-                        if err < cfg.circuit_recovery_err:
-                            if self.circuit_rounds(cid, good=True) >= cfg.circuit_recovery_rounds:
-                                self.set_circuit(cid, False)
-                        else:
-                            self.circuit_rounds(cid, good=False)
+                        self._evaluate_recovery(group, cid, m)
 
                 self.set_score(cid, q)
                 scores[cid] = q
@@ -134,7 +152,7 @@ class Scorer:
                 LAST_SUCCESS.set(time.time())
                 CYCLES.labels("ok").inc()
             except Exception:
-                # 权重冻结在上一轮值;Scorer 不在请求路径上,失败可容忍
+                # Weights stay frozen at last round's values; the Scorer is off the request path, so failures are tolerable
                 log.exception("cycle failed, weights frozen")
                 CYCLES.labels("error").inc()
             time.sleep(max(1.0, self.cfg.interval_seconds - (time.time() - started)))

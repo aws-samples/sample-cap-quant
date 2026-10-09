@@ -12,6 +12,6 @@ terraform {
     bucket       = "tpp-tfstate-<aws account>"
     key          = "infra/dev/terraform.tfstate"
     region       = "us-west-2"
-    use_lockfile = true # S3 原生锁,免 DynamoDB(需 TF >= 1.10)
+    use_lockfile = true # S3 native locking, no DynamoDB needed (requires TF >= 1.10)
   }
 }

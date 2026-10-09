@@ -1,0 +1,116 @@
+# LiteLLM Proxy config for the 500-user environment (apps/envs/prod.tfvars -> litellm_config_file).
+# Channel definitions are not in this file -- the registry is in apps/values/scorer-channels.yaml, written
+# to the DB by the Scorer via /model/new (store_model_in_db), so that weight can be adjusted dynamically via the Management API.
+
+model_list: []
+
+litellm_settings:
+  # langfuse_otel: OTLP protocol, compatible with Langfuse v4 (the legacy "langfuse" callback is rejected by v4)
+  success_callback: ["prometheus", "langfuse_otel"]
+  failure_callback: ["prometheus", "langfuse_otel"]
+
+  # Cardinality control at the source (docs/scaling-500-users.md §8). Only the listed metric families are emitted,
+  # and only with the listed labels. Per-key / per-user labels (hashed_api_key, api_key_alias, end_user, user, team)
+  # are never produced, so 500 keys x 9 channels cannot multiply into millions of series.
+  # Do NOT try to achieve this with metricRelabelConfigs labeldrop on the ServiceMonitor: dropping a label that
+  # distinguishes series inside one scrape produces duplicate samples, and Prometheus keeps only the first --
+  # counters would silently undercount. Per-user attribution lives in the RDS ledger and Langfuse.
+  # Every metric the Scorer (services/scorer/scorer/prom.py), the TPP Dashboard, and values/tpp-overview-dashboard.json
+  # query must appear below; an unlisted family is not exported at all.
+  # include_labels applies to every metric in its group, and LiteLLM validates each label against the
+  # label set that metric actually declares (litellm.types.integrations.prometheus.PrometheusMetricLabels).
+  # One invalid pair raises ValueError in PrometheusLogger.__init__, which disables the whole Prometheus
+  # callback -- /metrics then serves only litellm_in_flight_requests and every panel, Scorer query and the
+  # KEDA trigger go blank. So the groups below are split by label set, not by theme; verified against
+  # v1.98.0. When bumping litellm_image, re-check this file against that mapping first.
+  prometheus_metrics_config:
+    - group: "channel_requests"
+      metrics:
+        - "litellm_deployment_total_requests"
+        - "litellm_deployment_success_responses"
+      include_labels:
+        - "model_id"
+        - "requested_model"
+        - "litellm_model_name"
+        - "api_provider"
+    # exception_class / exception_status exist only on the failure counter.
+    - group: "channel_failures"
+      metrics:
+        - "litellm_deployment_failure_responses"
+      include_labels:
+        - "model_id"
+        - "requested_model"
+        - "litellm_model_name"
+        - "api_provider"
+        - "exception_class"
+        - "exception_status"
+    # Neither of these accepts requested_model.
+    - group: "channel_state"
+      metrics:
+        - "litellm_deployment_state"
+        - "litellm_deployment_latency_per_output_token"
+      include_labels:
+        - "model_id"
+        - "litellm_model_name"
+        - "api_provider"
+    # The latency histograms identify the model as "model"; they have no litellm_model_name label.
+    - group: "request_latency"
+      metrics:
+        - "litellm_request_total_latency_metric"
+        - "litellm_llm_api_time_to_first_token_metric"
+        - "litellm_llm_api_latency_metric"
+      include_labels:
+        - "model_id"
+        - "requested_model"
+        - "model"
+        - "api_provider"
+    - group: "spend_and_tokens"
+      metrics:
+        - "litellm_spend_metric"
+        - "litellm_input_tokens_metric"
+        - "litellm_output_tokens_metric"
+        - "litellm_input_cached_tokens_metric"
+        - "litellm_input_cache_creation_tokens_metric"
+      include_labels:
+        - "model_id"
+        - "requested_model"
+        - "model"
+    - group: "proxy_requests"
+      metrics:
+        - "litellm_proxy_total_requests_metric"   # KEDA scales LiteLLM on the rate of this counter
+      include_labels:
+        - "requested_model"
+        - "status_code"
+    # status_code is not a label on the failed-request counter; it reports exception_* instead.
+    - group: "proxy_failures"
+      metrics:
+        - "litellm_proxy_failed_requests_metric"
+      include_labels:
+        - "requested_model"
+        - "exception_class"
+        - "exception_status"
+    # The one deliberately per-user series: a single gauge per user (500 series, not 500 x channels x families),
+    # feeding the Grafana "remaining budget" panel in values/tpp-overview-dashboard.json.
+    - group: "budgets"
+      metrics:
+        - "litellm_remaining_user_budget_metric"
+      include_labels:
+        - "user"
+
+router_settings:
+  routing_strategy: simple-shuffle # Weighted by weight, works with the Scorer's weight adjustments
+  redis_host: os.environ/REDIS_HOST
+  redis_port: os.environ/REDIS_PORT
+  redis_password: os.environ/REDIS_PASSWORD # ElastiCache AUTH token; TLS comes from REDIS_SSL=True in the pod env
+  allowed_fails: 3
+  cooldown_time: 60
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL # points at PgBouncer (?pgbouncer=true); schema migrations run from the litellm-migrate Job
+  store_model_in_db: true
+  database_connection_pool_limit: 10
+  # SpendLogs grows without bound at 400k requests/day; retention is a requirement, not an optimization.
+  # Long-term billing belongs in a daily aggregation to S3 + Athena (docs/scaling-500-users.md §5).
+  maximum_spend_logs_retention_period: "90d"
+  maximum_spend_logs_retention_interval: "1d"

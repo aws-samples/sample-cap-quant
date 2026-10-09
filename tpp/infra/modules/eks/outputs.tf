@@ -15,7 +15,7 @@ output "oidc_provider_arn" {
 }
 
 output "oidc_provider" {
-  description = "OIDC issuer(去掉 https:// 前缀),IRSA assume policy 用"
+  description = "OIDC issuer (without the https:// prefix), used by the IRSA assume policy"
   value       = module.eks.oidc_provider
 }
 
@@ -25,4 +25,20 @@ output "cluster_security_group_id" {
 
 output "node_security_group_id" {
   value = module.eks.node_security_group_id
+}
+
+# ---- Karpenter (null when enable_karpenter = false) ----
+output "karpenter_iam_role_arn" {
+  description = "IRSA role for the Karpenter controller (ServiceAccount karpenter/karpenter)"
+  value       = try(module.karpenter[0].iam_role_arn, null)
+}
+
+output "karpenter_node_iam_role_name" {
+  description = "IAM role Karpenter-launched nodes assume; referenced by EC2NodeClass.spec.role"
+  value       = try(module.karpenter[0].node_iam_role_name, null)
+}
+
+output "karpenter_queue_name" {
+  description = "SQS queue for spot interruption and health events"
+  value       = try(module.karpenter[0].queue_name, null)
 }

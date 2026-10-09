@@ -1,16 +1,16 @@
-# LiteLLM Proxy 生产配置(EKS)。
-# 渠道定义不在此文件 —— 注册表在 apps/values/scorer-channels.yaml,由 Scorer 经
-# /model/new 写入 DB(store_model_in_db),这样 weight 才能被 Management API 动态调整。
+# LiteLLM Proxy production config (EKS).
+# Channel definitions are not in this file -- the registry is in apps/values/scorer-channels.yaml, written
+# to the DB by the Scorer via /model/new (store_model_in_db), so that weight can be adjusted dynamically via the Management API.
 
 model_list: []
 
 litellm_settings:
-  # langfuse_otel:OTLP 协议,适配 Langfuse v4(旧版 "langfuse" callback 会被 v4 拒绝)
+  # langfuse_otel: OTLP protocol, compatible with Langfuse v4 (the legacy "langfuse" callback is rejected by v4)
   success_callback: ["prometheus", "langfuse_otel"]
   failure_callback: ["prometheus", "langfuse_otel"]
 
 router_settings:
-  routing_strategy: simple-shuffle # 按 weight 加权,配合 Scorer 调权
+  routing_strategy: simple-shuffle # Weighted by weight, works with the Scorer's weight adjustments
   redis_host: os.environ/REDIS_HOST
   redis_port: os.environ/REDIS_PORT
   allowed_fails: 3

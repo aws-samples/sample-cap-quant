@@ -1,9 +1,11 @@
 langfuse:
   nextauth:
-    # dev 暂用 port-forward 访问;暴露 Ingress 后改为正式 URL
-    url: http://localhost:3010
+    # Port-forward access for now; switch to the official URL once an Ingress is exposed.
+    # This binds the *local* port, so it must match the environment's port block in
+    # scripts/tpp-tunnels.sh (dev 3010, prod 4010) or Langfuse auth breaks on redirect.
+    url: ${langfuse_nextauth_url}
     secret:
-      value: "" # 留空:首装自动生成并持久化在 <release>-app secret
+      value: "" # Leave empty: auto-generated on first install and persisted in the <release>-app secret
   salt:
     value: ""
   encryptionKey:
@@ -11,11 +13,18 @@ langfuse:
 
   serviceAccount:
     create: true
-    name: langfuse # 与 infra IRSA subject langfuse/langfuse 一致
+    name: langfuse # Must match the infra IRSA subject langfuse/langfuse
     annotations:
       eks.amazonaws.com/role-arn: ${langfuse_role_arn}
 
-  # headless init:首次启动自动建组织/项目/API keys(值来自 tpp/langfuse secret)
+  # Empty in dev (schedule anywhere); prod pins web/worker to the observability pool
+  nodeSelector: ${jsonencode(node_selector)}
+  web:
+    replicas: ${web_replicas}
+  worker:
+    replicas: ${worker_replicas}
+
+  # headless init: auto-creates org/project/API keys on first startup (values come from the <prefix>/langfuse secret)
   additionalEnvFrom:
     - secretRef:
         name: langfuse-init
@@ -49,11 +58,22 @@ redis:
   deploy: false
   host: ${redis_endpoint}
   port: 6379
+  tls:
+    enabled: ${redis_tls}
+%{ if redis_tls ~}
+  # prod ElastiCache: AUTH token synced by External Secrets from <prefix>/redis-queue into the langfuse-redis Secret
   auth:
-    enabled: false # dev ElastiCache 未开 AUTH;prod 开 TLS+AUTH 后调整
+    enabled: true
+    username: default
+    existingSecret: langfuse-redis
+    existingSecretPasswordKey: password
+%{ else ~}
+  auth:
+    enabled: false # dev ElastiCache has AUTH disabled
+%{ endif ~}
 
 clickhouse:
-  deploy: false # 不用 chart 的 alpha operator,自管单节点 StatefulSet(langfuse.tf)
+  deploy: false # Skip the chart's alpha operator; self-managed single-node StatefulSet (langfuse.tf)
   host: clickhouse
   auth:
     username: default
@@ -62,7 +82,7 @@ clickhouse:
   migration:
     autoMigrate: true
     ssl: false
-  # 单节点 ClickHouse:关闭集群模式(否则迁移用 ON CLUSTER/ReplicatedMergeTree 需要 Keeper)
+  # Single-node ClickHouse: disable cluster mode (otherwise migrations use ON CLUSTER/ReplicatedMergeTree, which requires Keeper)
   cluster:
     enabled: false
 
@@ -71,4 +91,4 @@ s3:
   bucket: ${bucket}
   region: ${region}
   forcePathStyle: false
-  # accessKeyId/secretAccessKey 留空 => SDK 凭据链走 IRSA
+  # Leave accessKeyId/secretAccessKey empty => SDK credential chain uses IRSA

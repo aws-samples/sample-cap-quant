@@ -15,7 +15,13 @@ variable "azs" {
 }
 
 variable "single_nat_gateway" {
-  description = "dev 用单 NAT 省成本;prod 建议 false(每 AZ 一个)"
+  description = "dev uses a single NAT to save cost; false recommended for prod (one per AZ)"
   type        = bool
   default     = true
+}
+
+variable "extra_private_subnet_tags" {
+  description = "Additional tags on private subnets, e.g. karpenter.sh/discovery so Karpenter can find them"
+  type        = map(string)
+  default     = {}
 }

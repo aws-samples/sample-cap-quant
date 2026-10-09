@@ -1,4 +1,4 @@
-# apps 层(state 2)经 terraform_remote_state 读取这些 output
+# The apps layer (state 2) reads these outputs via terraform_remote_state
 
 output "region" {
   value = var.region
