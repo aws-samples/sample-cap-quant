@@ -49,7 +49,7 @@ Langfuse bucket; IRSA roles.
 
 ```bash
 terraform apply
-aws eks update-kubeconfig --name tpp-prod --region us-west-2
+aws eks update-kubeconfig --name tpp-prod --region us-east-1
 kubectl get nodes -L tpp.io/pool      # 3 Ready nodes, all labelled system
 terraform output                      # confirm karpenter_iam_role_arn, redis_router_endpoint, langfuse_rds_address are non-empty
 ```
