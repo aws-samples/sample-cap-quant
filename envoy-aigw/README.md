@@ -1,8 +1,7 @@
 # envoy-aigw — Envoy AI Gateway on EKS (dev, 50 users)
 
 Unified OpenAI / Anthropic-compatible entry point in front of five Bedrock model families
-(Claude, GPT via Bedrock Mantle, Kimi, DeepSeek, GLM) in us-east-2. Design:
-`~/Documents/ubiquant/scitix/EKS自建Envoy AI Gateway多模型接入实现架构.md`.
+(Claude, GPT via Bedrock Mantle, Kimi, DeepSeek, GLM) in us-east-2.
 
 ```
 infra/        Terraform state 1: VPC (10.90.0.0/16, 2 AZ, 1 NAT), VPC endpoints (bedrock-runtime, bedrock-mantle, s3),
