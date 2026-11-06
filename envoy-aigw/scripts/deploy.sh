@@ -101,9 +101,13 @@ ingress() {
   export COGNITO_USER_POOL_ARN="$(echo "$cog" | jq -r '.user_pool_arn // ""')"
   export COGNITO_CLIENT_ID="$(echo "$cog" | jq -r '.client_id // ""')"
   export COGNITO_DOMAIN="$(echo "$cog" | jq -r '.domain // ""')"
+  # WAF web ACL (apps/waf.tf); "none" makes the controller detach any ACL when var.waf.enabled = false
+  local waf; waf="$(cd "$ROOT/apps" && terraform output -raw waf_web_acl_arn 2>/dev/null || true)"
+  [[ "$waf" == arn:aws:wafv2:* ]] || waf="none"
+  export WAF_ACL_ARN="$waf"
 
-  log "ALB Ingress (group aigw) for $host"
-  envsubst '${CERT_ARN} ${HOSTNAME}' < "$ROOT/k8s/ingress/alb-ingress.yaml.tmpl" | kubectl apply -f -
+  log "ALB Ingress (group aigw) for $host (WAF: $WAF_ACL_ARN)"
+  envsubst '${CERT_ARN} ${HOSTNAME} ${WAF_ACL_ARN}' < "$ROOT/k8s/ingress/alb-ingress.yaml.tmpl" | kubectl apply -f -
   if kubectl get ns monitoring >/dev/null 2>&1 && [[ -n "$COGNITO_USER_POOL_ARN" ]]; then
     log "Grafana / Prometheus Ingresses (grafana.$host, prometheus.$host)"
     envsubst '${CERT_ARN} ${HOSTNAME} ${COGNITO_USER_POOL_ARN} ${COGNITO_CLIENT_ID} ${COGNITO_DOMAIN}' \

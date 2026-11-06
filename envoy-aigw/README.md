@@ -54,6 +54,18 @@ Useful queries: `sum by (gen_ai_original_model, gen_ai_token_type) (rate(gen_ai_
 `histogram_quantile(0.95, sum by (le) (rate(gen_ai_server_time_to_first_token_seconds_bucket[5m])))`,
 `sum(envoy_http_downstream_rq_active)` (in-flight streams; the KEDA signal for prod).
 
+## AWS WAF
+
+`apps/waf.tf` creates the regional web ACL `aigw-<env>`; `scripts/deploy.sh ingress` renders its ARN into the `aigw`
+Ingress as `alb.ingress.kubernetes.io/wafv2-acl-arn`, and the ALB controller attaches it to the shared ALB (API,
+Grafana, Prometheus, dashboard). Rules, in order: Amazon IP reputation list, per-IP rate limit (6000 req / 5 min,
+answered with 429), Known Bad Inputs, Common Rule Set. Body-inspecting rules (`SizeRestrictions_BODY`,
+`CrossSiteScripting_BODY`, `GenericLFI_BODY`, `GenericRFI_BODY`, `EC2MetaDataSSRF_BODY`, `Log4JRCE_BODY`,
+`JavaDeserializationRCE_BODY`) are COUNT only: agent prompts are > 8 KB and full of code, so they would block
+normal traffic. Logs: CloudWatch `aws-waf-logs-aigw-<env>` (30 days; `authorization`, `x-api-key`, `cookie` redacted).
+Knobs in `apps/terraform.tfvars`: `waf = { count_only = true }` (nothing blocks, for tuning),
+`rate_limit_per_5min`, `enabled = false` (then `scripts/deploy.sh ingress` sets the annotation to `none` and detaches).
+
 ## Scorer (quality-based weights)
 
 `services/scorer` (ported from the TPP scorer, ns `scorer`, single replica, off the request path) reads the trailing
