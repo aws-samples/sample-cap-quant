@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars and fill in. The public hostname must live in a Route 53 hosted zone you control.
+ingress = {
+  enabled        = true
+  hostname       = "aigw.example.com"
+  hosted_zone_id = "<ROUTE53_HOSTED_ZONE_ID>"
+  alb_ready      = true
+}

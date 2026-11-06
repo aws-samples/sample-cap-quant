@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dashboard
+---
+# Pod Identity maps this SA to aigw-<env>-dashboard (apps/dashboard.tf): Secrets Manager read/write on the API-key secret.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dashboard
+  namespace: dashboard
+---
+# Cluster-wide read of the gateway objects the dashboard renders from
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aigw-dashboard-read
+rules:
+  - apiGroups: ["aigateway.envoyproxy.io"]
+    resources: ["aigatewayroutes", "aiservicebackends", "backendsecuritypolicies"]
+    verbs: ["get", "list"]
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["gateways", "httproutes"]
+    verbs: ["get", "list"]
+  - apiGroups: ["gateway.envoyproxy.io"]
+    resources: ["backendtrafficpolicies", "clienttrafficpolicies", "securitypolicies"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: aigw-dashboard-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: aigw-dashboard-read
+subjects:
+  - kind: ServiceAccount
+    name: dashboard
+    namespace: dashboard
+---
+# The one write: the API-key Secret in the gateway namespace (create / rotate / revoke client keys)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aigw-dashboard-apikeys
+  namespace: aigw
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["aigw-api-keys"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aigw-dashboard-apikeys
+  namespace: aigw
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aigw-dashboard-apikeys
+subjects:
+  - kind: ServiceAccount
+    name: dashboard
+    namespace: dashboard

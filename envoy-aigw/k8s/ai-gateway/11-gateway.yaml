@@ -1,0 +1,26 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: aigw
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: aigw
+  namespace: aigw
+spec:
+  gatewayClassName: aigw
+  listeners:
+    - name: http
+      protocol: HTTP # TLS terminates at the ALB (ACM); ALB -> Envoy is in-VPC plaintext
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: aigw

@@ -1,0 +1,174 @@
+# Six AIServiceBackends = three translators x two Regions (suffix = Region). The SigV4 region in each
+# BackendSecurityPolicy must match the endpoint's Region, otherwise Bedrock rejects the signature.
+#   bedrock-anthropic-<r> : Claude via Bedrock InvokeModel (native Anthropic body); /anthropic/v1/messages + /v1/chat/completions
+#   bedrock-converse-<r>  : Kimi / DeepSeek / GLM / GPT-5.6 via Bedrock Converse (OpenAI <-> Converse translation)
+#   bedrock-mantle-<r>    : gpt-oss via the OpenAI-compatible Mantle endpoint (passthrough; /v1/responses for Codex)
+# All authenticate with the pod's IAM role (Pod Identity); no credentials file.
+
+# ---------------- use2: us-east-2 (primary) ----------------
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: AIServiceBackend
+metadata:
+  name: bedrock-anthropic-use2
+  namespace: aigw
+spec:
+  schema:
+    name: AWSAnthropic
+    version: bedrock-2023-05-31
+  backendRef:
+    name: bedrock-runtime-use2
+    kind: Backend
+    group: gateway.envoyproxy.io
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: BackendSecurityPolicy
+metadata:
+  name: bedrock-anthropic-use2
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: aigateway.envoyproxy.io
+      kind: AIServiceBackend
+      name: bedrock-anthropic-use2
+  type: AWSCredentials
+  awsCredentials:
+    region: us-east-2
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: AIServiceBackend
+metadata:
+  name: bedrock-converse-use2
+  namespace: aigw
+spec:
+  schema:
+    name: AWSBedrock
+  backendRef:
+    name: bedrock-runtime-use2
+    kind: Backend
+    group: gateway.envoyproxy.io
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: BackendSecurityPolicy
+metadata:
+  name: bedrock-converse-use2
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: aigateway.envoyproxy.io
+      kind: AIServiceBackend
+      name: bedrock-converse-use2
+  type: AWSCredentials
+  awsCredentials:
+    region: us-east-2
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: AIServiceBackend
+metadata:
+  name: bedrock-mantle-use2
+  namespace: aigw
+spec:
+  schema:
+    name: OpenAI
+    prefix: /v1
+  backendRef:
+    name: bedrock-mantle-use2
+    kind: Backend
+    group: gateway.envoyproxy.io
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: BackendSecurityPolicy
+metadata:
+  name: bedrock-mantle-use2
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: aigateway.envoyproxy.io
+      kind: AIServiceBackend
+      name: bedrock-mantle-use2
+  type: AWSCredentials
+  awsCredentials:
+    region: us-east-2
+---
+# ---------------- use1: us-east-1 (secondary) ----------------
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: AIServiceBackend
+metadata:
+  name: bedrock-anthropic-use1
+  namespace: aigw
+spec:
+  schema:
+    name: AWSAnthropic
+    version: bedrock-2023-05-31
+  backendRef:
+    name: bedrock-runtime-use1
+    kind: Backend
+    group: gateway.envoyproxy.io
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: BackendSecurityPolicy
+metadata:
+  name: bedrock-anthropic-use1
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: aigateway.envoyproxy.io
+      kind: AIServiceBackend
+      name: bedrock-anthropic-use1
+  type: AWSCredentials
+  awsCredentials:
+    region: us-east-1
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: AIServiceBackend
+metadata:
+  name: bedrock-converse-use1
+  namespace: aigw
+spec:
+  schema:
+    name: AWSBedrock
+  backendRef:
+    name: bedrock-runtime-use1
+    kind: Backend
+    group: gateway.envoyproxy.io
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: BackendSecurityPolicy
+metadata:
+  name: bedrock-converse-use1
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: aigateway.envoyproxy.io
+      kind: AIServiceBackend
+      name: bedrock-converse-use1
+  type: AWSCredentials
+  awsCredentials:
+    region: us-east-1
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: AIServiceBackend
+metadata:
+  name: bedrock-mantle-use1
+  namespace: aigw
+spec:
+  schema:
+    name: OpenAI
+    prefix: /v1
+  backendRef:
+    name: bedrock-mantle-use1
+    kind: Backend
+    group: gateway.envoyproxy.io
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: BackendSecurityPolicy
+metadata:
+  name: bedrock-mantle-use1
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: aigateway.envoyproxy.io
+      kind: AIServiceBackend
+      name: bedrock-mantle-use1
+  type: AWSCredentials
+  awsCredentials:
+    region: us-east-1

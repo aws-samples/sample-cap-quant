@@ -1,0 +1,88 @@
+# kube-prometheus-stack 92.x values (dev). Prometheus + Grafana + kube-state-metrics + node-exporter.
+# Alertmanager is off (no paging in dev); the gateway scrape targets are k8s/monitoring/10-monitors.yaml.
+
+alertmanager:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    retentionSize: 18GB
+    scrapeInterval: 15s
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        memory: 3Gi
+    # Pick up every ServiceMonitor / PodMonitor / PrometheusRule in the cluster, not only chart-labelled ones
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: true
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 512Mi
+  grafana.ini:
+    server:
+      root_url: https://grafana.aigw.example.com # behind the shared ALB (k8s/ingress/monitoring-ingress.yaml.tmpl)
+    security:
+      cookie_secure: true
+    analytics:
+      check_for_updates: false
+  # Sidecar loads any ConfigMap labelled grafana_dashboard=1 (k8s/monitoring/dashboards via deploy.sh)
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: monitoring
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+# EKS hides these control-plane components; silence the dead targets/alerts
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false

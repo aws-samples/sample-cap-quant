@@ -1,0 +1,117 @@
+# Rendered by scripts/deploy.sh scorer (placeholder: ${IMAGE})
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scorer
+  namespace: scorer
+  labels:
+    app: scorer
+spec:
+  replicas: 1 # must stay 1: concurrent weight writers would fight
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: scorer
+  template:
+    metadata:
+      labels:
+        app: scorer
+    spec:
+      serviceAccountName: scorer
+      containers:
+        - name: scorer
+          image: ${IMAGE}
+          ports:
+            - name: metrics
+              containerPort: 9100
+          env:
+            - name: PROMETHEUS_URL
+              value: http://kube-prometheus-stack-prometheus.monitoring:9090
+            - name: REDIS_HOST
+              value: redis.redis-system.svc.cluster.local
+            - name: ROUTE_NAMESPACE
+              value: aigw
+            - name: ROUTE_NAME
+              value: aigw
+            - name: INTERVAL_SECONDS
+              value: "60"
+            - name: WINDOW
+              value: "10m"
+            - name: MIN_SAMPLES
+              value: "5"
+            - name: W_TTFT
+              value: "0.6"
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scorer
+  namespace: scorer
+  labels:
+    app: scorer
+spec:
+  selector:
+    app: scorer
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: scorer
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: ["scorer"]
+  selector:
+    matchLabels:
+      app: scorer
+  endpoints:
+    - port: metrics
+      interval: 30s
+---
+# Alert when the scorer has not completed a cycle for 5 minutes (weights frozen; request path unaffected)
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: aigw-scorer
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: aigw-scorer
+      rules:
+        - alert: AigwScorerStale
+          expr: time() - max(scorer_last_success_timestamp) > 300
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Scorer has not completed a cycle for 5 minutes; channel weights are frozen (requests unaffected)"
+        - alert: AigwChannelCircuitOpen
+          expr: max by (model, channel) (scorer_circuit_open) == 1
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Channel {{ $labels.channel }} for {{ $labels.model }} is tripped (probe traffic only)"

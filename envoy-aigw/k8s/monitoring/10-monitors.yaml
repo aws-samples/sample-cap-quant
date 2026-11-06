@@ -1,0 +1,89 @@
+# Scrape targets for the gateway. Mirrors ai-gateway/examples/monitoring/monitoring.yaml, expressed as
+# Prometheus Operator resources.
+#
+# Envoy data-plane pods (namespace envoy-gateway-system) expose two endpoints:
+#   aigw-admin :1064 /metrics           gen_ai_* (tokens, TTFT, request duration, per model/backend) from the extproc sidecar
+#   metrics    :19001 /stats/prometheus  envoy_* (downstream_rq_active, upstream_rq_*, circuit breakers, rate limit)
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: envoy-ai-gateway-dataplane
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: ["envoy-gateway-system"]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: envoy
+      app.kubernetes.io/managed-by: envoy-gateway
+      app.kubernetes.io/component: proxy
+  podMetricsEndpoints:
+    - port: aigw-admin
+      path: /metrics
+      interval: 15s
+    - port: metrics
+      path: /stats/prometheus
+      interval: 15s
+      # Envoy emits thousands of per-cluster series; keep the families the dashboards and autoscaling need.
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "envoy_(http_downstream_rq_active|http_downstream_rq_total|http_downstream_rq_xx|http_downstream_cx_active|cluster_upstream_rq_active|cluster_upstream_rq_total|cluster_upstream_rq_pending_overflow|cluster_upstream_rq_retry|cluster_upstream_rq_time_bucket|cluster_upstream_rq_time_count|cluster_upstream_rq_time_sum|cluster_upstream_rq_xx|cluster_circuit_breakers_default_rq_open|cluster_circuit_breakers_default_cx_open|cluster_outlier_detection_ejections_active|http_rate_limit_.*|listener_downstream_cx_active|server_memory_allocated|server_memory_heap_size|server_live|server_uptime)"
+          action: keep
+  podTargetLabels:
+    - gateway.envoyproxy.io/owning-gateway-name
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: envoy-ai-gateway-controller
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: ["envoy-ai-gateway-system"]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-gateway-helm
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: envoy-gateway
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: ["envoy-gateway-system"]
+  selector:
+    matchLabels:
+      control-plane: envoy-gateway
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: envoy-ratelimit
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: ["envoy-gateway-system"]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: envoy-ratelimit
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

@@ -1,0 +1,20 @@
+# Downstream (client -> Envoy) settings tuned for agent workloads: large request bodies, long SSE streams.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: aigw
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: aigw
+  connection:
+    # Envoy Gateway default is 32KiB; the AI Gateway must buffer the whole request body to read `model`
+    # and translate it. Agent requests with long context reach several MB.
+    bufferLimit: 50Mi
+  timeout:
+    http:
+      idleTimeout: 600s          # same as the ALB idle timeout
+      streamIdleTimeout: 300s    # no bytes in either direction for 5 min -> close
+      requestReceivedTimeout: 60s

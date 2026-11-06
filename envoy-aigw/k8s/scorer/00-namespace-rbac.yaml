@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scorer
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: scorer
+  namespace: scorer
+---
+# The scorer's only write: backendRefs[].weight on the AIGatewayRoute in the gateway namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aigw-scorer-route
+  namespace: aigw
+rules:
+  - apiGroups: ["aigateway.envoyproxy.io"]
+    resources: ["aigatewayroutes"]
+    resourceNames: ["aigw"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aigw-scorer-route
+  namespace: aigw
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aigw-scorer-route
+subjects:
+  - kind: ServiceAccount
+    name: scorer
+    namespace: scorer

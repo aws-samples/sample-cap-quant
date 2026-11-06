@@ -1,0 +1,83 @@
+# Public model names -> Bedrock model IDs. Clients only ever see the short names on the left.
+# The AI Gateway extracts `model` from the request body into x-ai-eg-model before routing.
+#
+# Every model has two channels (same priority, weighted): us-east-2 (`*-use2`, primary, private endpoint, weight 90) and
+# us-east-1 (`*-use1`, secondary, via NAT, weight 10). Both become hosts of one Envoy cluster, so the passive health check in
+# 13-backend-traffic-policy.yaml ejects a failing channel and the other one takes the traffic; the 10% keeps the
+# secondary observable for the scorer while limiting prompt-cache misses (cache is per Region).
+# The weights are the knob a scorer adjusts (kubectl patch on backendRefs[].weight).
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: AIGatewayRoute
+metadata:
+  name: aigw
+  namespace: aigw
+spec:
+  parentRefs:
+    - name: aigw
+      kind: Gateway
+      group: gateway.networking.k8s.io
+  llmRequestCosts:
+    - metadataKey: llm_input_token
+      type: InputToken
+    - metadataKey: llm_cached_input_token
+      type: CachedInputToken
+    - metadataKey: llm_output_token
+      type: OutputToken
+    - metadataKey: llm_total_token
+      type: TotalToken
+  rules:
+    # ---- Claude (native Anthropic path) ----
+    - matches:
+        - headers: [{ type: Exact, name: x-ai-eg-model, value: claude-opus-5-5 }]
+      backendRefs:
+        - { name: bedrock-anthropic-use2,      modelNameOverride: us.anthropic.claude-opus-5-5, weight: 90 }
+        - { name: bedrock-anthropic-use1, modelNameOverride: us.anthropic.claude-opus-5-5, weight: 10 }
+    - matches:
+        - headers: [{ type: Exact, name: x-ai-eg-model, value: claude-sonnet-5-5 }]
+      backendRefs:
+        - { name: bedrock-anthropic-use2,      modelNameOverride: us.anthropic.claude-sonnet-5-5, weight: 90 }
+        - { name: bedrock-anthropic-use1, modelNameOverride: us.anthropic.claude-sonnet-5-5, weight: 10 }
+    - matches:
+        - headers: [{ type: Exact, name: x-ai-eg-model, value: claude-haiku-5-5 }]
+      backendRefs:
+        - { name: bedrock-anthropic-use2,      modelNameOverride: us.anthropic.claude-haiku-5-5, weight: 90 }
+        - { name: bedrock-anthropic-use1, modelNameOverride: us.anthropic.claude-haiku-5-5, weight: 10 }
+    # ---- GPT ----
+    # 2026-11-03: Mantle rejects openai.gpt-5.6-terra / gpt-5.5 on both /v1/chat/completions and /v1/responses in
+    # every US Region, while open-weight gpt-oss-120b works. Until that entitlement is sorted out, GPT-5.6 goes
+    # through Bedrock Converse (chat/completions only, no Responses API).
+    - matches:
+        - headers: [{ type: Exact, name: x-ai-eg-model, value: gpt-5.6-terra }]
+      backendRefs:
+        - { name: bedrock-converse-use2,      modelNameOverride: us.openai.gpt-5.6-terra, weight: 90 }
+        - { name: bedrock-converse-use1, modelNameOverride: us.openai.gpt-5.6-terra, weight: 10 }
+    # Open-weight OpenAI model on Mantle: OpenAI passthrough, keeps the /v1/responses (Codex) path testable.
+    - matches:
+        - headers: [{ type: Exact, name: x-ai-eg-model, value: gpt-oss-120b }]
+      backendRefs:
+        - { name: bedrock-mantle-use2,      modelNameOverride: openai.gpt-oss-120b, weight: 90 }
+        - { name: bedrock-mantle-use1, modelNameOverride: openai.gpt-oss-120b, weight: 10 }
+    # ---- Kimi / DeepSeek / GLM via Bedrock Converse ----
+    - matches:
+        - headers: [{ type: Exact, name: x-ai-eg-model, value: kimi-k3 }]
+      backendRefs:
+        - { name: bedrock-converse-use2,      modelNameOverride: us.moonshotai.kimi-k3, weight: 90 }
+        - { name: bedrock-converse-use1, modelNameOverride: us.moonshotai.kimi-k3, weight: 10 }
+    - matches:
+        - headers: [{ type: Exact, name: x-ai-eg-model, value: deepseek-v3.2 }]
+      backendRefs:
+        - { name: bedrock-converse-use2,      modelNameOverride: deepseek.v3.2, weight: 90 }
+        - { name: bedrock-converse-use1, modelNameOverride: deepseek.v3.2, weight: 10 }
+    # GLM on Bedrock is text-only; image content in a request returns 400 from Bedrock.
+    # 2026-11-03: us.zai.glm-5.3 returns ThrottlingException on the first call in every US Region (no GLM 5.3
+    # quota for this account yet); on-demand zai.glm-5 works, so it is the default GLM.
+    - matches:
+        - headers: [{ type: Exact, name: x-ai-eg-model, value: glm-5 }]
+      backendRefs:
+        - { name: bedrock-converse-use2,      modelNameOverride: zai.glm-5, weight: 90 }
+        - { name: bedrock-converse-use1, modelNameOverride: zai.glm-5, weight: 10 }
+    - matches:
+        - headers: [{ type: Exact, name: x-ai-eg-model, value: glm-5.3 }]
+      backendRefs:
+        - { name: bedrock-converse-use2,      modelNameOverride: us.zai.glm-5.3, weight: 90 }
+        - { name: bedrock-converse-use1, modelNameOverride: us.zai.glm-5.3, weight: 10 }

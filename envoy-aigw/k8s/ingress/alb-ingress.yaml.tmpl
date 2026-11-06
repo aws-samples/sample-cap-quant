@@ -1,0 +1,38 @@
+# Internet-facing ALB in front of the Envoy data plane. Rendered by scripts/deploy.sh ingress once
+# apps/ Terraform has issued the ACM certificate (placeholders: ${CERT_ARN}, ${HOSTNAME}).
+# Lives in envoy-gateway-system because that is where Envoy Gateway creates the `aigw-envoy` Service.
+# IngressGroup "aigw": the monitoring Ingresses (k8s/ingress/monitoring-ingress.yaml.tmpl) share this ALB.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aigw
+  namespace: envoy-gateway-system
+  annotations:
+    alb.ingress.kubernetes.io/group.name: aigw
+    alb.ingress.kubernetes.io/group.order: "10"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: ${CERT_ARN}
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    # Long agent streams: idle 600s; drain 300s on pod rotation (matches EnvoyProxy shutdown.drainTimeout)
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=600,routing.http.drop_invalid_header_fields.enabled=true
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=300
+    # /v1/models answers 401 without a key: proves the listener + API-key filter are up
+    alb.ingress.kubernetes.io/healthcheck-path: /v1/models
+    alb.ingress.kubernetes.io/success-codes: "200,401"
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    # Optional later: alb.ingress.kubernetes.io/wafv2-acl-arn: <arn>
+spec:
+  ingressClassName: alb
+  rules:
+    - host: ${HOSTNAME}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aigw-envoy
+                port:
+                  number: 80

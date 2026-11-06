@@ -1,0 +1,24 @@
+# Client authentication: static API keys. One Secret key per client id (alice: <key>).
+# The Secret `aigw-api-keys` is created by scripts/deploy.sh (never committed).
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: aigw-apikey
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: aigw
+  apiKeyAuth:
+    credentialRefs:
+      - group: ""
+        kind: Secret
+        name: aigw-api-keys
+    extractFrom:
+      # Claude Code / Anthropic SDK send x-api-key; OpenAI SDK / Codex send `Authorization: Bearer <key>`.
+      # PoC check: confirm the Bearer prefix is stripped on Authorization (Envoy api_key_auth filter).
+      - headers: ["x-api-key", "Authorization"]
+    # Downstream can never set this header itself (Envoy overwrites it); rate limits and logs key on it.
+    forwardClientIDHeader: x-aigw-client
+    sanitize: true
