@@ -1,0 +1,17 @@
+# Envoy AI Gateway controller v1.2.0 values (dev)
+controller:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  # Emit the forwarded client id (set by the API-key SecurityPolicy) on metrics / logs for per-user attribution
+  metricsRequestHeaderAttributes: "x-aigw-client:gen_ai.client.id"
+  logRequestHeaderAttributes:
+    - header: x-aigw-client
+      attribute: gen_ai.client.id
+
+extProc:
+  logLevel: info

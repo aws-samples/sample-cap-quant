@@ -1,0 +1,46 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: aigw
+  namespace: aigw
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyServiceAccount:
+        name: ai-gateway-dataplane-aws
+      envoyService:
+        # Fixed name so the ALB Ingress (k8s/ingress/alb-ingress.yaml) can reference it.
+        name: aigw-envoy
+        type: ClusterIP # ALB reaches pods directly via target-type ip
+      envoyDeployment:
+        replicas: 2
+        container:
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              memory: 2Gi
+        # keep terminationGracePeriodSeconds > shutdown.drainTimeout so in-flight streams finish before the kubelet kills the pod
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              template:
+                spec:
+                  terminationGracePeriodSeconds: 330
+        pod:
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchLabels:
+                  gateway.envoyproxy.io/owning-gateway-name: aigw
+      envoyPDB:
+        minAvailable: 1
+  # Rolling restarts must not cut long agent streams; align with the ALB deregistration delay (300s).
+  shutdown:
+    drainTimeout: 300s
+    minDrainDuration: 15s

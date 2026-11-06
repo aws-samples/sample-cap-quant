@@ -1,0 +1,98 @@
+# Grafana and Prometheus on the shared "aigw" ALB (IngressGroup), host-routed.
+# Grafana authenticates users itself. Prometheus has no auth of its own, so the ALB performs a Cognito login
+# (authenticate-cognito action) before forwarding; users are managed in the aigw-<env>-ops user pool.
+# Placeholders: ${CERT_ARN} ${HOSTNAME} ${COGNITO_USER_POOL_ARN} ${COGNITO_CLIENT_ID} ${COGNITO_DOMAIN}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: monitoring
+  annotations:
+    alb.ingress.kubernetes.io/group.name: aigw
+    alb.ingress.kubernetes.io/group.order: "20"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: ${CERT_ARN}
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    alb.ingress.kubernetes.io/success-codes: "200"
+spec:
+  ingressClassName: alb
+  rules:
+    - host: grafana.${HOSTNAME}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kube-prometheus-stack-grafana
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus
+  namespace: monitoring
+  annotations:
+    alb.ingress.kubernetes.io/group.name: aigw
+    alb.ingress.kubernetes.io/group.order: "30"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: ${CERT_ARN}
+    alb.ingress.kubernetes.io/healthcheck-path: /-/healthy
+    alb.ingress.kubernetes.io/success-codes: "200"
+    alb.ingress.kubernetes.io/auth-type: cognito
+    alb.ingress.kubernetes.io/auth-scope: "openid email"
+    alb.ingress.kubernetes.io/auth-session-timeout: "28800"
+    alb.ingress.kubernetes.io/auth-on-unauthenticated-request: authenticate
+    alb.ingress.kubernetes.io/auth-idp-cognito: '{"userPoolARN":"${COGNITO_USER_POOL_ARN}","userPoolClientID":"${COGNITO_CLIENT_ID}","userPoolDomain":"${COGNITO_DOMAIN}"}'
+spec:
+  ingressClassName: alb
+  rules:
+    - host: prometheus.${HOSTNAME}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kube-prometheus-stack-prometheus
+                port:
+                  number: 9090
+---
+# Ops dashboard: no auth of its own (it can create / revoke API keys), so it sits behind the same Cognito login.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dashboard
+  namespace: dashboard
+  annotations:
+    alb.ingress.kubernetes.io/group.name: aigw
+    alb.ingress.kubernetes.io/group.order: "40"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: ${CERT_ARN}
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/success-codes: "200"
+    alb.ingress.kubernetes.io/auth-type: cognito
+    alb.ingress.kubernetes.io/auth-scope: "openid email"
+    alb.ingress.kubernetes.io/auth-session-timeout: "28800"
+    alb.ingress.kubernetes.io/auth-on-unauthenticated-request: authenticate
+    alb.ingress.kubernetes.io/auth-idp-cognito: '{"userPoolARN":"${COGNITO_USER_POOL_ARN}","userPoolClientID":"${COGNITO_CLIENT_ID}","userPoolDomain":"${COGNITO_DOMAIN}"}'
+spec:
+  ingressClassName: alb
+  rules:
+    - host: dashboard.${HOSTNAME}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dashboard
+                port:
+                  number: 80

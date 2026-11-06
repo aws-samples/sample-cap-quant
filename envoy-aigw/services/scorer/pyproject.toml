@@ -1,0 +1,24 @@
+[project]
+name = "aigw-scorer"
+version = "0.1.1"
+description = "Envoy AI Gateway channel scorer: quality-based traffic weights per model channel"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.27",
+    "redis>=5.0",
+    "prometheus-client>=0.20",
+    "kubernetes>=31.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+scorer = "scorer.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["scorer"]

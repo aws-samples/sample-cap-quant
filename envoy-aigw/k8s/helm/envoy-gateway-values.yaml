@@ -1,0 +1,57 @@
+# Envoy Gateway v1.9.3 values for Envoy AI Gateway v1.2.0.
+# Base: ai-gateway/manifests/envoy-gateway-values.yaml + examples/token_ratelimit/envoy-gateway-values-addon.yaml
+
+deployment:
+  replicas: 1 # dev; prod: 2
+
+config:
+  envoyGateway:
+    gateway:
+      controllerName: gateway.envoyproxy.io/gatewayclass-controller
+    logging:
+      level:
+        default: info
+    provider:
+      type: Kubernetes
+      kubernetes:
+        rateLimitDeployment:
+          patch:
+            type: StrategicMerge
+            value:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - imagePullPolicy: IfNotPresent
+                        name: envoy-ratelimit
+                        image: docker.io/envoyproxy/ratelimit:60d8e81b
+    extensionApis:
+      enableEnvoyPatchPolicy: true
+      enableBackend: true # required: AI service backends are Backend resources
+    # Required: AI Gateway post-processes the xDS that Envoy Gateway generates.
+    extensionManager:
+      hooks:
+        xdsTranslator:
+          translation:
+            listener:
+              includeAll: true
+            route:
+              includeAll: true
+            cluster:
+              includeAll: true
+            secret:
+              includeAll: true
+          post:
+            - Translation
+            - Cluster
+            - Route
+      service:
+        fqdn:
+          hostname: ai-gateway-controller.envoy-ai-gateway-system.svc.cluster.local
+          port: 1063
+    # Global rate limit backend (token-based per-user limits). Redis from k8s/ai-gateway/50-redis.yaml.
+    rateLimit:
+      backend:
+        type: Redis
+        redis:
+          url: redis.redis-system.svc.cluster.local:6379

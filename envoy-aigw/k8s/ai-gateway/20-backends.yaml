@@ -1,0 +1,103 @@
+# Upstreams. Every model has two channels so traffic can be shifted when one degrades. Names carry the Region:
+#   use2  us-east-2  bedrock-runtime / bedrock-mantle  -> VPC interface endpoints, private (primary, weight 90)
+#   use1  us-east-1  bedrock-runtime / bedrock-mantle  -> public endpoints via the NAT gateway, TLS (secondary,
+#                    weight 10); a different Region API front door and a different quota bucket
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: bedrock-runtime-use2
+  namespace: aigw
+spec:
+  endpoints:
+    - fqdn:
+        hostname: bedrock-runtime.us-east-2.amazonaws.com
+        port: 443
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: bedrock-runtime-use2
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: gateway.envoyproxy.io
+      kind: Backend
+      name: bedrock-runtime-use2
+  validation:
+    wellKnownCACertificates: System
+    hostname: bedrock-runtime.us-east-2.amazonaws.com
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: bedrock-mantle-use2
+  namespace: aigw
+spec:
+  endpoints:
+    - fqdn:
+        hostname: bedrock-mantle.us-east-2.api.aws
+        port: 443
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: bedrock-mantle-use2
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: gateway.envoyproxy.io
+      kind: Backend
+      name: bedrock-mantle-use2
+  validation:
+    wellKnownCACertificates: System
+    hostname: bedrock-mantle.us-east-2.api.aws
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: bedrock-runtime-use1
+  namespace: aigw
+spec:
+  endpoints:
+    - fqdn:
+        hostname: bedrock-runtime.us-east-1.amazonaws.com
+        port: 443
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: bedrock-runtime-use1
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: gateway.envoyproxy.io
+      kind: Backend
+      name: bedrock-runtime-use1
+  validation:
+    wellKnownCACertificates: System
+    hostname: bedrock-runtime.us-east-1.amazonaws.com
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: bedrock-mantle-use1
+  namespace: aigw
+spec:
+  endpoints:
+    - fqdn:
+        hostname: bedrock-mantle.us-east-1.api.aws
+        port: 443
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: bedrock-mantle-use1
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: gateway.envoyproxy.io
+      kind: Backend
+      name: bedrock-mantle-use1
+  validation:
+    wellKnownCACertificates: System
+    hostname: bedrock-mantle.us-east-1.api.aws

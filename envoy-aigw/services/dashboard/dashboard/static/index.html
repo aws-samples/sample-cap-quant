@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Gateway Dashboard</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --page: #f9f9f7;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
+    --grid: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --accent: #2a78d6; --accent-track: #cde2fb;
+    --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark; --surface-1: #1a1a19; --page: #0d0d0d; --text-primary: #fff; --text-secondary: #c3c2b7;
+      --text-muted: #898781; --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+      --accent: #3987e5; --accent-track: #0d366b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark; --surface-1: #1a1a19; --page: #0d0d0d; --text-primary: #fff; --text-secondary: #c3c2b7;
+    --text-muted: #898781; --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+    --accent: #3987e5; --accent-track: #0d366b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text-primary); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 20px 24px 48px; }
+  header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  header h1 { font-size: 20px; margin: 0; }
+  header .sub { color: var(--text-muted); font-size: 12px; }
+  .env-badge { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px;
+               border-radius: 999px; border: 1px solid var(--border); color: var(--text-muted); }
+  .env-badge.prod { background: var(--critical); border-color: var(--critical); color: #fff; }
+  .links { margin-left: auto; display: flex; gap: 8px; }
+  .links a { display: inline-block; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px;
+             background: var(--surface-1); color: var(--text-primary); text-decoration: none; font-size: 13px; }
+  .links a:hover { border-color: var(--accent); }
+  .links a span { color: var(--text-muted); margin-left: 4px; }
+  .theme-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .theme-seg button { padding: 5px 10px; font: inherit; font-size: 12px; border: none; cursor: pointer; background: var(--surface-1); color: var(--text-secondary); }
+  .theme-seg button + button { border-left: 1px solid var(--border); }
+  .theme-seg button.on { color: var(--accent); font-weight: 600; }
+  section { margin-bottom: 28px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  h2 .hint { font-weight: 400; font-size: 12px; color: var(--text-muted); margin-left: 8px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .tile .label { font-size: 12px; color: var(--text-secondary); }
+  .tile .value { font-size: 26px; font-weight: 600; margin-top: 2px; }
+  .tile .meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .tbl-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; white-space: nowrap; }
+  th, td { padding: 7px 10px; text-align: right; font-variant-numeric: tabular-nums; }
+  th { color: var(--text-secondary); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--baseline); }
+  td { border-bottom: 1px solid var(--grid); }
+  tr:last-child td { border-bottom: none; }
+  th.l, td.l { text-align: left; }
+  thead tr.grp th { border-bottom: none; padding-bottom: 0; font-size: 11px; color: var(--text-muted); }
+  thead tr.grp th.sep, tbody td.sep, thead tr.sub th.sep { border-left: 1px solid var(--grid); }
+  td .mono, .mono { color: var(--text-muted); font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; background: var(--page); border: 1px solid var(--border); color: var(--text-secondary); margin-right: 3px; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-primary); }
+  .badge i { width: 9px; height: 9px; border-radius: 999px; display: inline-block; }
+  .badge.good i { background: var(--good); }
+  .badge.warning i { background: var(--warning); border-radius: 2px; }
+  .badge.serious i { background: var(--serious); clip-path: polygon(50% 0,100% 100%,0 100%); border-radius: 0; }
+  .badge.critical i { background: var(--critical); clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%); border-radius: 0; }
+  .badge.none { color: var(--text-muted); } .badge.none i { background: var(--baseline); }
+  /* Magnitude meter: fill length = value; fill color = same hue ramped from the track color (0 %) to the
+     accent (100 %) via color-mix, so 10 % reads as a short pale bar and 90 % as a long saturated one. */
+  .meter { display: inline-flex; align-items: center; gap: 8px; }
+  .meter .track { display: block; width: 120px; height: 8px; border-radius: 4px; background: var(--accent-track); overflow: hidden; flex: none; }
+  .meter .fill { display: block; height: 100%; border-radius: 4px; background: var(--accent); min-width: 2px; transition: width .3s; }
+  .meter .fill.hot { background: var(--serious); }
+  .meter .val { font-variant-numeric: tabular-nums; min-width: 3.5em; text-align: right; }
+  /* Channels table: rows of one model are grouped; a heavier rule separates models */
+  #channels-tbl tbody tr.grp-first td { border-top: 1px solid var(--baseline); }
+  #channels-tbl tbody tr:first-child td { border-top: none; }
+  #channels-tbl td[rowspan] { vertical-align: top; }
+  #channels-tbl .chip + .mono { margin-left: 6px; }
+  button.act { padding: 4px 12px; font: inherit; font-size: 12px; border-radius: 6px; border: 1px solid var(--border);
+               background: var(--surface-1); color: var(--text-primary); cursor: pointer; }
+  button.act:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+  button.act.danger:not(:disabled):hover { border-color: var(--critical); color: var(--critical); }
+  button.act:disabled { opacity: .45; cursor: default; }
+  .newclient { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .newclient input { padding: 5px 10px; font: inherit; color: var(--text-primary); background: var(--page); border: 1px solid var(--border); border-radius: 6px; width: 220px; }
+  .newclient input:focus { outline: none; border-color: var(--accent); }
+  .keybox { display: none; margin: 8px 0 12px; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--surface-1); font-size: 13px; }
+  .keybox code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; user-select: all; }
+  .filters { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+  .filters .lbl { font-size: 12px; color: var(--text-muted); margin-right: 2px; }
+  .filters button { padding: 4px 12px; font: inherit; font-size: 12px; border-radius: 999px; border: 1px solid var(--border);
+                    background: var(--surface-1); color: var(--text-secondary); cursor: pointer; }
+  .filters button.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .status-strip { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; }
+  .chart-note { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+  #tooltip { position: fixed; pointer-events: none; z-index: 10; display: none; background: var(--surface-1); border: 1px solid var(--border);
+             border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.14); }
+  #tooltip .t { font-weight: 600; margin-bottom: 2px; } #tooltip .r { color: var(--text-secondary); }
+  svg text { font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; }
+  footer { color: var(--text-muted); font-size: 12px; margin-top: 8px; }
+  .err-banner { display: none; background: var(--surface-1); border: 1px solid var(--critical); border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>AI Gateway Dashboard</h1>
+    <span class="env-badge" id="env-badge"></span>
+    <span class="sub" id="updated-at"></span>
+    <nav class="links" id="links"></nav>
+    <span class="theme-seg" id="theme-seg" title="Theme">
+      <button data-t="auto">Auto</button><button data-t="light">Light</button><button data-t="dark">Dark</button>
+    </span>
+  </header>
+
+  <div class="err-banner" id="err-banner"></div>
+
+  <section><div class="kpis" id="kpis"></div></section>
+
+  <section>
+    <h2>Gateway health<span class="hint">Envoy data plane, AI Gateway backends, rate-limit service</span></h2>
+    <div class="card status-strip" id="status-strip"></div>
+  </section>
+
+  <section>
+    <h2>Clients<span class="hint">One API key per client; usage against the per-client limits is from the current rate-limit window. Keys are shown once, at creation.</span></h2>
+    <div class="newclient">
+      <input id="new-client" placeholder="new client id (e.g. alice)" pattern="^[a-z0-9][a-z0-9._-]{1,62}$">
+      <button class="act" id="new-client-btn">Create key</button>
+    </div>
+    <div class="keybox" id="keybox"></div>
+    <div class="card tbl-scroll"><table id="clients-tbl">
+      <thead>
+        <tr class="grp">
+          <th class="l"></th><th></th><th></th>
+          <th colspan="3" class="sep">Tokens (24h)</th>
+          <th colspan="2" class="sep">Against limits</th>
+          <th class="sep"></th><th></th><th class="l"></th>
+        </tr>
+        <tr class="sub">
+          <th class="l">Client</th><th>Status</th><th>Requests</th>
+          <th class="sep">Input</th><th>Output</th><th>Cache hit</th>
+          <th class="sep l" id="th-tok-limit">Tokens</th><th class="l" id="th-req-limit">Requests</th>
+          <th class="sep l">Models used</th><th>Errors</th><th class="l">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Models<span class="hint">Public name → Bedrock model; tokens are for the last 24h. Per-channel traffic split is in the Channels table below</span></h2>
+    <div class="card"><div id="tokens-chart"></div><div class="chart-note">Tokens over the last 24h (input + output), by model. Hover for the breakdown.</div></div>
+    <div style="height:12px"></div>
+    <div class="card tbl-scroll"><table id="models-tbl">
+      <thead><tr>
+        <th class="l">Model</th><th class="l">Bedrock model</th><th>Channels</th>
+        <th>Input</th><th>Output</th><th>Cached in</th><th>Reasoning</th>
+        <th title="cached input / (input + cached input + cache-creation input), last 24h">Cache hit rate</th><th>Health</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Channels<span class="hint">One row per channel; weight is what the scorer wrote to the route, share is what Envoy actually sent in the window, q is the scorer's EWMA quality score (1.0 = best)</span></h2>
+    <div class="card tbl-scroll"><table id="channels-tbl">
+      <thead><tr>
+        <th class="l">Model</th><th class="l">Channel</th><th class="l">Region</th>
+        <th class="l">Weight</th><th>Share</th><th>Requests</th><th>Error rate</th><th>TTFT p90</th><th>Quality q</th><th class="l">Status</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Model performance<span class="hint">TPS derived from TPOT (1/TPOT, tokens/s)</span></h2>
+    <div class="filters" id="win-filters"><span class="lbl">Window</span></div>
+    <div class="card tbl-scroll"><table id="perf-tbl">
+      <thead>
+        <tr class="grp">
+          <th class="l"></th><th></th>
+          <th colspan="3" class="sep">TTFT (s)</th><th colspan="3" class="sep">TPOT (s/tok)</th>
+          <th colspan="3" class="sep">E2E (s)</th><th colspan="3" class="sep">TPS (tok/s)</th><th colspan="2" class="sep">Errors</th>
+        </tr>
+        <tr class="sub">
+          <th class="l">Model</th><th>Requests</th>
+          <th class="sep">p50</th><th>p90</th><th>p99</th><th class="sep">p50</th><th>p90</th><th>p99</th>
+          <th class="sep">p50</th><th>p90</th><th>p99</th><th class="sep">p50</th><th>p90</th><th>p99</th>
+          <th class="sep">Count</th><th>Rate</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <footer>Auto-refreshes every 30s · Data sources: Prometheus (gen_ai / envoy metrics) + Kubernetes API (AIGatewayRoute, backends) + API-key Secret</footer>
+</div>
+<div id="tooltip"></div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+let CONFIG = null;
+let WINDOW = "1h";
+
+function applyTheme(mode) {
+  if (mode === "light" || mode === "dark") document.documentElement.dataset.theme = mode;
+  else { delete document.documentElement.dataset.theme; mode = "auto"; }
+  try { localStorage.setItem("aigw-theme", mode); } catch (e) {}
+  document.querySelectorAll("#theme-seg button").forEach((b) => b.classList.toggle("on", b.dataset.t === mode));
+}
+(() => {
+  let saved = "auto"; try { saved = localStorage.getItem("aigw-theme") || "auto"; } catch (e) {}
+  applyTheme(saved);
+  document.querySelectorAll("#theme-seg button").forEach((b) => b.addEventListener("click", () => applyTheme(b.dataset.t)));
+})();
+
+const fmtTok = (v) => v == null ? "—" : v >= 1e9 ? (v / 1e9).toFixed(1) + "B" : v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? (v / 1e3).toFixed(1) + "K" : String(Math.round(v));
+const fmtSec = (v) => v == null ? "—" : v < 1 ? Math.round(v * 1000) + "ms" : v.toFixed(2) + "s";
+const fmtTpot = (v) => v == null ? "—" : Math.round(v * 1000) + "ms";
+const fmtTps = (v) => v == null ? "—" : v >= 100 ? Math.round(v) : v.toFixed(1);
+const fmtPct = (v) => v == null ? "—" : (v * 100).toFixed(v >= 0.1 ? 0 : 1) + "%";
+const fmtInt = (v) => v == null ? "—" : Math.round(v).toLocaleString();
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const unitWord = (u) => ({ Second: "s", Minute: "min", Hour: "h", Day: "day" }[u] || u || "");
+
+function healthBadge(m) {
+  if (m.error_rate != null && m.error_rate > 0.2) return ["serious", "Failing"];
+  if (m.error_rate != null && m.error_rate > 0.05) return ["warning", "High errors"];
+  if (!m.requests) return ["none", "No traffic"];
+  return ["good", "Healthy"];
+}
+const badge = (cls, label) => `<span class="badge ${cls}"><i></i>${label}</span>`;
+
+const tip = $("#tooltip");
+function showTip(evt, html) {
+  tip.innerHTML = html; tip.style.display = "block";
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  if (x + w > innerWidth - 8) x = evt.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = evt.clientY - h - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+const hideTip = () => { tip.style.display = "none"; };
+
+const totalTok = (t) => (t.input || 0) + (t.output || 0);
+
+function renderTokensChart(models) {
+  const rows = [...models].sort((a, b) => totalTok(b.tokens_24h) - totalTok(a.tokens_24h));
+  const max = Math.max(...rows.map((r) => totalTok(r.tokens_24h)), 1);
+  const barH = 18, gap = 10, labelW = 190, valueW = 84;
+  const W = Math.min(1220, Math.max(640, ($("#tokens-chart").clientWidth || 900)));
+  const plotW = W - labelW - valueW, H = rows.length * (barH + gap) + 24;
+  const ticks = [0, 0.5, 1].map((t) => { const x = labelW + plotW * t;
+    return `<line x1="${x}" y1="6" x2="${x}" y2="${H - 18}" stroke="var(--grid)"/><text x="${x}" y="${H - 4}" text-anchor="middle" fill="var(--text-muted)">${fmtTok(max * t)}</text>`; }).join("");
+  const bars = rows.map((r, i) => {
+    const y = 8 + i * (barH + gap), v = totalTok(r.tokens_24h), w = Math.max(v / max * plotW, 0), rr = Math.min(4, w);
+    const path = w < 0.5 ? "" : `M${labelW},${y} h${w - rr} q${rr},0 ${rr},${rr} v${barH - 2 * rr} q0,${rr} -${rr},${rr} h-${w - rr} Z`;
+    return `<g class="bar-row" data-i="${i}">
+      <text x="${labelW - 10}" y="${y + barH / 2 + 4}" text-anchor="end" fill="var(--text-secondary)">${esc(r.name)}</text>
+      ${path ? `<path d="${path}" fill="var(--accent)"/>` : ""}
+      <text x="${labelW + w + 8}" y="${y + barH / 2 + 4}" fill="var(--text-primary)">${fmtTok(v)}</text>
+      <rect x="0" y="${y - gap / 2}" width="${W}" height="${barH + gap}" fill="transparent"/></g>`; }).join("");
+  $("#tokens-chart").innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="Tokens per model over the last 24 hours">${ticks}<line x1="${labelW}" y1="6" x2="${labelW}" y2="${H - 18}" stroke="var(--baseline)"/>${bars}</svg>`;
+  $("#tokens-chart").querySelectorAll(".bar-row").forEach((g) => {
+    const r = rows[+g.dataset.i], t = r.tokens_24h;
+    g.addEventListener("mousemove", (e) => showTip(e, `<div class="t">${esc(r.name)} → ${esc(r.upstream_model)} (${r.channels.length} channels)</div>
+      <div class="r">input ${fmtTok(t.input)} · output ${fmtTok(t.output)}</div>
+      <div class="r">cached ${fmtTok(t.cached_input)} · cache write ${fmtTok(t.cache_creation_input)} · reasoning ${fmtTok(t.reasoning)}</div>
+      <div class="r">cache hit rate ${fmtPct(r.cache_hit_rate)}</div>`));
+    g.addEventListener("mouseleave", hideTip);
+  });
+}
+
+/* Proportional bar: width = fraction; color ramps along the accent hue with the same fraction (hot = error state). */
+function meterBar(frac, hot, label) {
+  const pct = Math.max(0, Math.min(1, frac || 0)) * 100;
+  const mix = `color-mix(in srgb, var(--accent) ${Math.round(20 + pct * 0.8)}%, var(--accent-track))`;
+  const bg = hot ? "var(--serious)" : mix;
+  return `<span class="meter" title="${pct.toFixed(1)}%"><span class="track"><span class="fill${hot ? " hot" : ""}" style="width:${pct.toFixed(1)}%;background:${bg}"></span></span><span class="val">${label ?? fmtPct(frac)}</span></span>`;
+}
+
+const REGION_OF = { use2: "us-east-2", use1: "us-east-1", usw2: "us-west-2" };
+function channelParts(backend) {
+  const m = backend.match(/^bedrock-(.+)-(use2|use1|usw2)$/);
+  return m ? { api: m[1], region: REGION_OF[m[2]] || m[2] } : { api: backend, region: "—" };
+}
+
+function channelStatus(c) {
+  if (c.circuit_open) return badge("critical", "Tripped (probe only)");
+  if (c.error_rate != null && c.error_rate > 0.2) return badge("serious", "Failing");
+  if (c.error_rate != null && c.error_rate > 0.05) return badge("warning", "High errors");
+  if (c.quality != null && c.quality < 0.6) return badge("warning", "Low quality");
+  if (!c.requests) return badge("none", "No traffic");
+  return badge("good", "Healthy");
+}
+
+function renderChannels(models) {
+  const rows = [];
+  models.forEach((m) => {
+    const wsum = m.channels.reduce((s, c) => s + (c.weight || 0), 0) || 1;
+    m.channels.forEach((c, i) => {
+      const w = (c.weight || 0) / wsum, { api, region } = channelParts(c.backend);
+      const hot = (c.error_rate != null && c.error_rate > 0.05) || c.circuit_open;
+      rows.push(`<tr${i === 0 ? ' class="grp-first"' : ""}>
+        ${i === 0 ? `<td class="l" rowspan="${m.channels.length}">${esc(m.name)}<br><span class="mono">${esc(m.upstream_model)}</span></td>` : ""}
+        <td class="l"><span class="chip">${esc(api)}</span><span class="mono">${esc(c.backend)}</span></td>
+        <td class="l">${esc(region)}${i === 0 ? ' <span class="mono">primary</span>' : ""}</td>
+        <td class="l">${meterBar(w, hot)}</td>
+        <td>${c.share == null ? "—" : fmtPct(c.share)}</td>
+        <td>${fmtInt(c.requests)}</td>
+        <td>${c.error_rate == null ? "—" : fmtPct(c.error_rate)}</td>
+        <td>${fmtSec(c.ttft_p90)}</td>
+        <td>${c.quality == null ? "—" : c.quality.toFixed(2)}</td>
+        <td class="l">${channelStatus(c)}</td>
+      </tr>`);
+    });
+  });
+  $("#channels-tbl tbody").innerHTML = rows.join("");
+}
+
+function renderModels(models) {
+  $("#models-tbl tbody").innerHTML = models.map((m) => { const t = m.tokens_24h, [c, l] = healthBadge(m); return `<tr>
+    <td class="l">${esc(m.name)}</td>
+    <td class="l"><span class="mono">${esc(m.upstream_model)}</span></td>
+    <td>${m.channels.length}${m.channels.some((x) => x.circuit_open) ? ' <span class="badge critical"><i></i></span>' : ""}</td>
+    <td>${fmtTok(t.input)}</td><td>${fmtTok(t.output)}</td><td>${fmtTok(t.cached_input)}</td><td>${fmtTok(t.reasoning)}</td>
+    <td>${fmtPct(m.cache_hit_rate)}</td><td style="text-align:left">${badge(c, l)}</td></tr>`; }).join("");
+}
+
+function renderPerf(models) {
+  const q3 = (o, f) => `<td class="sep">${f(o.p50)}</td><td>${f(o.p90)}</td><td>${f(o.p99)}</td>`;
+  $("#perf-tbl tbody").innerHTML = models.map((m) => `<tr>
+    <td class="l">${esc(m.name)}</td><td>${fmtInt(m.requests)}</td>
+    ${q3(m.ttft, fmtSec)}${q3(m.tpot, fmtTpot)}${q3(m.e2e, fmtSec)}${q3(m.tps, fmtTps)}
+    <td class="sep">${fmtInt(m.failures)}</td><td>${fmtPct(m.error_rate)}</td></tr>`).join("");
+}
+
+function renderStatus(g) {
+  const ok = (b) => b ? "good" : "critical";
+  const items = [
+    [ok(g.gateway_programmed), `Gateway ${g.gateway_programmed ? "programmed" : "not programmed"}`],
+    [g.envoy_pods.ready === g.envoy_pods.total && g.envoy_pods.total > 0 ? "good" : (g.envoy_pods.ready ? "warning" : "critical"), `Envoy pods ${g.envoy_pods.ready}/${g.envoy_pods.total} ready`],
+    ...g.backends.map((b) => [ok(b.accepted), `${b.name} (${b.schema}) ${b.accepted ? "accepted" : "rejected"}`]),
+    [g.ratelimit.ready >= 1 ? "good" : "warning", `rate limit ${g.ratelimit.ready}/${g.ratelimit.desired}`],
+    [g.redis.ready >= 1 ? "good" : "warning", `redis ${g.redis.ready}/${g.redis.desired}`],
+    [g.controller.ready >= 1 ? "good" : "critical", `controller ${g.controller.ready}/${g.controller.desired}`],
+    [g.scorer_last_success == null ? "none" : (Date.now() / 1000 - g.scorer_last_success < 300 ? "good" : "warning"),
+      g.scorer_last_success == null ? "scorer not running" : `scorer ${Math.round(Date.now() / 1000 - g.scorer_last_success)}s ago`],
+  ];
+  const ops = Object.entries(g.by_operation).map(([k, v]) => `${esc(k)} ${fmtInt(v)}`).join(" · ");
+  $("#status-strip").innerHTML = items.map(([c, l]) => badge(c, l)).join("") +
+    `<span class="mono" style="margin-left:auto">in-flight ${fmtInt(g.inflight)} · ${ops || "no requests in window"}</span>`;
+}
+
+function renderKpis(ov, cl) {
+  const ms = ov.models, g = ov.gateway;
+  const reqs = ms.reduce((s, m) => s + m.requests, 0), fails = ms.reduce((s, m) => s + m.failures, 0);
+  const tin = ms.reduce((s, m) => s + m.tokens_24h.input + m.tokens_24h.cached_input + m.tokens_24h.cache_creation_input, 0);
+  const tout = ms.reduce((s, m) => s + m.tokens_24h.output, 0);
+  const cached = ms.reduce((s, m) => s + m.tokens_24h.cached_input, 0);
+  const sc = g.status_classes, s5 = sc["5"] || 0, s4 = sc["4"] || 0; // envoy_response_code_class is "2".."5"
+  const tiles = [
+    [`Requests (${WINDOW})`, fmtInt(reqs), `errors ${fmtInt(fails)} / ${fmtPct(reqs ? fails / reqs : null)}`],
+    ["Tokens (24h)", fmtTok(tin + tout), `in ${fmtTok(tin)} · out ${fmtTok(tout)}`],
+    ["Prompt cache hit (24h)", fmtPct(tin ? cached / tin : null), `${fmtTok(cached)} cached input`],
+    ["In-flight streams", fmtInt(g.inflight), `Envoy ${g.envoy_pods.ready}/${g.envoy_pods.total} pods`],
+    [`HTTP 4xx / 5xx (${WINDOW})`, `${fmtInt(s4)} / ${fmtInt(s5)}`, "at the Envoy listener (incl. 401/429)"],
+    ["Clients", `${cl.clients.filter((c) => c.active_key).length}`, `${cl.clients.filter((c) => c.requests_15m > 0).length} active in last 15m`],
+  ];
+  $("#kpis").innerHTML = tiles.map(([l, v, m]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="meta">${m}</div></div>`).join("");
+}
+
+function meter(v, lim) {
+  if (!lim) return fmtTok(v);
+  const pct = Math.min(v / lim, 1);
+  return meterBar(pct, pct > 0.8, `${fmtTok(v)} / ${fmtTok(lim)}`);
+}
+
+function renderClients(cl) {
+  const L = cl.limits;
+  $("#th-tok-limit").textContent = L.tokens ? `Tokens / ${unitWord(L.tokens_unit)}` : "Tokens";
+  $("#th-req-limit").textContent = L.requests ? `Requests / ${unitWord(L.requests_unit)}` : "Requests";
+  $("#clients-tbl tbody").innerHTML = cl.clients.map((c) => {
+    const t = c.tokens_24h;
+    const st = !c.active_key ? badge("none", "Revoked") : c.requests_15m > 0 ? badge("good", "Active") : badge("none", "Idle");
+    const acts = c.active_key ? `<button class="act" data-act="rotate" data-id="${esc(c.client_id)}">Rotate</button>
+      ${c.protected ? "" : `<button class="act danger" data-act="revoke" data-id="${esc(c.client_id)}">Revoke</button>`}` : "—";
+    return `<tr>
+      <td class="l">${esc(c.client_id)}${c.protected ? ' <span class="chip">protected</span>' : ""}</td>
+      <td style="text-align:left">${st}</td><td>${fmtInt(c.requests)}</td>
+      <td class="sep">${fmtTok(t.input)}</td><td>${fmtTok(t.output)}</td><td>${fmtPct(c.cache_hit_rate)}</td>
+      <td class="sep l">${meter(c.tokens_limit_window, L.tokens)}</td><td class="l">${meter(c.requests_limit_window, L.requests)}</td>
+      <td class="sep l">${c.models_used.map((m) => `<span class="chip">${esc(m)}</span>`).join("") || "—"}</td>
+      <td>${fmtInt(c.failures)}</td><td class="l">${acts}</td></tr>`; }).join("");
+
+  $("#clients-tbl").querySelectorAll("button.act").forEach((btn) => btn.addEventListener("click", async () => {
+    const id = btn.dataset.id, act = btn.dataset.act;
+    if (act === "revoke" && !confirm(`Revoke the API key of "${id}"? Requests with it will get 401 within seconds.`)) return;
+    if (act === "rotate" && !confirm(`Rotate the API key of "${id}"? The old key stops working immediately.`)) return;
+    btn.disabled = true; btn.textContent = "…";
+    try {
+      const r = await fetch(act === "revoke" ? `/api/clients/${encodeURIComponent(id)}` : `/api/clients/${encodeURIComponent(id)}/rotate`, { method: act === "revoke" ? "DELETE" : "POST" });
+      if (!r.ok) throw new Error(await r.text());
+      const body = await r.json();
+      if (body.api_key) showKey(id, body.api_key);
+      setTimeout(refresh, 600);
+    } catch (e) { btn.disabled = false; btn.textContent = act; showError(`${act} failed: ${e.message}`); }
+  }));
+}
+
+function showKey(id, key) {
+  const box = $("#keybox");
+  box.innerHTML = `New API key for <b>${esc(id)}</b> — copy it now, it is not shown again:<br><code>${esc(key)}</code>`;
+  box.style.display = "block";
+}
+
+$("#new-client-btn").addEventListener("click", async () => {
+  const id = $("#new-client").value.trim();
+  if (!/^[a-z0-9][a-z0-9._-]{1,62}$/.test(id)) { showError("client id: 2-63 chars, lowercase letters, digits, . _ -"); return; }
+  const btn = $("#new-client-btn"); btn.disabled = true;
+  try {
+    const r = await fetch("/api/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_id: id }) });
+    if (!r.ok) throw new Error(await r.text());
+    const body = await r.json(); showKey(id, body.api_key); $("#new-client").value = ""; setTimeout(refresh, 600);
+  } catch (e) { showError("create failed: " + e.message); } finally { btn.disabled = false; }
+});
+
+function renderWindowFilters() {
+  const box = $("#win-filters"); box.querySelectorAll("button").forEach((b) => b.remove());
+  CONFIG.windows.forEach((w) => { const b = document.createElement("button"); b.textContent = w; b.className = w === WINDOW ? "on" : "";
+    b.addEventListener("click", () => { WINDOW = w; renderWindowFilters(); refresh(); }); box.appendChild(b); });
+}
+function showError(msg) { const el = $("#err-banner"); el.textContent = msg; el.style.display = "block"; clearTimeout(el._t); el._t = setTimeout(() => { el.style.display = "none"; }, 8000); }
+
+async function refresh() {
+  try {
+    const [ov, cl] = await Promise.all([
+      fetch(`/api/overview?window=${WINDOW}`).then((r) => { if (!r.ok) throw new Error("overview " + r.status); return r.json(); }),
+      fetch(`/api/clients?window=${WINDOW}`).then((r) => { if (!r.ok) throw new Error("clients " + r.status); return r.json(); }),
+    ]);
+    renderKpis(ov, cl); renderStatus(ov.gateway); renderClients(cl);
+    renderTokensChart(ov.models); renderModels(ov.models); renderChannels(ov.models); renderPerf(ov.models);
+    $("#updated-at").textContent = "Updated " + new Date().toLocaleTimeString();
+  } catch (e) { showError("Refresh failed: " + e.message); }
+}
+
+async function init() {
+  CONFIG = await fetch("/api/config").then((r) => r.json());
+  const env = CONFIG.env || "dev", b = $("#env-badge"); b.textContent = env; b.classList.toggle("prod", env === "prod");
+  document.title = `AI Gateway Dashboard — ${env.toUpperCase()}`;
+  $("#links").innerHTML = Object.entries(CONFIG.links).map(([n, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(n)}<span>↗</span></a>`).join("");
+  renderWindowFilters(); await refresh(); setInterval(refresh, 30_000);
+}
+init();
+</script>
+</body>
+</html>

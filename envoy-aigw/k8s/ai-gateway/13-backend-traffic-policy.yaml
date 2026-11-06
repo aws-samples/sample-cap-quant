@@ -1,0 +1,78 @@
+# Upstream (Envoy -> Bedrock) settings, failover between the two channels of each model, and per-client token
+# rate limits.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: aigw
+  namespace: aigw
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: aigw
+  timeout:
+    http:
+      requestTimeout: 900s      # whole request incl. a multi-minute agent turn
+      streamIdleTimeout: 300s
+      connectionIdleTimeout: 600s
+  # Envoy defaults are 1024 per proxy pod per upstream; a 2-pod dev gateway hits that at ~2000 streams.
+  circuitBreaker:
+    maxConnections: 8192
+    maxPendingRequests: 8192
+    maxParallelRequests: 8192
+    maxParallelRetries: 64
+  # Error-based failover (layer 1). Each model has two channels (us-east-2 / us-east-1) in one Envoy cluster:
+  #  - retry: a failed or throttled attempt is retried once on the other channel (Envoy skips previously tried hosts);
+  #    only connection-level failures and 5xx/429 qualify, a stream that has started is never retried.
+  #  - passive health check (outlier detection): 3 consecutive 5xx / gateway errors eject the channel for 30s,
+  #    doubling on repeat; the other channel takes 100% meanwhile. maxEjectionPercent 50 = at most one of the two.
+  retry:
+    numRetries: 1
+    retryOn:
+      triggers: ["connect-failure", "refused-stream", "reset", "retriable-status-codes"]
+      httpStatusCodes: [429, 500, 502, 503, 504]
+    perRetry:
+      backOff:
+        baseInterval: 200ms
+        maxInterval: 2s
+  healthCheck:
+    passive:
+      consecutive5XxErrors: 3
+      consecutiveGatewayErrors: 3
+      consecutiveLocalOriginFailures: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      splitExternalLocalOriginErrors: false
+  rateLimit:
+    type: Global
+    global:
+      rules:
+        # Per client (x-aigw-client is set by the API-key SecurityPolicy, never by the caller) and per model:
+        # 2M total tokens per hour. Token usage is charged when the response completes (AI Gateway metadata).
+        - clientSelectors:
+            - headers:
+                - name: x-aigw-client
+                  type: Distinct
+                - name: x-ai-eg-model
+                  type: Distinct
+          limit:
+            requests: 2000000
+            unit: Hour
+          cost:
+            request:
+              from: Number
+              number: 0
+            response:
+              from: Metadata
+              metadata:
+                namespace: io.envoy.ai_gateway
+                key: llm_total_token
+        # Request-rate guard per client: 300 requests / minute
+        - clientSelectors:
+            - headers:
+                - name: x-aigw-client
+                  type: Distinct
+          limit:
+            requests: 300
+            unit: Minute

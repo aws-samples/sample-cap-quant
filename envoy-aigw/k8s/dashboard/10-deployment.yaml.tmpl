@@ -1,0 +1,70 @@
+# Rendered by scripts/deploy.sh dashboard (placeholders: ${IMAGE}, ${AIGW_ENV}, ${HOSTNAME})
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  namespace: dashboard
+  labels:
+    app: dashboard
+spec:
+  replicas: 1 # read-mostly aggregation + rare key writes
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+    spec:
+      serviceAccountName: dashboard
+      containers:
+        - name: dashboard
+          image: ${IMAGE}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: PROMETHEUS_URL
+              value: http://kube-prometheus-stack-prometheus.monitoring:9090
+            - name: AIGW_ENV
+              value: "${AIGW_ENV}"
+            - name: AWS_REGION
+              value: us-east-2
+            - name: API_KEYS_SECRET_ID
+              value: aigw/${AIGW_ENV}/api-keys
+            - name: LINK_GRAFANA
+              value: https://grafana.${HOSTNAME}
+            - name: LINK_PROMETHEUS
+              value: https://prometheus.${HOSTNAME}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 384Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+  namespace: dashboard
+spec:
+  selector:
+    app: dashboard
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
