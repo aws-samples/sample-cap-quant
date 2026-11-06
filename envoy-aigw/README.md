@@ -9,6 +9,7 @@ infra/        Terraform state 1: VPC (10.90.0.0/16, 2 AZ, 1 NAT), VPC endpoints 
 apps/         Terraform state 2: Pod Identity associations; ACM + Route 53 (off until a hosted zone is chosen)
 k8s/          Helm values + manifests: Envoy Gateway v1.9.3, Envoy AI Gateway v1.2.0, gateway resources, Redis, ALB Ingress
 scripts/      deploy.sh (helm + kubectl, in order), smoke.sh (end-to-end tests through a port-forward)
+docs/         architecture-simplified.html (open in a browser; export PNG/PDF from the ⋯ menu)
 ```
 
 ## Deploy order
