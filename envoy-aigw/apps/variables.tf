@@ -20,3 +20,17 @@ variable "ops_admin_email" {
   type        = string
   default     = "weishiyang1@gmail.com"
 }
+
+# ---- AWS WAF on the ALB (apps/waf.tf). Only takes effect when var.ingress is enabled. ----
+variable "waf" {
+  type = object({
+    enabled = optional(bool, true)
+    # true: every rule only counts (rollout / tuning). false: managed rules and the rate limit block.
+    count_only = optional(bool, false)
+    # Requests per source IP per 5 min. 50 users can share one office NAT IP, each agent doing tens of
+    # requests per minute, so keep this well above per-client Envoy limits (300 req/min per API key).
+    rate_limit_per_5min = optional(number, 6000)
+    log_retention_days  = optional(number, 30)
+  })
+  default = {}
+}

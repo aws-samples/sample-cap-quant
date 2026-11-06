@@ -3,12 +3,17 @@
 Unified OpenAI / Anthropic-compatible entry point in front of five Bedrock model families
 (Claude, GPT via Bedrock Mantle, Kimi, DeepSeek, GLM) in us-east-2.
 
+![envoy-aigw architecture](docs/architecture-simplified.png)
+
+Interactive version (export PNG/PDF): [`docs/architecture-simplified.html`](docs/architecture-simplified.html).
+
 ```
 infra/        Terraform state 1: VPC (10.90.0.0/16, 2 AZ, 1 NAT), VPC endpoints (bedrock-runtime, bedrock-mantle, s3),
               EKS 1.34 (2 x m7i.large, Pod Identity, EBS CSI), IAM roles (Bedrock invoke, ALB controller, EBS CSI)
 apps/         Terraform state 2: Pod Identity associations; ACM + Route 53 (off until a hosted zone is chosen)
 k8s/          Helm values + manifests: Envoy Gateway v1.9.3, Envoy AI Gateway v1.2.0, gateway resources, Redis, ALB Ingress
 scripts/      deploy.sh (helm + kubectl, in order), smoke.sh (end-to-end tests through a port-forward)
+docs/         architecture-simplified.html (open in a browser; export PNG/PDF from the ⋯ menu)
 ```
 
 ## Deploy order
@@ -53,6 +58,18 @@ never expose its Service directly. Tunnel access still works: `kubectl -n monito
 Useful queries: `sum by (gen_ai_original_model, gen_ai_token_type) (rate(gen_ai_client_token_usage_sum[5m]))`,
 `histogram_quantile(0.95, sum by (le) (rate(gen_ai_server_time_to_first_token_seconds_bucket[5m])))`,
 `sum(envoy_http_downstream_rq_active)` (in-flight streams; the KEDA signal for prod).
+
+## AWS WAF
+
+`apps/waf.tf` creates the regional web ACL `aigw-<env>`; `scripts/deploy.sh ingress` renders its ARN into the `aigw`
+Ingress as `alb.ingress.kubernetes.io/wafv2-acl-arn`, and the ALB controller attaches it to the shared ALB (API,
+Grafana, Prometheus, dashboard). Rules, in order: Amazon IP reputation list, per-IP rate limit (6000 req / 5 min,
+answered with 429), Known Bad Inputs, Common Rule Set. Body-inspecting rules (`SizeRestrictions_BODY`,
+`CrossSiteScripting_BODY`, `GenericLFI_BODY`, `GenericRFI_BODY`, `EC2MetaDataSSRF_BODY`, `Log4JRCE_BODY`,
+`JavaDeserializationRCE_BODY`) are COUNT only: agent prompts are > 8 KB and full of code, so they would block
+normal traffic. Logs: CloudWatch `aws-waf-logs-aigw-<env>` (30 days; `authorization`, `x-api-key`, `cookie` redacted).
+Knobs in `apps/terraform.tfvars`: `waf = { count_only = true }` (nothing blocks, for tuning),
+`rate_limit_per_5min`, `enabled = false` (then `scripts/deploy.sh ingress` sets the annotation to `none` and detaches).
 
 ## Scorer (quality-based weights)
 

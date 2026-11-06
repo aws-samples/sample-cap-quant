@@ -1,5 +1,5 @@
 # Internet-facing ALB in front of the Envoy data plane. Rendered by scripts/deploy.sh ingress once
-# apps/ Terraform has issued the ACM certificate (placeholders: ${CERT_ARN}, ${HOSTNAME}).
+# apps/ Terraform has issued the ACM certificate (placeholders: ${CERT_ARN}, ${HOSTNAME}, ${WAF_ACL_ARN}).
 # Lives in envoy-gateway-system because that is where Envoy Gateway creates the `aigw-envoy` Service.
 # IngressGroup "aigw": the monitoring Ingresses (k8s/ingress/monitoring-ingress.yaml.tmpl) share this ALB.
 apiVersion: networking.k8s.io/v1
@@ -22,7 +22,9 @@ metadata:
     alb.ingress.kubernetes.io/healthcheck-path: /v1/models
     alb.ingress.kubernetes.io/success-codes: "200,401"
     alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
-    # Optional later: alb.ingress.kubernetes.io/wafv2-acl-arn: <arn>
+    # AWS WAF web ACL from apps/waf.tf ("none" detaches it). Exclusive annotation in the IngressGroup: set it on
+    # this Ingress only; it applies to the whole shared ALB (grafana / prometheus / dashboard hosts too).
+    alb.ingress.kubernetes.io/wafv2-acl-arn: ${WAF_ACL_ARN}
 spec:
   ingressClassName: alb
   rules:
