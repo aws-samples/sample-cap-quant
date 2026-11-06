@@ -3,6 +3,10 @@
 Unified OpenAI / Anthropic-compatible entry point in front of five Bedrock model families
 (Claude, GPT via Bedrock Mantle, Kimi, DeepSeek, GLM) in us-east-2.
 
+![envoy-aigw architecture](docs/architecture-simplified.png)
+
+Interactive version (export PNG/PDF): [`docs/architecture-simplified.html`](docs/architecture-simplified.html).
+
 ```
 infra/        Terraform state 1: VPC (10.90.0.0/16, 2 AZ, 1 NAT), VPC endpoints (bedrock-runtime, bedrock-mantle, s3),
               EKS 1.34 (2 x m7i.large, Pod Identity, EBS CSI), IAM roles (Bedrock invoke, ALB controller, EBS CSI)
