@@ -3,7 +3,10 @@
 Unified OpenAI / Anthropic-compatible entry point in front of five Bedrock model families
 (Claude, GPT via Bedrock Mantle, Kimi, DeepSeek, GLM) in us-east-2.
 
-![envoy-aigw architecture](docs/architecture-simplified.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/architecture-simplified-dark.png">
+  <img alt="envoy-aigw architecture" src="docs/architecture-simplified.png">
+</picture>
 
 Interactive version (export PNG/PDF): [`docs/architecture-simplified.html`](docs/architecture-simplified.html).
 
