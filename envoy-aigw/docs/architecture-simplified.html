@@ -16,10 +16,10 @@
     
     body {
       font-family: 'JetBrains Mono', monospace;
-      background: #020617;
+      background: transparent;
       min-height: 100vh;
       padding: 2rem;
-      color: white;
+      color: #0f172a;
     }
     
     .container {
@@ -41,7 +41,7 @@
     .pulse-dot {
       width: 12px;
       height: 12px;
-      background: #22d3ee;
+      background: #0891b2;
       border-radius: 50%;
       animation: pulse 2s infinite;
     }
@@ -58,15 +58,15 @@
     }
     
     .subtitle {
-      color: #94a3b8;
+      color: #475569;
       font-size: 0.875rem;
       margin-left: 1.75rem;
     }
     
     .diagram-container {
-      background: rgba(15, 23, 42, 0.5);
+      background: transparent;
       border-radius: 1rem;
-      border: 1px solid #1e293b;
+      border: 1px solid #cbd5e1;
       padding: 1.5rem;
       overflow-x: auto;
     }
@@ -85,9 +85,9 @@
     }
     
     .card {
-      background: rgba(15, 23, 42, 0.5);
+      background: transparent;
       border-radius: 0.75rem;
-      border: 1px solid #1e293b;
+      border: 1px solid #cbd5e1;
       padding: 1.25rem;
     }
     
@@ -104,11 +104,11 @@
       border-radius: 50%;
     }
     
-    .card-dot.cyan { background: #22d3ee; }
-    .card-dot.emerald { background: #34d399; }
-    .card-dot.violet { background: #a78bfa; }
-    .card-dot.amber { background: #fbbf24; }
-    .card-dot.rose { background: #fb7185; }
+    .card-dot.cyan { background: #0891b2; }
+    .card-dot.emerald { background: #059669; }
+    .card-dot.violet { background: #7c3aed; }
+    .card-dot.amber { background: #d97706; }
+    .card-dot.rose { background: #e11d48; }
     
     .card h3 {
       font-size: 0.875rem;
@@ -117,7 +117,7 @@
     
     .card ul {
       list-style: none;
-      color: #94a3b8;
+      color: #475569;
       font-size: 0.75rem;
     }
     
@@ -128,7 +128,7 @@
     .footer {
       text-align: center;
       margin-top: 1.5rem;
-      color: #475569;
+      color: #64748b;
       font-size: 0.75rem;
     }
 
@@ -142,7 +142,7 @@
     .toolbar-toggle {
       background: transparent;
       border: none;
-      color: #475569;
+      color: #64748b;
       cursor: pointer;
       font-size: 1.25rem;
       line-height: 1;
@@ -150,16 +150,16 @@
       border-radius: 0.375rem;
       transition: color 0.2s, background 0.2s;
     }
-    .toolbar-toggle:hover { color: #94a3b8; background: rgba(30, 41, 59, 0.5); }
+    .toolbar-toggle:hover { color: #0f172a; background: rgba(148, 163, 184, 0.15); }
     .toolbar-actions {
       display: none;
       gap: 0.5rem;
     }
     .toolbar.expanded .toolbar-actions { display: flex; }
     .toolbar-actions button {
-      background: rgba(30, 41, 59, 0.8);
-      border: 1px solid #334155;
-      color: #94a3b8;
+      background: transparent;
+      border: 1px solid #cbd5e1;
+      color: #475569;
       padding: 0.375rem 0.75rem;
       border-radius: 0.375rem;
       font-family: inherit;
@@ -169,13 +169,13 @@
       white-space: nowrap;
     }
     .toolbar-actions button:hover {
-      background: rgba(51, 65, 85, 0.8);
-      color: white;
-      border-color: #475569;
+      background: rgba(148, 163, 184, 0.15);
+      color: #0f172a;
+      border-color: #94a3b8;
     }
 
     @media print {
-      body { background: #020617; padding: 1rem; }
+      body { background: transparent; padding: 1rem; }
       .toolbar { display: none !important; }
     }
   </style>
@@ -206,130 +206,113 @@
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
             <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
           </marker>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
-          </pattern>
         </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
 
         <!-- Boundaries -->
-        <rect x="160" y="30" width="740" height="520" rx="12" fill="rgba(251, 191, 36, 0.04)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
-        <text x="172" y="48" fill="#fbbf24" font-size="10" font-weight="600">AWS us-east-2  ·  VPC 10.90.0.0/16 (2 AZ, 1 NAT)</text>
-        <rect x="330" y="60" width="430" height="470" rx="10" fill="rgba(52, 211, 153, 0.03)" stroke="#34d399" stroke-width="1" stroke-dasharray="6,4"/>
-        <text x="342" y="77" fill="#34d399" font-size="9" font-weight="600">EKS aigw-dev 1.34  ·  2× m7i.large  ·  Pod Identity</text>
-        <rect x="910" y="150" width="140" height="130" rx="12" fill="rgba(251, 191, 36, 0.04)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
-        <text x="920" y="166" fill="#fbbf24" font-size="9" font-weight="600">AWS us-east-1</text>
+        <rect x="160" y="30" width="740" height="520" rx="12" fill="rgba(217, 119, 6, 0.04)" stroke="#d97706" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="172" y="48" fill="#d97706" font-size="10" font-weight="600">AWS us-east-2  ·  VPC 10.90.0.0/16 (2 AZ, 1 NAT)</text>
+        <rect x="330" y="60" width="430" height="470" rx="10" fill="rgba(5, 150, 105, 0.04)" stroke="#059669" stroke-width="1" stroke-dasharray="6,4"/>
+        <text x="342" y="77" fill="#059669" font-size="9" font-weight="600">EKS aigw-dev 1.34  ·  2× m7i.large  ·  Pod Identity</text>
+        <rect x="910" y="150" width="140" height="130" rx="12" fill="rgba(217, 119, 6, 0.04)" stroke="#d97706" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="920" y="166" fill="#d97706" font-size="9" font-weight="600">AWS us-east-1</text>
 
         <!-- Arrows (behind boxes) -->
-        <line x1="140" y1="235" x2="183" y2="235" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <text x="162" y="228" fill="#94a3b8" font-size="8" text-anchor="middle">HTTPS</text>
-        <line x1="305" y1="225" x2="358" y2="225" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <line x1="140" y1="235" x2="183" y2="235" stroke="#0891b2" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <text x="162" y="228" fill="#475569" font-size="8" text-anchor="middle">HTTPS</text>
+        <line x1="305" y1="225" x2="358" y2="225" stroke="#0891b2" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         
-        <line x1="140" y1="430" x2="183" y2="430" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="5,5" marker-end="url(#arrowhead)"/>
-        <text x="162" y="419" fill="#fb7185" font-size="8" text-anchor="middle">login</text>
-        <line x1="245" y1="400" x2="245" y2="272" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="5,5" marker-end="url(#arrowhead)"/>
-        <text x="252" y="340" fill="#fb7185" font-size="7.5" text-anchor="start">authenticate-</text><text x="252" y="350" fill="#fb7185" font-size="7.5" text-anchor="start">cognito</text>
+        <line x1="140" y1="430" x2="183" y2="430" stroke="#e11d48" stroke-width="1.5" stroke-dasharray="5,5" marker-end="url(#arrowhead)"/>
+        <text x="162" y="419" fill="#e11d48" font-size="8" text-anchor="middle">login</text>
+        <line x1="245" y1="400" x2="245" y2="272" stroke="#e11d48" stroke-width="1.5" stroke-dasharray="5,5" marker-end="url(#arrowhead)"/>
+        <text x="252" y="340" fill="#e11d48" font-size="7.5" text-anchor="start">authenticate-</text><text x="252" y="350" fill="#e11d48" font-size="7.5" text-anchor="start">cognito</text>
         <path d="M 305 258 H 340 V 470 H 358" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
         <path d="M 340 370 H 358" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
-        <line x1="460" y1="180" x2="460" y2="142" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <text x="468" y="165" fill="#94a3b8" font-size="8" text-anchor="start">rate limit</text>
-        <line x1="560" y1="210" x2="773" y2="210" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <text x="667" y="203" fill="#94a3b8" font-size="8" text-anchor="middle">VPC endpoint · weight 90</text>
-        <path d="M 560 268 H 980 V 252" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowhead)"/>
-        <text x="667" y="262" fill="#94a3b8" font-size="8" text-anchor="middle">via NAT · weight 10 · failover/retry</text>
+        <line x1="460" y1="180" x2="460" y2="142" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <text x="468" y="165" fill="#475569" font-size="8" text-anchor="start">rate limit</text>
+        <line x1="560" y1="210" x2="773" y2="210" stroke="#d97706" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <text x="667" y="203" fill="#475569" font-size="8" text-anchor="middle">VPC endpoint · weight 90</text>
+        <path d="M 560 268 H 980 V 252" fill="none" stroke="#d97706" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowhead)"/>
+        <text x="667" y="262" fill="#475569" font-size="8" text-anchor="middle">via NAT · weight 10 · failover/retry</text>
         <line x1="460" y1="340" x2="460" y2="292" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arrowhead)"/>
-        <text x="468" y="320" fill="#94a3b8" font-size="7.5" text-anchor="start">scrape gen_ai_* / envoy_*</text>
+        <text x="468" y="320" fill="#475569" font-size="7.5" text-anchor="start">scrape gen_ai_* / envoy_*</text>
         <line x1="560" y1="370" x2="598" y2="370" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
-        <text x="579" y="363" fill="#94a3b8" font-size="7.5" text-anchor="middle">query</text>
-        <path d="M 670 340 V 284 H 562" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <text x="676" y="312" fill="#34d399" font-size="7.5" text-anchor="start">patch backendRef</text><text x="676" y="322" fill="#34d399" font-size="7.5" text-anchor="start">weights (60 s)</text>
+        <text x="579" y="363" fill="#475569" font-size="7.5" text-anchor="middle">query</text>
+        <path d="M 670 340 V 284 H 562" fill="none" stroke="#059669" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <text x="676" y="312" fill="#059669" font-size="7.5" text-anchor="start">patch backendRef</text><text x="676" y="322" fill="#059669" font-size="7.5" text-anchor="start">weights (60 s)</text>
         <line x1="460" y1="440" x2="460" y2="402" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
-        <text x="468" y="425" fill="#94a3b8" font-size="7.5" text-anchor="start">query</text>
-        <line x1="560" y1="470" x2="773" y2="470" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <text x="667" y="463" fill="#94a3b8" font-size="8" text-anchor="middle">create / rotate / revoke API keys</text>
+        <text x="468" y="425" fill="#475569" font-size="7.5" text-anchor="start">query</text>
+        <line x1="560" y1="470" x2="773" y2="470" stroke="#e11d48" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <text x="667" y="463" fill="#475569" font-size="8" text-anchor="middle">create / rotate / revoke API keys</text>
 
         <!-- Components -->
-        <rect x="20" y="200" width="120" height="70" rx="6" fill="#0f172a"/>
-        <rect x="20" y="200" width="120" height="70" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
-        <text x="80.0" y="220" fill="white" font-size="11" font-weight="600" text-anchor="middle">API Clients</text>
-        <text x="80.0" y="235" fill="#94a3b8" font-size="8.5" text-anchor="middle">Claude Code · Codex</text>
-        <text x="80.0" y="248" fill="#94a3b8" font-size="8.5" text-anchor="middle">OpenAI / Anthropic SDK</text>
-        <rect x="20" y="400" width="120" height="60" rx="6" fill="#0f172a"/>
-        <rect x="20" y="400" width="120" height="60" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
-        <text x="80.0" y="420" fill="white" font-size="11" font-weight="600" text-anchor="middle">Ops / Admins</text>
-        <text x="80.0" y="435" fill="#94a3b8" font-size="8.5" text-anchor="middle">Grafana · Prometheus</text>
-        <text x="80.0" y="448" fill="#94a3b8" font-size="8.5" text-anchor="middle">Dashboard</text>
-        <rect x="185" y="200" width="120" height="70" rx="6" fill="#0f172a"/>
-        <rect x="185" y="200" width="120" height="70" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
-        <text x="245.0" y="220" fill="white" font-size="11" font-weight="600" text-anchor="middle">ALB</text>
-        <text x="245.0" y="235" fill="#94a3b8" font-size="8.5" text-anchor="middle">IngressGroup aigw</text>
-        <text x="245.0" y="248" fill="#94a3b8" font-size="8.5" text-anchor="middle">ACM wildcard cert</text>
-        <text x="245.0" y="262" fill="#fbbf24" font-size="7.5" text-anchor="middle">/v1 · /anthropic</text>
-        <rect x="185" y="400" width="120" height="60" rx="6" fill="#0f172a"/>
-        <rect x="185" y="400" width="120" height="60" rx="6" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
-        <text x="245.0" y="420" fill="white" font-size="11" font-weight="600" text-anchor="middle">Cognito</text>
-        <text x="245.0" y="435" fill="#94a3b8" font-size="8.5" text-anchor="middle">user pool</text>
-        <text x="245.0" y="448" fill="#94a3b8" font-size="8.5" text-anchor="middle">aigw-dev-ops</text>
-        <rect x="360" y="90" width="200" height="50" rx="6" fill="#0f172a"/>
-        <rect x="360" y="90" width="200" height="50" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
-        <text x="460.0" y="110" fill="white" font-size="11" font-weight="600" text-anchor="middle">Rate limit + Redis</text>
-        <text x="460.0" y="125" fill="#94a3b8" font-size="8.5" text-anchor="middle">2M tok/h/model · 300 req/min</text>
-        <rect x="360" y="180" width="200" height="110" rx="6" fill="#0f172a"/>
-        <rect x="360" y="180" width="200" height="110" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
-        <text x="460.0" y="200" fill="white" font-size="12" font-weight="600" text-anchor="middle">Envoy AI Gateway</text>
-        <text x="460.0" y="215" fill="#94a3b8" font-size="8.5" text-anchor="middle">Envoy Gateway v1.9.3 · AIGW v1.2.0</text>
-        <text x="460.0" y="228" fill="#94a3b8" font-size="8.5" text-anchor="middle">API-key auth (aigw-api-keys)</text>
-        <text x="460.0" y="241" fill="#94a3b8" font-size="8.5" text-anchor="middle">OpenAI/Anthropic → Bedrock translate</text>
-        <text x="460.0" y="254" fill="#94a3b8" font-size="8.5" text-anchor="middle">passive health check + retry</text>
-        <text x="460.0" y="282" fill="#34d399" font-size="7.5" text-anchor="middle">ns: envoy-gateway-system</text>
-        <rect x="360" y="340" width="200" height="60" rx="6" fill="#0f172a"/>
-        <rect x="360" y="340" width="200" height="60" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
-        <text x="460.0" y="360" fill="white" font-size="11" font-weight="600" text-anchor="middle">Prometheus + Grafana</text>
-        <text x="460.0" y="375" fill="#94a3b8" font-size="8.5" text-anchor="middle">kube-prometheus-stack</text>
-        <text x="460.0" y="388" fill="#94a3b8" font-size="8.5" text-anchor="middle">15d / 20Gi gp3</text>
-        <rect x="600" y="340" width="140" height="60" rx="6" fill="#0f172a"/>
-        <rect x="600" y="340" width="140" height="60" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
-        <text x="670.0" y="360" fill="white" font-size="11" font-weight="600" text-anchor="middle">Scorer</text>
-        <text x="670.0" y="375" fill="#94a3b8" font-size="8.5" text-anchor="middle">error rate + TTFT/E2E</text>
-        <text x="670.0" y="388" fill="#94a3b8" font-size="8.5" text-anchor="middle">EWMA · circuit breaker</text>
-        <rect x="360" y="440" width="200" height="60" rx="6" fill="#0f172a"/>
-        <rect x="360" y="440" width="200" height="60" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
-        <text x="460.0" y="460" fill="white" font-size="11" font-weight="600" text-anchor="middle">Ops Dashboard</text>
-        <text x="460.0" y="475" fill="#94a3b8" font-size="8.5" text-anchor="middle">FastAPI + SPA</text>
-        <text x="460.0" y="488" fill="#94a3b8" font-size="8.5" text-anchor="middle">KPIs · usage · key mgmt</text>
-        <rect x="775" y="175" width="115" height="75" rx="6" fill="#0f172a"/>
-        <rect x="775" y="175" width="115" height="75" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
-        <text x="832.5" y="195" fill="white" font-size="11" font-weight="600" text-anchor="middle">Bedrock</text>
-        <text x="832.5" y="210" fill="#94a3b8" font-size="8.5" text-anchor="middle">primary channel</text>
-        <text x="832.5" y="223" fill="#94a3b8" font-size="8.5" text-anchor="middle">*-use2</text>
-        <text x="832.5" y="242" fill="#fbbf24" font-size="7.5" text-anchor="middle">5 model families</text>
-        <rect x="775" y="440" width="115" height="60" rx="6" fill="#0f172a"/>
-        <rect x="775" y="440" width="115" height="60" rx="6" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
-        <text x="832.5" y="460" fill="white" font-size="11" font-weight="600" text-anchor="middle">Secrets Manager</text>
-        <text x="832.5" y="475" fill="#94a3b8" font-size="8.5" text-anchor="middle">aigw/dev/api-keys</text>
-        <rect x="925" y="180" width="115" height="70" rx="6" fill="#0f172a"/>
-        <rect x="925" y="180" width="115" height="70" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
-        <text x="982.5" y="200" fill="white" font-size="11" font-weight="600" text-anchor="middle">Bedrock</text>
-        <text x="982.5" y="215" fill="#94a3b8" font-size="8.5" text-anchor="middle">secondary channel</text>
-        <text x="982.5" y="228" fill="#94a3b8" font-size="8.5" text-anchor="middle">*-use1</text>
-        <text x="982.5" y="242" fill="#fbbf24" font-size="7.5" text-anchor="middle">public endpoint</text>
+        <rect x="20" y="200" width="120" height="70" rx="6" fill="rgba(100, 116, 139, 0.08)" stroke="#475569" stroke-width="1.5"/>
+        <text x="80.0" y="220" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">API Clients</text>
+        <text x="80.0" y="235" fill="#475569" font-size="8.5" text-anchor="middle">Claude Code · Codex</text>
+        <text x="80.0" y="248" fill="#475569" font-size="8.5" text-anchor="middle">OpenAI / Anthropic SDK</text>
+        <rect x="20" y="400" width="120" height="60" rx="6" fill="rgba(100, 116, 139, 0.08)" stroke="#475569" stroke-width="1.5"/>
+        <text x="80.0" y="420" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Ops / Admins</text>
+        <text x="80.0" y="435" fill="#475569" font-size="8.5" text-anchor="middle">Grafana · Prometheus</text>
+        <text x="80.0" y="448" fill="#475569" font-size="8.5" text-anchor="middle">Dashboard</text>
+        <rect x="185" y="200" width="120" height="70" rx="6" fill="rgba(217, 119, 6, 0.08)" stroke="#d97706" stroke-width="1.5"/>
+        <text x="245.0" y="220" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">ALB</text>
+        <text x="245.0" y="235" fill="#475569" font-size="8.5" text-anchor="middle">IngressGroup aigw</text>
+        <text x="245.0" y="248" fill="#475569" font-size="8.5" text-anchor="middle">ACM wildcard cert</text>
+        <text x="245.0" y="262" fill="#d97706" font-size="7.5" text-anchor="middle">/v1 · /anthropic</text>
+        <rect x="185" y="400" width="120" height="60" rx="6" fill="rgba(225, 29, 72, 0.08)" stroke="#e11d48" stroke-width="1.5"/>
+        <text x="245.0" y="420" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Cognito</text>
+        <text x="245.0" y="435" fill="#475569" font-size="8.5" text-anchor="middle">user pool</text>
+        <text x="245.0" y="448" fill="#475569" font-size="8.5" text-anchor="middle">aigw-dev-ops</text>
+        <rect x="360" y="90" width="200" height="50" rx="6" fill="rgba(124, 58, 237, 0.08)" stroke="#7c3aed" stroke-width="1.5"/>
+        <text x="460.0" y="110" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Rate limit + Redis</text>
+        <text x="460.0" y="125" fill="#475569" font-size="8.5" text-anchor="middle">2M tok/h/model · 300 req/min</text>
+        <rect x="360" y="180" width="200" height="110" rx="6" fill="rgba(5, 150, 105, 0.08)" stroke="#059669" stroke-width="1.5"/>
+        <text x="460.0" y="200" fill="#0f172a" font-size="12" font-weight="600" text-anchor="middle">Envoy AI Gateway</text>
+        <text x="460.0" y="215" fill="#475569" font-size="8.5" text-anchor="middle">Envoy Gateway v1.9.3 · AIGW v1.2.0</text>
+        <text x="460.0" y="228" fill="#475569" font-size="8.5" text-anchor="middle">API-key auth (aigw-api-keys)</text>
+        <text x="460.0" y="241" fill="#475569" font-size="8.5" text-anchor="middle">OpenAI/Anthropic → Bedrock translate</text>
+        <text x="460.0" y="254" fill="#475569" font-size="8.5" text-anchor="middle">passive health check + retry</text>
+        <text x="460.0" y="282" fill="#059669" font-size="7.5" text-anchor="middle">ns: envoy-gateway-system</text>
+        <rect x="360" y="340" width="200" height="60" rx="6" fill="rgba(5, 150, 105, 0.08)" stroke="#059669" stroke-width="1.5"/>
+        <text x="460.0" y="360" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Prometheus + Grafana</text>
+        <text x="460.0" y="375" fill="#475569" font-size="8.5" text-anchor="middle">kube-prometheus-stack</text>
+        <text x="460.0" y="388" fill="#475569" font-size="8.5" text-anchor="middle">15d / 20Gi gp3</text>
+        <rect x="600" y="340" width="140" height="60" rx="6" fill="rgba(5, 150, 105, 0.08)" stroke="#059669" stroke-width="1.5"/>
+        <text x="670.0" y="360" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Scorer</text>
+        <text x="670.0" y="375" fill="#475569" font-size="8.5" text-anchor="middle">error rate + TTFT/E2E</text>
+        <text x="670.0" y="388" fill="#475569" font-size="8.5" text-anchor="middle">EWMA · circuit breaker</text>
+        <rect x="360" y="440" width="200" height="60" rx="6" fill="rgba(8, 145, 178, 0.08)" stroke="#0891b2" stroke-width="1.5"/>
+        <text x="460.0" y="460" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Ops Dashboard</text>
+        <text x="460.0" y="475" fill="#475569" font-size="8.5" text-anchor="middle">FastAPI + SPA</text>
+        <text x="460.0" y="488" fill="#475569" font-size="8.5" text-anchor="middle">KPIs · usage · key mgmt</text>
+        <rect x="775" y="175" width="115" height="75" rx="6" fill="rgba(217, 119, 6, 0.08)" stroke="#d97706" stroke-width="1.5"/>
+        <text x="832.5" y="195" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Bedrock</text>
+        <text x="832.5" y="210" fill="#475569" font-size="8.5" text-anchor="middle">primary channel</text>
+        <text x="832.5" y="223" fill="#475569" font-size="8.5" text-anchor="middle">*-use2</text>
+        <text x="832.5" y="242" fill="#d97706" font-size="7.5" text-anchor="middle">5 model families</text>
+        <rect x="775" y="440" width="115" height="60" rx="6" fill="rgba(225, 29, 72, 0.08)" stroke="#e11d48" stroke-width="1.5"/>
+        <text x="832.5" y="460" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Secrets Manager</text>
+        <text x="832.5" y="475" fill="#475569" font-size="8.5" text-anchor="middle">aigw/dev/api-keys</text>
+        <rect x="925" y="180" width="115" height="70" rx="6" fill="rgba(217, 119, 6, 0.08)" stroke="#d97706" stroke-width="1.5"/>
+        <text x="982.5" y="200" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">Bedrock</text>
+        <text x="982.5" y="215" fill="#475569" font-size="8.5" text-anchor="middle">secondary channel</text>
+        <text x="982.5" y="228" fill="#475569" font-size="8.5" text-anchor="middle">*-use1</text>
+        <text x="982.5" y="242" fill="#d97706" font-size="7.5" text-anchor="middle">public endpoint</text>
 
-        <path d="M 245 180 V 198" fill="none" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="3,3"/>
-        <rect x="185" y="130" width="120" height="50" rx="6" fill="#0f172a"/>
-        <rect x="185" y="130" width="120" height="50" rx="6" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
-        <text x="245" y="150" fill="white" font-size="11" font-weight="600" text-anchor="middle">AWS WAF</text>
-        <text x="245" y="165" fill="#94a3b8" font-size="8.5" text-anchor="middle">IP rep · rate · CRS</text>
+        <path d="M 245 180 V 198" fill="none" stroke="#e11d48" stroke-width="1.5" stroke-dasharray="3,3"/>
+        <rect x="185" y="130" width="120" height="50" rx="6" fill="rgba(225, 29, 72, 0.08)" stroke="#e11d48" stroke-width="1.5"/>
+        <text x="245" y="150" fill="#0f172a" font-size="11" font-weight="600" text-anchor="middle">AWS WAF</text>
+        <text x="245" y="165" fill="#475569" font-size="8.5" text-anchor="middle">IP rep · rate · CRS</text>
 
         <!-- Legend -->
-        <text x="20" y="582" fill="white" font-size="10" font-weight="600">Legend</text>
-        <rect x="80" y="573" width="16" height="10" rx="2" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399"/><text x="102" y="581" fill="#94a3b8" font-size="8" text-anchor="start">In-cluster service</text>
-        <rect x="210" y="573" width="16" height="10" rx="2" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee"/><text x="232" y="581" fill="#94a3b8" font-size="8" text-anchor="start">Web UI</text>
-        <rect x="300" y="573" width="16" height="10" rx="2" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24"/><text x="322" y="581" fill="#94a3b8" font-size="8" text-anchor="start">AWS service</text>
-        <rect x="410" y="573" width="16" height="10" rx="2" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa"/><text x="432" y="581" fill="#94a3b8" font-size="8" text-anchor="start">Data store</text>
-        <rect x="515" y="573" width="16" height="10" rx="2" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185"/><text x="537" y="581" fill="#94a3b8" font-size="8" text-anchor="start">Auth / secrets</text>
-        <line x1="635" y1="578" x2="655" y2="578" stroke="#22d3ee" stroke-width="1.5"/><text x="661" y="581" fill="#94a3b8" font-size="8" text-anchor="start">LLM request path</text>
-        <line x1="760" y1="578" x2="780" y2="578" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="5,5"/><text x="786" y="581" fill="#94a3b8" font-size="8" text-anchor="start">Ops login</text>
-        <line x1="850" y1="578" x2="870" y2="578" stroke="#34d399" stroke-width="1.5"/><text x="876" y="581" fill="#94a3b8" font-size="8" text-anchor="start">Control loop</text>
+        <text x="20" y="582" fill="#0f172a" font-size="10" font-weight="600">Legend</text>
+        <rect x="80" y="573" width="16" height="10" rx="2" fill="rgba(5, 150, 105, 0.08)" stroke="#059669"/><text x="102" y="581" fill="#475569" font-size="8" text-anchor="start">In-cluster service</text>
+        <rect x="210" y="573" width="16" height="10" rx="2" fill="rgba(8, 145, 178, 0.08)" stroke="#0891b2"/><text x="232" y="581" fill="#475569" font-size="8" text-anchor="start">Web UI</text>
+        <rect x="300" y="573" width="16" height="10" rx="2" fill="rgba(217, 119, 6, 0.08)" stroke="#d97706"/><text x="322" y="581" fill="#475569" font-size="8" text-anchor="start">AWS service</text>
+        <rect x="410" y="573" width="16" height="10" rx="2" fill="rgba(124, 58, 237, 0.08)" stroke="#7c3aed"/><text x="432" y="581" fill="#475569" font-size="8" text-anchor="start">Data store</text>
+        <rect x="515" y="573" width="16" height="10" rx="2" fill="rgba(225, 29, 72, 0.08)" stroke="#e11d48"/><text x="537" y="581" fill="#475569" font-size="8" text-anchor="start">Auth / secrets</text>
+        <line x1="635" y1="578" x2="655" y2="578" stroke="#0891b2" stroke-width="1.5"/><text x="661" y="581" fill="#475569" font-size="8" text-anchor="start">LLM request path</text>
+        <line x1="760" y1="578" x2="780" y2="578" stroke="#e11d48" stroke-width="1.5" stroke-dasharray="5,5"/><text x="786" y="581" fill="#475569" font-size="8" text-anchor="start">Ops login</text>
+        <line x1="850" y1="578" x2="870" y2="578" stroke="#059669" stroke-width="1.5"/><text x="876" y="581" fill="#475569" font-size="8" text-anchor="start">Control loop</text>
       </svg>
     </div>
 
@@ -388,7 +371,7 @@
         const el = document.getElementById('report-container');
         const r = el.getBoundingClientRect();
         const pad = 32;
-        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const canvas = await html2canvas(document.body, { backgroundColor: null, scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
         const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
         btn.textContent = '✓ Copied!';
@@ -405,7 +388,7 @@
         const el = document.getElementById('report-container');
         const r = el.getBoundingClientRect();
         const pad = 32;
-        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const canvas = await html2canvas(document.body, { backgroundColor: null, scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
         const link = document.createElement('a');
         link.download = 'envoy-aigw-architecture.png';
         link.href = canvas.toDataURL('image/png');
@@ -424,7 +407,7 @@
         const el = document.getElementById('report-container');
         const r = el.getBoundingClientRect();
         const pad = 32;
-        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const canvas = await html2canvas(document.body, { backgroundColor: null, scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
         const imgData = canvas.toDataURL('image/png');
         const { jsPDF } = window.jspdf;
         const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
